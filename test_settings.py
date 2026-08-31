@@ -83,12 +83,38 @@ def main():
         page = client.get(general).content.decode('utf-8')
         check('sahifada ham yangi qiymat', '__st boshqa jarayon' in page)
 
-        # Tekshiruvdan o'tmagan forma umumiy obyektni ifloslantirmasligi kerak
+        # Saqlanmagan tahrir KEYINGI so'rovga o'tmasligi kerak. So'rov
+        # ichida esa bitta nusxa ishlatiladi — forma qiymatlari o'sha
+        # so'rovda ko'rinishi to'g'ri xatti-harakat.
+        from management.current import clear_cached
+
         dirty = SiteSettings.load()
         dirty.app_name = 'saqlanmagan tahrir'
-        check("saqlanmagan tahrir boshqa so'rovga o'tmadi",
+        clear_cached()      # so'rov tugadi
+        check("saqlanmagan tahrir keyingi so'rovga o'tmadi",
               SiteSettings.load().app_name == '__st boshqa jarayon',
               SiteSettings.load().app_name)
+
+        # ── 1c. So'rov ichida bir marta o'qiladi ────────────────
+        # Sozlamalar juda ko'p joyda kerak (har stansiya narxi, har sessiya
+        # tarifi). Stansiyalar ro'yxatida bir xil qator 14 marta o'qilardi.
+        from django.conf import settings as django_settings
+        from django.db import connection, reset_queries
+
+        was_debug = django_settings.DEBUG
+        django_settings.DEBUG = True
+        try:
+            with override_settings(DEBUG=True):
+                reset_queries()
+                client.get('/stations/')
+                repeats = sum(1 for q in connection.queries
+                              if 'sitesettings' in q['sql'].lower())
+            check("sozlamalar so'rov ichida bir marta o'qildi",
+                  repeats <= 1, f'{repeats} marta')
+        finally:
+            # Asl qiymat qaytariladi: `False` qilib qo'yilsa statik
+            # fayllar manifesti talab qilinib, keyingi sahifalar yiqilardi
+            django_settings.DEBUG = was_debug
 
         # ── 2. Bo'limni saqlash boshqasiga tegmaydi ─────────────
         before_mode = settings_obj.maintenance_mode

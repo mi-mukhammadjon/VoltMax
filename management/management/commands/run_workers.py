@@ -63,6 +63,22 @@ def _overdue():
     return out.getvalue().strip()
 
 
+def _cleanup():
+    """Eskirgan yozuvlarni tozalaydi.
+
+    Kuniga bir marta yetarli — shuning uchun oralig'i uzun. Tozalashsiz
+    telemetriya bir yilda millionlab qatorga yetadi.
+    """
+    from management.retention import prune_all
+
+    result = prune_all()
+    total = sum(result.values())
+    if total:
+        parts = ', '.join(f'{name}: {count}' for name, count in result.items() if count)
+        return f"tozalandi — {parts}"
+    return ''
+
+
 def _push():
     from management.push import deliver_pending
 
@@ -78,6 +94,7 @@ JOBS = [
     ('devices', _devices, 120),
     ('overdue', _overdue, 300),
     ('push', _push, 30),
+    ('cleanup', _cleanup, 24 * 3600),
 ]
 
 
@@ -137,6 +154,11 @@ class Command(BaseCommand):
             stop.wait(interval)
 
     def _run(self, name, func):
+        # Har tsikl sozlamalarni qaytadan o'qiydi: ishchi uzluksiz
+        # aylanadi va so'rovdagidek "yangi boshlanish" yo'q
+        from management.current import clear_cached
+
+        clear_cached()
         try:
             message = func()
         except Exception as error:      # noqa: BLE001 — tsikl to'xtamasligi kerak

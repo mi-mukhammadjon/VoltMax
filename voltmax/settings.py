@@ -72,6 +72,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Tizim sozlamalari bitta so'rov davomida bir marta o'qiladi
+    'management.current.SettingsCacheMiddleware',
 ]
 
 ROOT_URLCONF = 'voltmax.urls'
@@ -190,6 +192,28 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+# ─── Xavfsizlik (faqat ishlab chiqarishda) ────────────────────
+# Panelga xodimlar parol bilan kiradi. HTTPS'siz sessiya cookie'sini
+# tarmoqdan o'qib olish mumkin, shuning uchun `DEBUG=False` bo'lganda
+# ulanish majburiy shifrlanadi.
+#
+# Lokal ishlab chiqishda bular o'chirilgan: `localhost` da HTTPS yo'q va
+# yoqilsa brauzer cheksiz qayta yo'naltirishga tushib qolardi.
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # Brauzer bir yil davomida faqat HTTPS orqali murojaat qiladi
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    # Sahifani begona saytga joylab bo'lmasin (clickjacking)
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = 'same-origin'
 
 # ─── CORS ─────────────────────────────────────────────────────
 # Mobil ilova (axios, native HTTP) Origin header yubormaydi — CORS unga umuman

@@ -61,9 +61,26 @@ class VerifyOTPView(APIView):
         phone = serializer.validated_data['phone']
         code = serializer.validated_data['code']
 
-        otp = OTPCode.objects.filter(phone=phone, code=code, is_used=False).order_by('-created_at').first()
-        if not otp or otp.is_expired:
+        # Oxirgi YUBORILGAN kod qidiriladi, kod bo'yicha emas: aks holda
+        # noto'g'ri terilgan kod hech qaysi yozuvga tushmasdi va urinishlar
+        # sanalmasdi — chegaraning ma'nosi qolmasdi.
+        otp = (OTPCode.objects
+               .filter(phone=phone, is_used=False)
+               .order_by('-created_at').first())
+
+        if otp is None or otp.is_expired:
             return Response({'detail': "Kod noto'g'ri yoki muddati o'tgan"}, status=400)
+
+        if otp.is_locked:
+            return Response(
+                {'detail': "Urinishlar soni tugadi. Yangi kod so'rang"}, status=429)
+
+        if otp.code != code:
+            locked = otp.wrong_attempt()
+            return Response(
+                {'detail': "Urinishlar soni tugadi. Yangi kod so'rang" if locked
+                           else "Kod noto'g'ri"},
+                status=429 if locked else 400)
 
         otp.is_used = True
         otp.save(update_fields=['is_used'])

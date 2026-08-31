@@ -13,6 +13,10 @@ class OTPCode(models.Model):
     code = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
     is_used = models.BooleanField(default=False)
+    # Noto'g'ri urinishlar soni. Chegarasiz bo'lsa 6 xonali kodni terib
+    # chiqish mumkin: daqiqasiga 5 ta so'rov cheklovi bunga to'sqinlik
+    # qilmaydi, chunki urinish uzoq davom etishi mumkin.
+    attempts = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         verbose_name = 'OTP kod'
@@ -24,7 +28,32 @@ class OTPCode(models.Model):
 
     @property
     def is_expired(self):
-        return timezone.now() > self.created_at + timedelta(minutes=OTP_TTL_MINUTES)
+        """Muddat SOZLAMADAN olinadi (Sozlamalar > Xavfsizlik).
+
+        Ilgari u kodda qattiq yozilgan edi: operator panelda qiymatni
+        o'zgartirardi, tizim esa unga qaramasdi.
+        """
+        return timezone.now() > self.created_at + timedelta(minutes=self.ttl_minutes)
+
+    @property
+    def ttl_minutes(self) -> int:
+        from management.models import SiteSettings
+
+        return SiteSettings.load().otp_ttl_minutes or OTP_TTL_MINUTES
+
+    @property
+    def is_locked(self) -> bool:
+        """Urinishlar chegarasi tugadimi."""
+        from management.models import SiteSettings
+
+        limit = SiteSettings.load().otp_max_attempts
+        return bool(limit) and self.attempts >= limit
+
+    def wrong_attempt(self):
+        """Noto'g'ri urinishni sanaydi va chegara tugaganini qaytaradi."""
+        self.attempts += 1
+        self.save(update_fields=['attempts'])
+        return self.is_locked
 
     @staticmethod
     def generate(phone: str) -> 'OTPCode':

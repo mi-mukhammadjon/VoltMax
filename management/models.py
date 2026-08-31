@@ -285,12 +285,20 @@ class SiteSettings(models.Model):
 
     def save(self, *args, **kwargs):
         # Singleton: doim bitta yozuv (pk=1) bo'ladi
+        from .current import clear_cached
+
         self.pk = 1
         super().save(*args, **kwargs)
+        # So'rov ichidagi kesh eskirdi — saqlagandan keyin o'sha so'rovda
+        # yangi qiymat ko'rinishi kerak
+        clear_cached()
 
     @classmethod
     def load(cls):
-        """Sozlamalar yozuvi — HAR SAFAR bazadan.
+        """Sozlamalar yozuvi.
+
+        Bitta so'rov davomida bir marta o'qiladi (`current.py`), so'rov
+        tugagach kesh tashlanadi.
 
         Ilgari u xotirada 5 daqiqa saqlanardi. Ikki jiddiy muammo bor edi:
 
@@ -302,10 +310,17 @@ class SiteSettings(models.Model):
            paytida uni JOYIDA o'zgartiradi, ya'ni bir so'rovdagi tugallanmagan
            tahrir boshqasiga ko'rinib qolishi mumkin edi.
 
-        Bu — birlamchi kalit bo'yicha bitta qator o'qish, ya'ni eng arzon
-        so'rov. To'g'ri ishlash undan muhimroq.
+        So'rovlar ORASIDA saqlanmaydi: aks holda boshqa jarayondagi
+        o'zgarish ko'rinmay qolardi.
         """
+        from .current import get_cached, set_cached
+
+        cached = get_cached()
+        if cached is not None:
+            return cached
+
         obj, _ = cls.objects.get_or_create(pk=1)
+        set_cached(obj)
         return obj
 
 

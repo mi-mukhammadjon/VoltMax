@@ -46,6 +46,14 @@ def login_view(request):
             error = "Login yoki parol noto'g'ri"
         else:
             login(request, user)
+            # Sessiya muddati sozlamadan olinadi (Sozlamalar > Xavfsizlik).
+            # Ilgari u panelda turardi, lekin hech qayerda ishlatilmasdi —
+            # sessiya Django standarti bo'yicha ikki hafta ochiq qolardi.
+            from management.models import SiteSettings
+
+            minutes = SiteSettings.load().session_timeout_minutes
+            if minutes:
+                request.session.set_expiry(minutes * 60)
             return redirect('dashboard:home')
     return render(request, 'dashboard/login.html', {'form': form, 'error': error})
 
