@@ -686,7 +686,7 @@ class OCPPConsumer(AsyncWebsocketConsumer):
     def _start_live_session(self, ocpp_connector_id, id_tag, meter_start):
         from accounts.models import RfidCard
         from django.contrib.auth.models import User
-        from stations.models import Connector
+        from stations.models import ChargerLog, Connector
         from sessions_app.models import ChargingSession
 
         connector = Connector.objects.select_related('station').filter(
@@ -703,9 +703,30 @@ class OCPPConsumer(AsyncWebsocketConsumer):
         # Ilgari karta bo'yicha har safar `id_tag` nomli YANGI foydalanuvchi
         # yaratilardi: pul hech kimning hamyonidan yechilmasdi va bitta odamning
         # sessiyalari bir necha "hisob"ga tarqalib ketardi.
+        # `APP-<id>` ga SO'ROQSIZ ishonib bo'lmaydi. Foydalanuvchi
+        # raqamlari ketma-ket, ya'ni taxmin qilsa bo'ladi: buzilgan yoki
+        # yomon niyatli charger `APP-5` yuborib begona odamning
+        # hamyonidan pul yechishi mumkin edi. Shuning uchun ilova
+        # so'ragani BAZADA tasdiqlanishi kerak (`RemoteStartIntent`).
+        from sessions_app.models import RemoteStartIntent
+
         user = None
+        requested_by = None
         if id_tag.startswith('APP-'):
-            user = User.objects.filter(id=id_tag[len('APP-'):]).first()
+            claimed = User.objects.filter(id=id_tag[len('APP-'):]).first()
+            confirmed, _code = (RemoteStartIntent.peek(claimed, connector.station)
+                                if claimed else (False, ''))
+            if confirmed:
+                user, requested_by = claimed, claimed
+            else:
+                # So'rov yo'q: sessiya texnik hisobga yoziladi va yozuv
+                # qoladi — operator buni ko'rishi kerak
+                ChargerLog.objects.create(
+                    station_id=self.station_id, kind=ChargerLog.Kind.OTHER,
+                    action='StartTransaction',
+                    summary=f'Tasdiqlanmagan idTag: {id_tag}'[:200],
+                    payload={'idTag': id_tag},
+                )
         elif id_tag and not id_tag.startswith('DASH-'):
             card = RfidCard.objects.select_related(
                 'user', 'company__billing_user'
@@ -730,10 +751,12 @@ class OCPPConsumer(AsyncWebsocketConsumer):
         # BOSHLANGAN paytdagi holat bo'yicha olinadi. Ilovadan masofadan
         # boshlansa, foydalanuvchi kiritgan promo-kod shu yerda kutib
         # turadi (`PendingPromo`) — aks holda u yo'lda yo'qolardi.
-        from sessions_app.models import PendingPromo
+        from sessions_app.models import RemoteStartIntent
         from stations import pricing
 
-        promo_code = PendingPromo.take(user, connector.station)
+        promo_code = ''
+        if requested_by is not None:
+            _found, promo_code = RemoteStartIntent.take(requested_by, connector.station)
         quote = pricing.resolve(connector.station, promo_code=promo_code)
 
         session = ChargingSession.objects.create(

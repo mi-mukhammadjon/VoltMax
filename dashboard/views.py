@@ -24,6 +24,7 @@ from dashboard.templatetags.money import format_som
 from wallet.models import WalletBalance, Transaction
 from .charts import line_chart
 from .decorators import staff_required
+from .redirects import safe_redirect
 from .forms import LoginForm, StationForm, ConnectorForm, StationAmenityForm
 
 PAGE_SIZE = 20
@@ -442,8 +443,7 @@ def connector_remote_start(request, pk, connector_pk):
                        f'Masofadan boshlash — {connector.station.name} / {connector.label}',
                        url=f'/stations/{connector.station_id}/')
             messages.success(request, "Masofadan boshlash buyrug'i yuborildi")
-    next_url = request.POST.get('next')
-    return redirect(next_url) if next_url else redirect('dashboard:station_detail', pk=pk)
+    return safe_redirect(request, redirect('dashboard:station_detail', pk=pk).url)
 
 
 @staff_required
@@ -475,8 +475,7 @@ def connector_remote_stop(request, pk, connector_pk):
             messages.success(request, "Faol sessiya topilmadi — ulagich holati sinxronlandi")
         else:
             messages.error(request, "Bu ulagichda zaryadlash yo'q")
-    next_url = request.POST.get('next')
-    return redirect(next_url) if next_url else redirect('dashboard:station_detail', pk=pk)
+    return safe_redirect(request, redirect('dashboard:station_detail', pk=pk).url)
 
 
 # ─── Foydalanuvchilar ───────────────────────────────────────────
@@ -626,8 +625,7 @@ def session_force_stop(request, pk):
             if result.warning:
                 messages.error(request, result.warning)
     # `next` — tugma qaysi sahifadan bosilgan bo'lsa, o'sha yerga qaytaramiz
-    next_url = request.POST.get('next')
-    return redirect(next_url) if next_url else redirect('dashboard:session_detail', pk=pk)
+    return safe_redirect(request, redirect('dashboard:session_detail', pk=pk).url)
 
 
 # ─── Tranzaksiyalar ─────────────────────────────────────────────
@@ -666,7 +664,7 @@ def sync_status(request):
             )
         else:
             messages.success(request, 'Hammasi mos — tuzatish talab qilinmadi')
-    return redirect(request.POST.get('next') or 'dashboard:stations_health')
+    return safe_redirect(request, 'dashboard:stations_health')
 
 
 @staff_required
@@ -845,8 +843,7 @@ def connector_toggle_service(request, pk, connector_pk):
         connector.station.refresh_from_db()
         sync_station_status(connector.station)
 
-    next_url = request.POST.get('next')
-    return redirect(next_url) if next_url else redirect('dashboard:station_detail', pk=pk)
+    return safe_redirect(request, redirect('dashboard:station_detail', pk=pk).url)
 
 
 # ─── Ikki bosqichli kirish ──────────────────────────────────────

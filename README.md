@@ -140,6 +140,7 @@ python test_login_guard.py  # panel logini himoyasi
 python test_ocpp_auth.py    # OCPP paroli va to'lov kalitlari
 python test_api_hardening.py  # API ruxsatlari va so'rov chegaralari
 python test_two_factor.py   # ikki bosqichli kirish
+python test_injection.py    # soxta idTag, CSV formulasi, ochiq yo'naltirish
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`

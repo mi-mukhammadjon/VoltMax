@@ -14,10 +14,11 @@ from ocpp_gateway import commands as ocpp_commands
 from stations.models import ChargerLog, Station
 
 from .decorators import staff_required
+from .redirects import safe_redirect
 
 
 def _back(request, station):
-    return redirect(request.POST.get('next') or f'/stations/{station.id}/')
+    return safe_redirect(request, f'/stations/{station.id}/')
 
 
 def _require_online(request, station) -> bool:

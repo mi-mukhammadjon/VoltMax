@@ -25,6 +25,31 @@ BOM = '﻿'
 DELIMITER = ';'
 
 
+# Excel va LibreOffice quyidagi belgilar bilan boshlangan katakni
+# FORMULA deb o'qiydi. Telefon raqamimiz `+998 (90) ...` ko'rinishida,
+# ya'ni oddiy eksport ham noto'g'ri chiqadi — stansiya nomi yoki sharh
+# matni esa hujum vositasiga aylanishi mumkin (jadval ochilganda
+# formula bajariladi).
+RISKY_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
+
+
+def safe_cell(value):
+    """Katakni Excel formula deb o'qimasligi uchun tayyorlaydi.
+
+    Sonlarga tegilmaydi: ular formula bo'la olmaydi va matnga
+    aylantirilsa jadvalda yig'ib bo'lmasdi.
+    """
+    if isinstance(value, (int, float)) or value is None:
+        return value
+
+    text = str(value)
+    if text.startswith(RISKY_PREFIXES):
+        # Apostrof — Excel va LibreOffice tushunadigan "bu matn" belgisi.
+        # Ko'rinishda u chiqmaydi.
+        return "'" + text
+    return text
+
+
 def csv_response(filename, header, rows):
     """Qatorlardan CSV javob yasaydi.
 
@@ -37,7 +62,7 @@ def csv_response(filename, header, rows):
     writer = csv.writer(buffer, delimiter=DELIMITER, lineterminator='\r\n')
     writer.writerow(header)
     for row in rows:
-        writer.writerow(row)
+        writer.writerow([safe_cell(cell) for cell in row])
 
     stamp = timezone.localdate().strftime('%Y%m%d')
     response = HttpResponse(buffer.getvalue(), content_type='text/csv; charset=utf-8')

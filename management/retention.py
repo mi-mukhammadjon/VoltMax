@@ -34,10 +34,10 @@ POLICIES = [
     ('xabarlar', 'management.UserNotification', 'created_at', 180, 200_000),
     ('amallar', 'management.ActivityLog', 'created_at', 365, 200_000),
     ('sozlamalar', 'management.SettingsChange', 'changed_at', 365, 50_000),
-    # Charger javob bermay qolgan promo-kodlar. `PendingPromo.take()` ham
-    # eskisini tozalaydi, lekin faqat o'sha foydalanuvchi qayta urinsa —
-    # umuman qaytmaganlari shu yerda yig'ishtiriladi.
-    ('promo-kodlar', 'sessions_app.PendingPromo', 'created_at', 1, 10_000),
+    # Charger javob bermay qolgan masofadan boshlash so'rovlari.
+    # `take()` ham eskisini tozalaydi, lekin faqat o'sha foydalanuvchi
+    # qayta urinsa — umuman qaytmaganlari shu yerda yig'ishtiriladi.
+    ('boshlash so'rovlari', 'sessions_app.RemoteStartIntent', 'created_at', 1, 10_000),
     # Kirish urinishlari: 90 kun tergov uchun yetarli, undan keyin bu
     # faqat shaxsiy ma'lumot (IP, brauzer) saqlab turish bo'lardi
     ('kirish urinishlari', 'management.LoginAttempt', 'created_at', 90, 100_000),

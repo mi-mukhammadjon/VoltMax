@@ -314,22 +314,32 @@ class SessionMeterReading(models.Model):
         return f'#{self.session_id} @ {self.recorded_at:%H:%M:%S}'
 
 
-class PendingPromo(models.Model):
-    """Masofadan boshlashda kiritilgan promo-kodni vaqtincha saqlaydi.
+class RemoteStartIntent(models.Model):
+    """Ilova so'ragan masofadan boshlash — charger javob bergunicha.
 
-    Nima uchun kerak: haqiqiy charger'da sessiyani ILOVA yaratmaydi.
-    Ilova RemoteStartTransaction yuboradi va 202 qaytadi, sessiyani esa
-    charger StartTransaction bilan javob berganda OCPP shlyuzi yaratadi.
-    Oradagi bu sakrashda promo-kod yo'qolardi — foydalanuvchi kodni
+    Haqiqiy charger'da sessiyani ILOVA yaratmaydi: u
+    RemoteStartTransaction yuboradi va 202 qaytadi, sessiyani esa charger
+    StartTransaction bilan javob berganda OCPP shlyuzi yaratadi. Oradagi
+    bu sakrashda ikki narsa kerak bo'ladi.
+
+    BIRINCHISI — promo-kod. Usiz kod yo'lda yo'qolardi: foydalanuvchi
     kiritardi, chegirma esa qo'llanmasdi.
 
-    Kod bazada saqlanadi (xotirada emas): veb va OCPP alohida jarayonlar,
-    hatto alohida serverda ishlashi mumkin.
+    IKKINCHISI, muhimrog'i — KIMNING hisobiga yozilishini tasdiqlash.
+    Charger `APP-<foydalanuvchi id>` degan idTag yuboradi va u ilgari
+    so'roqsiz ishonilardi. Foydalanuvchi raqamlari esa ketma-ket, ya'ni
+    taxmin qilsa bo'ladi: buzilgan yoki yomon niyatli charger `APP-5`
+    yuborib, BEGONA odamning hamyonidan pul yechishi mumkin edi. Endi
+    bunday idTag faqat shu yozuv mavjud bo'lganda qabul qilinadi.
+
+    Yozuv bazada saqlanadi (xotirada emas): veb va OCPP alohida
+    jarayonlar, hatto alohida serverda ishlashi mumkin.
     """
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pending_promos')
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
+                             related_name='remote_start_intents')
     station = models.ForeignKey(Station, on_delete=models.CASCADE, related_name='+')
-    code = models.CharField(max_length=40)
+    code = models.CharField('Promo-kod', max_length=40, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     # Charger javob bermasa yozuv osilib qolmasligi kerak: eskisi
@@ -338,28 +348,45 @@ class PendingPromo(models.Model):
     TTL_MINUTES = 15
 
     class Meta:
-        verbose_name = 'Kutilayotgan promo-kod'
-        verbose_name_plural = 'Kutilayotgan promo-kodlar'
+        verbose_name = "Masofadan boshlash so'rovi"
+        verbose_name_plural = "Masofadan boshlash so'rovlari"
         ordering = ['-created_at']
 
     def __str__(self):
-        return f'{self.user.username} — {self.code}'
+        return f'{self.user.username} — {self.station.name}'
 
     @classmethod
-    def remember(cls, user, station, code):
+    def remember(cls, user, station, code=''):
         cls.objects.filter(user=user, station=station).delete()
-        return cls.objects.create(user=user, station=station, code=code)
+        return cls.objects.create(user=user, station=station, code=code or '')
+
+    @classmethod
+    def peek(cls, user, station):
+        """So'rov bormi — o'chirmasdan tekshiradi.
+
+        `take()` dan farqi shunda: sessiya yaratilishidan OLDIN kimning
+        hisobiga yozilishini bilish kerak, lekin yozuvni o'sha yerda
+        o'chirib yuborsak, keyingi qadamdagi promo-kod yo'qolardi.
+        """
+        cutoff = timezone.now() - timedelta(minutes=cls.TTL_MINUTES)
+        row = cls.objects.filter(user=user, station=station,
+                                 created_at__gte=cutoff).first()
+        return (True, row.code) if row else (False, '')
 
     @classmethod
     def take(cls, user, station):
-        """Kodni oladi va o'chiradi — bir marta ishlatiladi."""
+        """So'rovni oladi va o'chiradi — bir marta ishlatiladi.
+
+        `(topildi, promo_kod)` qaytaradi. `topildi` yolg'on bo'lsa,
+        charger yubormagan sessiyani bu foydalanuvchiga yozib bo'lmaydi.
+        """
         cutoff = timezone.now() - timedelta(minutes=cls.TTL_MINUTES)
         cls.objects.filter(created_at__lt=cutoff).delete()
 
         row = cls.objects.filter(user=user, station=station,
                                  created_at__gte=cutoff).first()
         if row is None:
-            return ''
+            return False, ''
         code = row.code
         row.delete()
-        return code
+        return True, code

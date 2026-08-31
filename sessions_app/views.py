@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from ocpp_gateway import commands as ocpp_commands
 from stations.models import Station, Connector
-from .models import ChargingSession, PendingPromo
+from .models import ChargingSession, RemoteStartIntent
 from .services import vehicle_snapshot
 from .serializers import ChargingSessionSerializer, StartSessionSerializer, SessionHistorySerializer
 
@@ -59,9 +59,11 @@ class StartSessionView(APIView):
                 return Response({'detail': error}, status=400)
 
         if station.ocpp_id and connector.ocpp_connector_id:
-            # Sessiyani charger yaratadi — kod shu paytgacha saqlanib turadi
-            if promo_code:
-                PendingPromo.remember(request.user, station, promo_code)
+            # Sessiyani charger yaratadi. Bu yozuv ikki ish qiladi: kodni
+            # saqlaydi va sessiya AYNAN shu foydalanuvchiga yozilishini
+            # tasdiqlaydi — charger yuborgan `APP-<id>` ga so'roqsiz
+            # ishonib bo'lmaydi.
+            RemoteStartIntent.remember(request.user, station, promo_code)
             if not station.is_online:
                 return Response({'detail': 'Charger hozir oflayn — birozdan so\'ng qayta urinib ko\'ring'}, status=503)
             ocpp_commands.remote_start_transaction(

@@ -29,6 +29,7 @@ from stations.models import Station
 from wallet.models import Transaction, WalletBalance
 
 from .decorators import staff_required
+from .redirects import safe_redirect
 from .forms import COMPANY_SECTIONS, CompanyForm, RfidCardForm
 from .templatetags.money import format_som
 from .widgets import strip_separators
@@ -45,7 +46,7 @@ EXTEND_OPTIONS = [
 
 
 def _back(request):
-    return redirect(request.POST.get('next') or 'dashboard:rfid_cards')
+    return safe_redirect(request, 'dashboard:rfid_cards')
 
 
 def _card_filters(request):

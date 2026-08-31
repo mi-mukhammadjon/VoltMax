@@ -25,12 +25,13 @@ from stations.models import Connector, MaintenanceIssue, Station
 from stations.services import sync_all, sync_station_status
 
 from .decorators import staff_required
+from .redirects import safe_redirect
 from .views import PAGE_SIZE, _push_availability, _request_device_status
 
 
 def _back(request):
     """Amaldan keyin operator o'sha ro'yxatga (filtri bilan) qaytsin."""
-    return redirect(request.POST.get('next') or 'dashboard:maintenance')
+    return safe_redirect(request, 'dashboard:maintenance')
 
 
 def _display_name(user):
