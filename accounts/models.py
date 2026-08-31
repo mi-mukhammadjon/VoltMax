@@ -561,3 +561,85 @@ class DeviceToken(models.Model):
             },
         )
         return obj
+
+
+class UserProfile(models.Model):
+    """Foydalanuvchining qo'shimcha ma'lumoti — hozircha avatar.
+
+    Bitta model IKKALASINI qamraydi: panel xodimi ham, ilova mijozi ham
+    `User`. Alohida jadval `auth_user` ga tegmaslik uchun: Django ning
+    o'z modelini almashtirishning yo'li bor, lekin u loyiha boshida
+    qilinadi — keyin ko'chirish og'ir.
+
+    Yozuv kerak bo'lganda o'zi yaratiladi (`for_user`): har foydalanuvchi
+    uchun oldindan yaratib qo'yish jadvalni bekorga to'ldirardi.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='profile', verbose_name='Foydalanuvchi',
+    )
+    avatar = models.ImageField(
+        'Avatar', upload_to='avatars/%Y/%m/', null=True, blank=True,
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Foydalanuvchi profili'
+        verbose_name_plural = 'Foydalanuvchi profillari'
+
+    def __str__(self):
+        return f'{self.user.username} profili'
+
+    @classmethod
+    def for_user(cls, user):
+        profile, _ = cls.objects.get_or_create(user=user)
+        return profile
+
+    @property
+    def avatar_url(self):
+        """Avatar manzili yoki `None`.
+
+        Fayl saqlashdan o'chirilgan bo'lsa (R2 ga o'tishda, tozalashda)
+        `.url` xato tashlaydi — sahifa shu sababli qulamasligi kerak.
+        """
+        if not self.avatar:
+            return None
+        try:
+            return self.avatar.url
+        except Exception:       # noqa: BLE001
+            return None
+
+    def set_avatar(self, uploaded):
+        """Yuklangan faylni qayta ishlab saqlaydi."""
+        from django.core.files.base import ContentFile
+
+        from .avatars import process
+
+        name, content = process(uploaded)
+        # Eskisi o'chiriladi: aks holda har almashtirishda saqlashda
+        # yangi fayl qolib, joy behuda band bo'lardi
+        self.clear_avatar(save=False)
+        self.avatar.save(name, ContentFile(content), save=True)
+        return self
+
+    def clear_avatar(self, save=True):
+        if self.avatar:
+            try:
+                self.avatar.delete(save=False)
+            except Exception:       # noqa: BLE001 — fayl allaqachon yo'q bo'lishi mumkin
+                pass
+            self.avatar = None
+            if save:
+                self.save(update_fields=['avatar', 'updated_at'])
+        return self
+
+
+def avatar_url_for(user):
+    """Foydalanuvchining avatari — yozuv bo'lmasa `None`.
+
+    Alohida funksiya: shablon va serializerlarda `profile` bor-yo'qligini
+    har safar tekshirib o'tirmaslik uchun.
+    """
+    profile = getattr(user, 'profile', None)
+    return profile.avatar_url if profile else None

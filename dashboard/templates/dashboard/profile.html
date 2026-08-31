@@ -14,11 +14,36 @@
   Ilgari bu ma'lumot uchta alohida katakda tarqoq turardi va ular
   orasida bog'liqlik ko'rinmasdi.
 
-  Bosh harflar avatar o'rnida: rasm yuklash imkoni yo'q, bo'sh doira esa
-  ma'nosiz bo'lardi.
+  Rasm qo'yilmagan bo'lsa bosh harflar turadi — bo'sh doira ma'nosiz
+  bo'lardi, ism esa har doim bor.
 {% endcomment %}
 <div class="card profile-hero">
-  <div class="profile-avatar" aria-hidden="true">{{ initials }}</div>
+  {% comment %}
+    Avatar bosiladigan: alohida «Yuklash» tugmasi o'rniga rasmning
+    o'ziga bosiladi — bu odatiy naqsh va tushuntirish talab qilmaydi.
+  {% endcomment %}
+  <form method="post" enctype="multipart/form-data" class="avatar-form"
+        id="avatar-form">
+    {% csrf_token %}
+    <input type="hidden" name="section" value="avatar">
+    <label class="profile-avatar" for="avatar-input"
+           title="Rasmni almashtirish">
+      {% if avatar_url %}
+        <img src="{{ avatar_url }}" alt="">
+      {% else %}
+        <span aria-hidden="true">{{ initials }}</span>
+      {% endif %}
+      <span class="avatar-overlay">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7h3l1.5-2h7L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/>
+        </svg>
+      </span>
+    </label>
+    {# Tanlangach forma o'zi yuboriladi — «Saqlash» bosish shart emas #}
+    <input type="file" id="avatar-input" name="avatar" accept="image/*"
+           class="visually-hidden" data-autosubmit>
+  </form>
 
   <div class="profile-identity">
     <div class="profile-name">
@@ -26,6 +51,14 @@
     </div>
     <div class="profile-meta">
       <span class="mono">{{ member.username|phone }}</span>
+      {% if avatar_url %}
+        <form method="post" class="avatar-remove">
+          {% csrf_token %}
+          <input type="hidden" name="section" value="avatar">
+          <input type="hidden" name="remove" value="1">
+          <button type="submit" class="link">Rasmni o'chirish</button>
+        </form>
+      {% endif %}
       {% if member.is_superuser %}
         <span class="badge success">Administrator</span>
       {% else %}

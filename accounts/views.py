@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -122,14 +123,26 @@ class ProfileView(APIView):
     identifikatori, faqat ism tahrirlanadi."""
     permission_classes = [permissions.IsAuthenticated]
 
+    def _payload(self, request):
+        from .models import avatar_url_for
+
+        url = avatar_url_for(request.user)
+        # To'liq manzil: ilova rasmni boshqa hostdan yuklaydi va
+        # nisbiy yo'l unga hech narsa bermaydi
+        return {
+            'phone': request.user.username,
+            'name': request.user.first_name,
+            'avatarUrl': request.build_absolute_uri(url) if url else None,
+        }
+
     def get(self, request):
-        return Response({'phone': request.user.username, 'name': request.user.first_name})
+        return Response(self._payload(request))
 
     def patch(self, request):
         name = (request.data.get('name') or '').strip()[:150]
         request.user.first_name = name
         request.user.save(update_fields=['first_name'])
-        return Response({'phone': request.user.username, 'name': request.user.first_name})
+        return Response(self._payload(request))
 
     def delete(self, request):
         # ChargingSession/WalletBalance/Transaction'dagi FK'lar CASCADE bo'lgani
@@ -225,3 +238,40 @@ class LogoutView(APIView):
                 pass
 
         return Response(status=205)
+
+
+class AvatarView(APIView):
+    """POST/DELETE /api/auth/avatar/ — profil rasmini yuklash va o'chirish.
+
+    Rasm serverda qayta ishlanadi: telefondagi surat 4-8 MB bo'ladi va
+    u har ochilganda shuncha trafik yeydi. Qayta yozish EXIF ni ham
+    tozalaydi — avatar bilan birga suratga olingan joy koordinatalarini
+    tarqatib yubormaslik kerak (`accounts/avatars.py`).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        from django.core.exceptions import ValidationError
+
+        from .models import UserProfile
+
+        uploaded = request.FILES.get('avatar') or request.FILES.get('file')
+        if uploaded is None:
+            return Response({'detail': 'Rasm yuborilmadi'}, status=400)
+
+        profile = UserProfile.for_user(request.user)
+        try:
+            profile.set_avatar(uploaded)
+        except ValidationError as error:
+            return Response({'detail': ' '.join(error.messages)}, status=400)
+
+        return Response({
+            'avatarUrl': request.build_absolute_uri(profile.avatar_url),
+        }, status=201)
+
+    def delete(self, request):
+        from .models import UserProfile
+
+        UserProfile.for_user(request.user).clear_avatar()
+        return Response({'avatarUrl': None}, status=200)

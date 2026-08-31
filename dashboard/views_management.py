@@ -1458,6 +1458,27 @@ def profile(request):
         messages.success(request, 'Profil saqlandi')
         return redirect('dashboard:profile')
 
+    if request.method == 'POST' and section == 'avatar':
+        from django.core.exceptions import ValidationError
+
+        from accounts.models import UserProfile
+
+        profile_row = UserProfile.for_user(user)
+        if request.POST.get('remove'):
+            profile_row.clear_avatar()
+            messages.success(request, "Avatar o'chirildi")
+        elif request.FILES.get('avatar'):
+            try:
+                profile_row.set_avatar(request.FILES['avatar'])
+            except ValidationError as error:
+                for message in error.messages:
+                    messages.error(request, message)
+            else:
+                messages.success(request, 'Avatar yangilandi')
+        else:
+            messages.error(request, 'Rasm tanlanmadi')
+        return redirect('dashboard:profile')
+
     if request.method == 'POST' and section == 'password':
         new_password = request.POST.get('new_password', '')
         if not new_password:
@@ -1488,10 +1509,13 @@ def profile(request):
 
     from management.totp import TwoFactor, required_for
 
+    from accounts.models import avatar_url_for
+
     second = TwoFactor.objects.filter(user=user).first()
     return render(request, 'dashboard/profile.html', {
         'member': user,
         'initials': _initials(user),
+        'avatar_url': avatar_url_for(user),
         'two_factor': second,
         'two_factor_required': required_for(user),
     })

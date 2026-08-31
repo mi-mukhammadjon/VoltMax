@@ -14,6 +14,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('logout/', views.LogoutView.as_view(), name='logout'),
     path('profile/', views.ProfileView.as_view(), name='profile'),
+    path('avatar/', views.AvatarView.as_view(), name='avatar'),
     path('vehicles/', views.VehicleListView.as_view(), name='vehicle_list'),
     path('vehicles/<int:pk>/', views.VehicleDetailView.as_view(), name='vehicle_detail'),
     path('rfid-cards/', views.MyRfidCardsView.as_view(), name='rfid_card_list'),

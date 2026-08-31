@@ -70,6 +70,11 @@ va takroriy so'rovda ikki marta qo'shilmaydi. Kalitlar panelda saqlanadi
 **Bildirishnomalar** — matni panelda tahrirlanadigan shablonlar va
 telefonga yetkazish (Expo push).
 
+**Profil rasmi** — xodim ham, mijoz ham qo'ya oladi. Rasm serverda
+kvadratga qirqiladi, 512px ga kichraytiriladi va qayta yoziladi: bu
+trafikni tejaydi va EXIF ni (suratga olingan joy koordinatalarini)
+tozalaydi.
+
 **Elektron pochta** — korporativ hujjatlar (shartnoma, hisob-faktura,
 dalolatnoma) mijozga to'g'ridan-to'g'ri yuboriladi, tizimdagi muammo
 haqida administratorga xabar ketadi va xodim parolini o'zi tiklay
@@ -154,6 +159,7 @@ python test_two_factor.py   # ikki bosqichli kirish
 python test_injection.py    # soxta idTag, CSV formulasi, ochiq yo'naltirish
 python test_sms.py          # SMS shlyuzi va ikki kanalli yetkazish
 python test_mail.py         # pochta, ogohlantirish, parolni tiklash
+python test_avatar.py       # profil rasmi (panel va ilova)
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`

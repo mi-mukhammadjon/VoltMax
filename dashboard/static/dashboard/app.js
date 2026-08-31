@@ -825,6 +825,21 @@
      `text-transform` faqat KO'RINISHNI o'zgartiradi — serverga kichik
      harf ketaverardi. Bu yerda qiymatning o'zi o'giriladi, kursor esa
      o'z joyida qoladi. */
+  /* Fayl tanlangach forma o'zi yuboriladi.
+
+     Avatar uchun alohida «Saqlash» tugmasi ortiqcha qadam bo'lardi:
+     rasm tanlangan payt niyat allaqachon aniq. Tugmasiz forma esa
+     jimgina turib qolardi — foydalanuvchi rasm tanlab, hech narsa
+     bo'lmaganini ko'rardi. */
+  document.addEventListener('change', function (e) {
+    var input = e.target;
+    if (!input.matches || !input.matches('[data-autosubmit]')) return;
+    if (input.files && input.files.length === 0) return;
+
+    var form = input.form || input.closest('form');
+    if (form) form.submit();
+  });
+
   document.addEventListener('input', function (e) {
     var field = e.target;
     if (!field.matches || !field.matches('[data-uppercase]')) return;
