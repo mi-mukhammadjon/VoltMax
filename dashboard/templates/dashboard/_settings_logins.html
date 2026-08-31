@@ -39,36 +39,48 @@
     </div>
   </div>
 
-  <div class="card" style="max-width:820px;">
-    <div class="kv-list">
-      <div class="kv-row">
-        <span class="k">Kalit</span>
-        <span class="v mono">
-          {% if settings_obj.otp_token_source == 'panel' %}
-            {{ settings_obj.otp_token_masked }}
-            <span class="cell-sub">panelda saqlangan</span>
-          {% elif settings_obj.otp_token_source == 'server' %}
-            <span class="badge muted">server sozlamasida</span>
-            <span class="cell-sub">TELEGRAM_GATEWAY_TOKEN muhit o'zgaruvchisi</span>
-          {% else %}
-            <span class="badge danger">Sozlanmagan</span>
-            <span class="cell-sub">ilovaga kirib bo'lmaydi</span>
-          {% endif %}
-        </span>
+  <div class="card gateway-card">
+    {% comment %}
+      Holat qatori: chapda nima, o'ngda qiymat. Izoh qiymat ostida
+      turadi — yonida turganda uzun matn qatorni cho'zib yuborardi.
+    {% endcomment %}
+    <div class="gateway-row">
+      <div class="gateway-label">Kalit</div>
+      <div class="gateway-value">
+        {% if settings_obj.otp_token_source == 'panel' %}
+          <span class="badge success">Sozlangan</span>
+          <span class="mono">{{ settings_obj.otp_token_masked }}</span>
+          <div class="gateway-note">Panelda saqlangan</div>
+        {% elif settings_obj.otp_token_source == 'server' %}
+          <span class="badge success">Sozlangan</span>
+          <div class="gateway-note">
+            Server sozlamasida — <code>TELEGRAM_GATEWAY_TOKEN</code>
+          </div>
+        {% else %}
+          <span class="badge danger">Sozlanmagan</span>
+          <div class="gateway-note">
+            Kirish kodlari yuborilmaydi — ilovaga kirib bo'lmaydi
+          </div>
+        {% endif %}
       </div>
     </div>
 
-    <form method="post" action="{% url 'dashboard:otp_gateway_test' %}"
-          style="display:flex;gap:var(--s2);align-items:flex-end;margin-top:var(--s4);">
-      {% csrf_token %}
-      <div class="field" style="flex:1;margin:0;">
-        <label for="otp-test-phone">Sinov kodini yuborish</label>
+    {% comment %}
+      Sinov yuborish. Yordam matni QATORDAN TASHQARIDA: input ichida
+      turganda u tugmani pastga surib, elementlar bir chiziqda
+      turmasdi.
+    {% endcomment %}
+    <div class="gateway-test">
+      <label for="otp-test-phone">Sinov kodini yuborish</label>
+      <form method="post" action="{% url 'dashboard:otp_gateway_test' %}"
+            class="gateway-test-row">
+        {% csrf_token %}
         <input type="text" id="otp-test-phone" name="phone" class="phone-input"
                placeholder="+998 (90) 123-45-67" autocomplete="off">
-        <div class="help">Kod haqiqiy emas — u bilan tizimga kirib bo'lmaydi</div>
-      </div>
-      <button type="submit" class="btn secondary">Yuborish</button>
-    </form>
+        <button type="submit" class="btn secondary">Yuborish</button>
+      </form>
+      <div class="help">Kod haqiqiy emas — u bilan tizimga kirib bo'lmaydi</div>
+    </div>
   </div>
 
   <div class="page-head" style="margin-top:var(--s6);">
