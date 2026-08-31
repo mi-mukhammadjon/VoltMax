@@ -169,7 +169,15 @@ def home(request):
 
     recent_stations = stations.order_by('-created_at')[:5]
     recent_sessions = ChargingSession.objects.select_related('user', 'station').order_by('-started_at')[:5]
+    # Tizim holati: muammo BO'LSAGINA ko'rsatiladi. Hamma narsa joyida
+    # bo'lganda ham banner chiqarish uni "fon shovqini"ga aylantirardi va
+    # haqiqiy muammo paytida ham e'tiborsiz qolinardi.
+    from management.health import collect
+
+    health = collect()
+
     return render(request, 'dashboard/home.html', {
+        'health': health if health['overall'] != 'ok' else None,
         'stats': stats,
         'connector_stats': connector_stats,
         'revenue_points': revenue_points,

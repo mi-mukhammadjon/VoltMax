@@ -1,0 +1,95 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Tizim holati — VoltMax Panel{% endblock %}
+{% block content %}
+
+{% comment %}
+  Tizimning ko'rinmas yarmi: davriy vazifalar, push yetkazish, to'lov
+  tizimlari va charger ulanishlari. Ular so'rovdan tashqarida ishlaydi va
+  ilgari panelda umuman ko'rinmasdi — servis serverda ishga tushmagan
+  bo'lsa ham hammasi joyidek tuyulardi.
+
+  Sahifa ATAYLAB sodda: bu yerga muammo bo'lganda kiriladi, o'shanda esa
+  javob bir qarashda kerak.
+{% endcomment %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Tizim holati</h1>
+    <div class="page-sub">
+      {{ checked_at|date:"d.m.Y H:i:s" }} holatiga ko'ra
+    </div>
+  </div>
+  <div class="head-actions">
+    <a href="{% url 'dashboard:system_health' %}" class="btn secondary">Yangilash</a>
+  </div>
+</div>
+
+<div class="card health-summary health-{{ overall }}">
+  {% if overall == 'ok' %}
+    <div class="health-title">Hammasi ishlayapti</div>
+    <div class="health-sub">Barcha tekshiruvlar muvaffaqiyatli o'tdi</div>
+  {% elif overall == 'warn' %}
+    <div class="health-title">{{ warn|length }} ta ogohlantirish</div>
+    <div class="health-sub">
+      Xizmat ishlayapti, lekin e'tibor talab qiladigan joylar bor
+    </div>
+  {% else %}
+    <div class="health-title">{{ down|length }} ta muammo</div>
+    <div class="health-sub">
+      Quyidagilar ishlamayapti — foydalanuvchi buni sezadi
+    </div>
+  {% endif %}
+</div>
+
+<div class="table-wrap" style="margin-top:var(--s5);">
+  <table>
+    <thead>
+      <tr>
+        <th class="w-badge">Holat</th>
+        <th class="w-name">Nima tekshirildi</th>
+        <th>Qiymat</th>
+        <th>Izoh</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for check in checks %}
+      <tr>
+        <td class="w-badge">
+          {% if check.state == 'ok' %}
+            <span class="badge success">Ishlayapti</span>
+          {% elif check.state == 'warn' %}
+            <span class="badge warning">E'tibor</span>
+          {% else %}
+            <span class="badge danger">Ishlamayapti</span>
+          {% endif %}
+        </td>
+        <td class="w-name"><div style="font-weight:700;">{{ check.title }}</div></td>
+        <td>{{ check.value }}</td>
+        <td class="cell-sub">{{ check.hint|default:"—" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="empty">
+        <b>Tekshiruv yo'q</b>
+      </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% comment %}
+  Eng ko'p uchraydigan sabab shu bo'lgani uchun alohida yozilgan: vazifalar
+  alohida servisda ishlaydi va uni yoqish unutilsa, hech qanday xato
+  chiqmaydi — tizim shunchaki jim qoladi.
+{% endcomment %}
+<div class="card" style="max-width:820px;margin-top:var(--s5);">
+  <div style="font-weight:800;margin-bottom:6px;">Vazifalar ishlamasa</div>
+  <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.6;">
+    Davriy vazifalar veb-serverdan ALOHIDA jarayonda ishlaydi:
+    <code>python manage.py run_workers</code>. U ishga tushmagan bo'lsa
+    parkovka hisoblanmaydi, push ketmaydi va muddati o'tgan sessiyalar
+    to'xtatilmaydi — lekin sayt bemalol ochilaveradi.
+    <br><br>
+    Serverda u alohida servis sifatida turishi va <b>bitta nusxada</b>
+    ishlashi kerak (replica = 1). Batafsil: <code>DEPLOY.md</code>.
+  </div>
+</div>
+{% endblock %}

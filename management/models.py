@@ -913,3 +913,7 @@ class PartnerPayout(models.Model):
     @property
     def is_paid(self) -> bool:
         return self.status == self.Status.PAID
+
+
+# Davriy vazifalar holati alohida faylda — bu yerda ro'yxatga olinadi
+from .jobs import JobStatus  # noqa: E402,F401

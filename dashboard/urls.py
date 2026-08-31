@@ -134,6 +134,7 @@ urlpatterns = [
     # ── Sozlamalar ──────────────────────────────────────────
     # Amallar jurnali — «kim va qachon qildi?» savoliga javob
     path('activity/', m.activity_log, name='activity'),
+    path('system/', m.system_health, name='system_health'),
     path('settings/', m.settings_general, name='settings'),
     path('settings/general/', m.settings_general, name='settings_general'),
     path('settings/payment/', m.settings_payment, name='settings_payment'),

@@ -2196,3 +2196,25 @@ th.check input[type=checkbox] {
 .settings-search-results { margin-bottom: var(--s5); }
 .settings-search-results .usage-row { cursor: pointer; }
 .settings-search-results .cell-sub { display: block; font-weight: 400; }
+
+/* ── Tizim holati ────────────────────────────────────────────
+   Umumiy xulosa kartasi: rang holatga qarab o'zgaradi. Rang YAGONA
+   belgi emas — yonida matn ham turadi, chunki rangni ajrata olmaydigan
+   foydalanuvchi uchun bu sahifa ma'nosini yo'qotardi. */
+.health-summary { border-left: 4px solid var(--success); }
+.health-summary.health-warn { border-left-color: var(--warning); }
+.health-summary.health-down { border-left-color: var(--danger); }
+.health-title { font-size: var(--t-xl); font-weight: 800; letter-spacing: -.3px; }
+.health-summary.health-warn .health-title { color: var(--warning); }
+.health-summary.health-down .health-title { color: var(--danger); }
+.health-sub { color: var(--text-secondary); font-size: var(--t-sm); margin-top: 4px; }
+
+/* Bosh sahifadagi ogohlantirish — muammo BO'LSAGINA ko'rinadi */
+.health-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap;
+  margin-bottom: var(--s5);
+  border-left: 4px solid var(--danger);
+}
+.health-banner.health-warn { border-left-color: var(--warning); }
+.health-banner-list { color: var(--text-secondary); font-size: var(--t-sm); margin-top: 4px; }

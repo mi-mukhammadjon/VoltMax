@@ -1622,3 +1622,22 @@ def tariff_delete(request, pk):
         )
         messages.success(request, f"{name} o'chirildi")
     return _tariff_back()
+
+
+# ── Tizim holati ────────────────────────────────────────────────
+@staff_required
+def system_health(request):
+    """Tizimning ko'rinmas yarmi ishlayaptimi.
+
+    Davriy vazifalar, push yetkazish, to'lov tizimlari va OCPP ulanishlari
+    so'rovdan tashqarida ishlaydi — panelga qarab ularning holatini bilib
+    bo'lmasdi. Servis serverda umuman ishga tushmagan bo'lsa ham panel
+    "hammasi joyida" ko'rinishida turaverardi.
+
+    Sahifa menejerga ham ochiq: charger oflayn bo'lgani yoki push
+    ketmayotgani kundalik ishga tegishli. Maxfiy kalitlar ko'rsatilmaydi —
+    faqat "sozlangan / sozlanmagan".
+    """
+    from management.health import collect
+
+    return render(request, 'dashboard/system_health.html', collect())

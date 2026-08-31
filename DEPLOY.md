@@ -76,19 +76,29 @@ ishlamaydigan to'lovga yuborgandan ko'ra ko'rsatmagan afzal.
 
 ## 5. Joylashtirishdan keyin tekshirish
 
+Eng qisqa yo'l — bitta buyruq:
+
+```bash
+python manage.py health
+```
+
+U vazifalar, push, to'lov tizimlari va charger ulanishlarini tekshiradi
+va muammo bo'lsa **chiqish kodi 1** qaytaradi, ya'ni deploy skriptidan
+ham chaqirish mumkin. O'sha ma'lumot panelda ham bor:
+**Tizim holati** sahifasi (menyuda) va bosh sahifadagi ogohlantirish.
+
+Eng ko'p uchraydigan holat: `Vazifa «push» — hech qachon ishlamagan`.
+Bu ishchi servis ishga tushmaganini bildiradi (2-bo'limga qarang).
+Sayt bemalol ochilaveradi, shuning uchun buni faqat shu yerdan bilib
+olish mumkin.
+
+Qo'shimcha tekshiruvlar:
+
 ```bash
 python manage.py migrate --check          # migratsiyalar qo'llanganmi
 python manage.py run_workers --once       # vazifalar xatosiz o'tadimi
 python manage.py normalize_phones         # eski raqamlar tartibda emasmi
 ```
-
-Panelda: **Sozlamalar > To'lov tizimlari** — «Oxirgi to'lovlar» jadvalida
-«Kutilmoqda» holatida qotib qolgan to'lov bo'lsa, to'lov tizimi bizning
-serverga yeta olmayapti (webhook manzili yoki kalit noto'g'ri).
-
-**Sozlamalar > Bildirishnoma** — «Ro'yxatdagi qurilmalar» 0 bo'lsa, push
-umuman ketmaydi: ilova hali hech kimda ishga tushmagan yoki `send_push`
-ishchisi ishlamayapti.
 
 ## 6. Zaxira nusxa
 

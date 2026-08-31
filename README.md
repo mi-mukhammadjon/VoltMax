@@ -89,6 +89,15 @@ python manage.py run_workers --only push  # faqat bittasi
 | `bookings` | 5 daq | Muddati o'tgan bronlarni yopadi |
 | `cleanup` | kuniga | Eskirgan telemetriya va jurnallarni tozalaydi |
 
+Har vazifa oxirgi marta qachon ishlagani va nima qilgani bazaga
+yoziladi. Panelda **Tizim holati** sahifasi shuni ko'rsatadi: vazifa o'z
+oralig'idan uch baravar kechiksa — «ishlamayapti». Terminalda:
+
+```bash
+python manage.py health            # muammo bo'lsa chiqish kodi 1
+python manage.py health --strict   # ogohlantirish ham xato hisoblanadi
+```
+
 **Bir vaqtda faqat bitta nusxada ishlashi kerak** (replica = 1). Veb-server
 ichiga qo'shib bo'lmaydi: har bir worker mustaqil hisoblab, foydalanuvchidan
 ortiqcha pul yechilardi.
@@ -113,6 +122,7 @@ python test_payments.py     # Payme va Click webhook'lari
 python test_mobile_api.py   # ilova ishlatadigan API
 python test_pricing.py      # tarif oynalari va aksiyalar
 python test_card_limits.py  # kartaning sarf chegarasi
+python test_health.py       # tizim holati to'g'ri aniqlanadimi
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`

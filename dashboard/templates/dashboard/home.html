@@ -16,6 +16,35 @@
   </div>
 </div>
 
+{% comment %}
+  Tizim holati — faqat muammo bo'lganda. Hamma narsa joyida bo'lganda ham
+  banner chiqarish uni fon shovqiniga aylantirardi va haqiqiy muammo
+  paytida ham e'tiborsiz qolinardi.
+
+  Sabab shu yerda AYTILADI: "tizimda muammo" degan quruq xabar operatorni
+  faqat xavotirga soladi, nima qilishni ko'rsatmaydi.
+{% endcomment %}
+{% if health %}
+  <div class="card health-banner{% if health.overall == 'warn' %} health-warn{% endif %}">
+    <div>
+      <div style="font-weight:800;">
+        {% if health.overall == 'down' %}
+          {{ health.down|length }} ta narsa ishlamayapti
+        {% else %}
+          {{ health.warn|length }} ta ogohlantirish
+        {% endif %}
+      </div>
+      <div class="health-banner-list">
+        {% for check in health.down %}{{ check.title }}{% if not forloop.last %} · {% endif %}{% endfor %}
+        {% if not health.down %}
+          {% for check in health.warn %}{{ check.title }}{% if not forloop.last %} · {% endif %}{% endfor %}
+        {% endif %}
+      </div>
+    </div>
+    <a href="{% url 'dashboard:system_health' %}" class="btn secondary">Batafsil</a>
+  </div>
+{% endif %}
+
 {# ── KPI kartalar ───────────────────────────────────────────── #}
 <div class="kpi-grid">
   <div class="kpi">

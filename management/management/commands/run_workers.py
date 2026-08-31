@@ -175,6 +175,8 @@ class Command(BaseCommand):
         from management.current import clear_cached
         from stations.pricing import clear_catalogue
 
+        from management.jobs import JobStatus
+
         clear_cached()
         clear_catalogue()
         try:
@@ -182,7 +184,14 @@ class Command(BaseCommand):
         except Exception as error:      # noqa: BLE001 — tsikl to'xtamasligi kerak
             logger.exception('%s vazifasi xato berdi: %s', name, error)
             self.stderr.write(f'{name}: {error}')
+            # Xato ham YOZILADI: panelda "ishlamayapti" deb ko'rinishi
+            # kerak. Ilgari u faqat logga tushardi va hech kim ko'rmasdi.
+            JobStatus.record(name, error=f'{type(error).__name__}: {error}')
             return
+
+        # Vazifa "hech narsa qilmadim" desa ham (bo'sh matn) yozuv
+        # yangilanadi: asosiy savol "ishladimi", "nima qildi" emas.
+        JobStatus.record(name, summary=message or 'ish yo‘q')
 
         if message:
             self.stdout.write(message)
