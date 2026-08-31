@@ -7,8 +7,27 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-voltmax-dev-key-change-in-production')
+DEV_SECRET_KEY = 'django-insecure-voltmax-dev-key-change-in-production'
+SECRET_KEY = os.getenv('SECRET_KEY', DEV_SECRET_KEY)
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
+
+# Bu kalit bilan sessiya cookie'lari va CSRF tokenlari imzolanadi. U
+# omma uchun ochiq (kodda turibdi), ya'ni server undan foydalansa
+# istalgan odam o'zini XOHLAGAN foydalanuvchi qilib ko'rsata oladi —
+# parolsiz, ismini bilishning o'zi yetarli.
+#
+# Shu sababli server ISHGA TUSHMAYDI. Jimgina ishlab ketgan server bu
+# yerda eng yomon variant: hamma narsa joyidek ko'rinadi.
+if not DEBUG and SECRET_KEY == DEV_SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY sozlanmagan. Ishlab chiqarishda o'z kalitingizni bering: "
+        'SECRET_KEY=<tasodifiy uzun matn>'
+    )
+
+# Django admini. Panel hamma ishni qamrab oladi, admin esa qo'shimcha
+# hujum yuzasi: uning kirish formasi bizning urinishlar chegarasidan
+# o'tmaydi (u alohida ko'rinish). Kerak bo'lsa ataylab yoqiladi.
+ENABLE_DJANGO_ADMIN = os.getenv('ENABLE_DJANGO_ADMIN', 'True' if DEBUG else 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,10.0.2.2,192.168.1.8').split(',')
 
 # Railway (va boshqa reverse-proxy'lar) TLS'ni proksida tugatadi va Django'ga
@@ -113,8 +132,21 @@ else:
         }
     }
 
+# Parol qoidalari FAQAT xodimlarga taalluqli: mobil foydalanuvchi parol
+# ishlatmaydi, u OTP bilan kiradi. Shuning uchun talabni qattiqlashtirish
+# hech kimga noqulaylik tug'dirmaydi, panel esa butun tarmoqni boshqaradi.
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 6}},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+     'OPTIONS': {'min_length': 10}},
+    # "voltmax2026" kabi taxmin qilinadigan parollarni to'sadi
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    # Parol login yoki ismga o'xshamasin
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    # Django ning umumiy parollar ro'yxatida "voltmax2026" yo'q — u bizga
+    # xos. Holbuki aynan shu parol eng xavflisi: hujjatlarda ochiq
+    # yozilgan, ya'ni uni birinchi bo'lib sinab ko'rishadi.
+    {'NAME': 'management.password.ProjectPasswordValidator'},
 ]
 
 LANGUAGE_CODE = 'uz'
@@ -180,13 +212,34 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
+    # STANDART — YOPIQ. Ilgari `AllowAny` turardi: yangi endpoint
+    # yozilganda `permission_classes` ni yozish UNUTILSA, u jimgina
+    # hammaga ochiq bo'lib qolardi. Xato ko'zga tashlanmaydi — endpoint
+    # ishlayveradi, faqat begona odam ham ko'ra oladi.
+    #
+    # Ochiq bo'lishi KERAK bo'lganlar (OTP yuborish/tekshirish, stansiyalar
+    # ro'yxati, sharhlarni o'qish) buni o'zida aniq yozadi.
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
     'DEFAULT_THROTTLE_RATES': {
+        # Umumiy chegara: hech bir endpoint cheksiz so'rovga ochiq
+        # qolmasin. Oddiy foydalanuvchi bunga hech qachon yetmaydi —
+        # ilova bir ekranda o'nlab so'rov yubormaydi.
+        'anon': '60/min',
+        'user': '240/min',
         'otp': '5/min',
+        # Promo-kod TANLASH mumkin edi: kod qisqa va urinishlar soni
+        # cheklanmagan bo'lsa, uni topib olish vaqt masalasi
+        'promo': '10/min',
+        # Sharh spamiga qarshi
+        'review': '20/min',
     },
 }
 

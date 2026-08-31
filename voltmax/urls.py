@@ -4,7 +4,10 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # Django admini faqat ataylab yoqilganda ochiladi. Panel hamma ishni
+    # qamrab oladi, admin esa qo'shimcha hujum yuzasi: uning kirish
+    # formasi bizning urinishlar chegarasidan o'tmaydi.
+    *([path('admin/', admin.site.urls)] if settings.ENABLE_DJANGO_ADMIN else []),
     path('api/auth/', include('accounts.urls')),
     path('api/stations/', include('stations.urls')),
     path('api/sessions/', include('sessions_app.urls')),

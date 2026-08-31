@@ -24,7 +24,10 @@ class SendOTPView(APIView):
     """POST /api/auth/send-otp/ {phone} — OTP kod generatsiya qilib, Telegram Gateway
     (https://gateway.telegram.org) orqali yuboradi. DEBUG rejimida, agar token
     sozlanmagan yoki yuborish muvaffaqiyatsiz bo'lsa, kod javobda ham qaytariladi
-    (faqat sinov uchun — productionda TELEGRAM_GATEWAY_TOKEN albatta kerak)."""
+    (faqat sinov uchun — productionda TELEGRAM_GATEWAY_TOKEN albatta kerak).
+
+    Ochiq bo'lishi shart: foydalanuvchi hali tizimga kirmagan."""
+    permission_classes = [permissions.AllowAny]
     throttle_classes = [OTPThrottle]
 
     def post(self, request):
@@ -52,7 +55,10 @@ class SendOTPView(APIView):
 
 class VerifyOTPView(APIView):
     """POST /api/auth/verify-otp/ {phone, code} — kodni tekshiradi, foydalanuvchini
-    topadi/yaratadi (username=telefon) va JWT access/refresh token qaytaradi."""
+    topadi/yaratadi (username=telefon) va JWT access/refresh token qaytaradi.
+
+    Ochiq bo'lishi shart: token aynan shu yerda beriladi."""
+    permission_classes = [permissions.AllowAny]
     throttle_classes = [OTPThrottle]
 
     def post(self, request):

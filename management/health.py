@@ -301,6 +301,18 @@ def check_security():
                      else f'{settings_obj.panel_max_attempts} ta urinishdan keyin bloklanadi'),
         })
 
+    # Django admini ochiq qolgan bo'lsa — qo'shimcha hujum yuzasi:
+    # uning kirish formasi bizning urinishlar chegarasidan o'tmaydi
+    if getattr(django_settings, 'ENABLE_DJANGO_ADMIN', False) and not django_settings.DEBUG:
+        checks.append({
+            'key': 'django-admin',
+            'title': 'Django admini',
+            'state': 'warn',
+            'value': 'ochiq',
+            'hint': 'Panel hamma ishni qamrab oladi. Kerak bo‘lmasa '
+                    'ENABLE_DJANGO_ADMIN=False qo‘ying',
+        })
+
     # DEBUG productionda yoqiq qolsa, xato sahifalari butun kodni va
     # sozlamalarni ko'rsatib turadi.
     #

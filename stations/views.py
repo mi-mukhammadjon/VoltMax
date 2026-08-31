@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from .models import Station, Review
@@ -9,13 +10,22 @@ from .serializers import StationSerializer, ReviewSerializer
 
 
 class StationListView(generics.ListAPIView):
-    """GET /api/stations/ — mobil ilovadagi StationsAPI.list() uchun."""
+    """GET /api/stations/ — mobil ilovadagi StationsAPI.list() uchun.
+
+    ATAYLAB ochiq: xaritani ko'rish uchun ro'yxatdan o'tish shart emas —
+    odam avval stansiyalarni ko'radi, keyin qaror qiladi.
+    """
+    permission_classes = [permissions.AllowAny]
     serializer_class = StationSerializer
     queryset = Station.objects.prefetch_related('connectors', 'amenities', 'reviews').all()
 
 
 class StationDetailView(generics.RetrieveAPIView):
-    """GET /api/stations/<id>/ — mobil ilovadagi StationsAPI.getById() uchun."""
+    """GET /api/stations/<id>/ — mobil ilovadagi StationsAPI.getById() uchun.
+
+    Ro'yxat kabi ochiq: kirmagan odam ham stansiya haqida o'qiy oladi.
+    """
+    permission_classes = [permissions.AllowAny]
     serializer_class = StationSerializer
     queryset = Station.objects.prefetch_related('connectors', 'amenities', 'reviews').all()
 
@@ -25,6 +35,9 @@ class ReviewListView(generics.ListCreateAPIView):
     Bitta foydalanuvchi bitta stansiyaga faqat bitta sharh qoldira oladi;
     qayta yuborilsa mavjud sharh yangilanadi."""
     serializer_class = ReviewSerializer
+    # Sharh yozish tez-tez takrorlanadigan amal emas — spamni to'samiz
+    throttle_scope = 'review'
+    throttle_classes = [ScopedRateThrottle]
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -57,6 +70,10 @@ class PromoCheckView(APIView):
     zaryadlash tugagach ma'lum bo'lardi — eng noqulay payt.
     """
     permission_classes = [permissions.IsAuthenticated]
+    # Promo-kodni TANLASH mumkin edi: kod qisqa, urinishlar esa
+    # cheklanmagan bo'lsa uni topib olish shunchaki vaqt masalasi
+    throttle_scope = 'promo'
+    throttle_classes = [ScopedRateThrottle]
 
     def post(self, request):
         from stations import pricing

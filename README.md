@@ -41,6 +41,8 @@ Namuna ma'lumot: `python manage.py seed_stations`
 
 Panel logini parol tanlashdan himoyalangan: chegara tugagach kirish
 vaqtincha yopiladi (Sozlamalar > Xavfsizlik), har urinish esa yoziladi.
+Parol kamida 10 belgi va ichida loyiha nomi bo'lmasligi kerak — hujjatda
+yozilgan parol birinchi bo'lib sinab ko'riladi.
 
 ## Nima bor
 
@@ -131,6 +133,7 @@ python test_card_limits.py  # kartaning sarf chegarasi
 python test_health.py       # tizim holati to'g'ri aniqlanadimi
 python test_login_guard.py  # panel logini himoyasi
 python test_ocpp_auth.py    # OCPP paroli va to'lov kalitlari
+python test_api_hardening.py  # API ruxsatlari va so'rov chegaralari
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`
