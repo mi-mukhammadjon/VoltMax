@@ -2368,10 +2368,67 @@ label.profile-avatar:hover .avatar-overlay,
 .visually-hidden:focus-visible + label .avatar-overlay,
 label.profile-avatar:focus-within .avatar-overlay { opacity: 1; }
 
-.avatar-remove { display: inline; margin: 0; }
-.avatar-remove .link {
+/* O'chirish havolasi — tugma, chunki u forma yubormaydi, oyna ochadi */
+.avatar-remove-link {
   background: none; border: 0; padding: 0; cursor: pointer;
   color: var(--text-muted); font: inherit; font-size: var(--t-sm);
   text-decoration: underline;
+  transition: color .15s var(--ease);
 }
-.avatar-remove .link:hover { color: var(--danger); }
+.avatar-remove-link:hover { color: var(--danger); }
+
+/* Tasdiq oynasi: rasmning O'ZI ko'rsatiladi — operator nimani
+   o'chirayotganini ko'rib tursin */
+.modal-narrow { width: min(400px, 100%); }
+.avatar-remove-body {
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--s4); text-align: center;
+}
+.avatar-preview {
+  width: 96px; height: 96px; border-radius: var(--r-full);
+  object-fit: cover; display: block;
+}
+
+/* ── Kirish sahifasidagi yordamchi havolalar ─────────────────
+   «Parolni unutdingizmi?» va «Ortga» — ikkalasi ham oddiy ko'k havola
+   edi va kartochka uslubiga mos kelmasdi. Endi ular bir xil qolipda:
+   ikonka bilan, kartochka fonida. */
+.login-foot {
+  margin-top: var(--s5); padding-top: var(--s4);
+  border-top: 1px solid var(--border-soft);
+  display: flex; justify-content: center;
+}
+
+.login-link {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  padding: var(--s2) var(--s3); border-radius: var(--r-sm);
+  color: var(--text-secondary); font-size: var(--t-sm); font-weight: 600;
+  text-decoration: none;
+  transition: color .15s var(--ease), background .15s var(--ease);
+}
+.login-link:hover {
+  color: var(--primary); background: var(--primary-soft); text-decoration: none;
+}
+.login-link svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* Ortga qaytish — chapga qaragan strelka bilan. Bosilganda u
+   qimirlaydi: harakat yo'nalishni his qildiradi. */
+.login-back svg { transition: transform .15s var(--ease); }
+.login-back:hover svg { transform: translateX(-2px); }
+
+/* Xat yuborilgach ko'rsatiladigan xabar */
+.login-done {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s3);
+  text-align: center; padding: var(--s4) 0;
+}
+.login-done-icon {
+  width: 52px; height: 52px; border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
+}
+.login-done-icon svg { width: 24px; height: 24px; }
+.login-done-title {
+  font-size: var(--t-lg); font-weight: 800; margin-bottom: var(--s1);
+}
+.login-done .help { max-width: 300px; line-height: 1.6; }

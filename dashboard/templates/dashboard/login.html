@@ -39,10 +39,20 @@
         <div class="field"><label>Parol</label>{{ form.password }}</div>
         <button type="submit" class="btn block large">Kirish</button>
       </form>
-      {# Parolni tiklash: ilgari buni faqat serverdan qilish mumkin edi #}
-      <p class="sub" style="margin-top:var(--s4);">
-        <a href="{% url 'dashboard:password_reset' %}">Parolni unutdingizmi?</a>
-      </p>
+      {% comment %}
+        Parolni tiklash: ilgari buni faqat serverdan qilish mumkin edi.
+        Havola kartochka ostida, ajratuvchi chiziq bilan — u asosiy
+        amal emas, lekin kerak bo'lganda darrov topilishi kerak.
+      {% endcomment %}
+      <div class="login-foot">
+        <a href="{% url 'dashboard:password_reset' %}" class="login-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><path d="M12 17h.01M9.6 9.5a2.5 2.5 0 1 1 3.2 3.1c-.5.2-.8.7-.8 1.2v.4"/>
+          </svg>
+          Parolni unutdingizmi?
+        </a>
+      </div>
       {% endblock %}
     </div>
   </div>

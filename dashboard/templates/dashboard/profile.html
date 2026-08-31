@@ -52,12 +52,14 @@
     <div class="profile-meta">
       <span class="mono">{{ member.username|phone }}</span>
       {% if avatar_url %}
-        <form method="post" class="avatar-remove">
-          {% csrf_token %}
-          <input type="hidden" name="section" value="avatar">
-          <input type="hidden" name="remove" value="1">
-          <button type="submit" class="link">Rasmni o'chirish</button>
-        </form>
+        {% comment %}
+          O'chirish darhol bajarilmaydi: tasodifan bosilsa rasmni
+          qaytarib bo'lmaydi, uni qaytadan yuklash kerak bo'lardi.
+        {% endcomment %}
+        <button type="button" class="avatar-remove-link"
+                data-modal-open="#avatar-remove-modal">
+          Rasmni o'chirish
+        </button>
       {% endif %}
       {% if member.is_superuser %}
         <span class="badge success">Administrator</span>
@@ -90,6 +92,47 @@
     </div>
   </div>
 </div>
+
+{% if avatar_url %}
+  {% comment %}
+    Tasdiq oynasi. `confirm()` o'rniga modal: u sahifaning uslubida
+    bo'ladi va rasmning O'ZINI ko'rsatadi — operator nimani
+    o'chirayotganini ko'rib turadi.
+  {% endcomment %}
+  <div class="modal" id="avatar-remove-modal" hidden>
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-panel modal-narrow" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title">Rasmni o'chirish</div>
+          <div class="modal-sub">Buni bekor qilib bo'lmaydi</div>
+        </div>
+        <button type="button" class="modal-close" data-modal-close
+                aria-label="Yopish">&times;</button>
+      </div>
+
+      <div class="modal-body avatar-remove-body">
+        <img src="{{ avatar_url }}" alt="" class="avatar-preview">
+        <div class="soft-text">
+          O'chirilgach o'rniga bosh harflaringiz ({{ initials }}) turadi.
+          Xohlagan paytda yangisini yuklashingiz mumkin.
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn secondary" data-modal-close>
+          Bekor qilish
+        </button>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="section" value="avatar">
+          <input type="hidden" name="remove" value="1">
+          <button type="submit" class="btn danger">O'chirish</button>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endif %}
 
 <div class="detail-cols profile-cols">
   <div>
