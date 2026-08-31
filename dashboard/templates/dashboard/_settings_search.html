@@ -1,0 +1,30 @@
+{% comment %}
+  Qidiruv natijasi: sozlama qaysi tabda ekanini aytadi. Qiymatning O'ZI
+  bu yerda tahrirlanmaydi — bir joyda ikki xil tahrirlash yo'li bo'lsa,
+  qaysi biri saqlangani chalkashardi.
+{% endcomment %}
+{% if q %}
+  <div class="card settings-search-results">
+    {% if results %}
+      <div class="help" style="margin-bottom:10px;">
+        "{{ q }}" bo'yicha {{ total }} ta sozlama topildi
+      </div>
+      <div class="usage-list">
+        {% for row in results %}
+          <a class="usage-row" href="{% url 'dashboard:settings_'|add:row.tab %}">
+            <span class="usage-name">
+              {{ row.label }}
+              {% if row.help %}<span class="cell-sub">{{ row.help }}</span>{% endif %}
+            </span>
+            <span class="badge muted">{{ row.tab_label }} · {{ row.section }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty" style="padding:14px 0;">
+        <b>"{{ q }}" bo'yicha sozlama topilmadi</b>
+        <span>Sozlama nomi yoki tushuntirish matnidan bir so'z yozib ko'ring</span>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}

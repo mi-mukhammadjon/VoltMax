@@ -1,0 +1,42 @@
+{% extends 'dashboard/base.html' %}{% load money phone %}
+{% block title %}Hamyon — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:wallets' %}" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+  Hamyonlar
+</a>
+
+<div class="detail-header">
+  <div>
+    <h1>{{ wallet.user.username |phone }}</h1>
+    <div class="sub">Hamyon #{{ wallet.id }}</div>
+  </div>
+  <a href="{% url 'dashboard:user_detail' wallet.user.id %}" class="btn secondary">Foydalanuvchi profili</a>
+</div>
+
+<div class="kv-grid">
+  <div class="kv"><div class="k">Joriy balans</div><div class="v">{{ wallet.amount|som }}</div></div>
+  <div class="kv"><div class="k">Jami to'ldirilgan</div><div class="v" style="color:var(--success);">{{ topup_total|som }}</div></div>
+  <div class="kv"><div class="k">Jami sarflangan</div><div class="v" style="color:var(--warning);">{{ spent_total|som }}</div></div>
+</div>
+
+<div class="section-head"><h2>Tranzaksiyalar</h2></div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Turi</th><th>Tavsif</th><th>Summa</th><th>Sana</th></tr></thead>
+    <tbody>
+    {% for t in transactions_page %}
+      <tr>
+        <td>{% if t.type == 'topup' %}<span class="badge success">To'ldirish</span>{% else %}<span class="badge warning">To'lov</span>{% endif %}</td>
+        <td>{{ t.description }}</td>
+        <td><strong>{{ t.amount|som }} so'm</strong></td>
+        <td>{{ t.created_at|date:"d.m.Y H:i" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4"><p class="empty">Tranzaksiya yo'q</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' with page_obj=transactions_page %}
+{% endblock %}

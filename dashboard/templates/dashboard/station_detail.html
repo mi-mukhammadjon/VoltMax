@@ -1,0 +1,566 @@
+{% extends 'dashboard/base.html' %}{% load money phone %}
+{% block title %}{{ station.name }} — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:stations' %}" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  Stansiyalar
+</a>
+{% comment %}
+  Stansiya sarlavhasi — rasm ustiga gradient qo'yiladi, shunda matn
+  har qanday rasmda ham o'qiladi. Rasm bo'lmasa brend gradienti qoladi.
+{% endcomment %}
+<div class="station-hero{% if not station.photo %} no-photo{% endif %}"
+     {% if station.photo %}style="background-image: url('{{ station.photo.url }}');"{% endif %}>
+  <div class="hero-body">
+    <div class="hero-text">
+      <div class="hero-badges">
+        {% if station.status == 'available' %}<span class="badge success">Bo'sh</span>
+        {% elif station.status == 'busy' %}<span class="badge warning">Band</span>
+        {% else %}<span class="badge muted">Ishlamayapti</span>{% endif %}
+        {% if station.partner %}<span class="badge muted">{{ station.partner.name }}</span>{% endif %}
+        {% if active_sessions %}
+          <span class="badge warning"><span class="live-dot"></span> {{ active_sessions|length }} ta faol sessiya</span>
+        {% endif %}
+      </div>
+      <h1 class="hero-title">{{ station.name }}</h1>
+      <div class="hero-sub">{{ station.address }}</div>
+    </div>
+
+    <div class="head-actions">
+      <form method="post" action="{% url 'dashboard:station_sync' station.id %}">
+        {% csrf_token %}
+        <button type="submit" class="btn secondary" title="Ulagich va stansiya holatini sessiyalarga qarab qayta hisoblaydi">Sinxronlash</button>
+      </form>
+      <a href="{% url 'dashboard:station_edit' station.id %}" class="btn secondary">Tahrirlash</a>
+    </div>
+  </div>
+</div>
+
+{# Hamkorni tez biriktirish — tahrirlash sahifasiga kirmasdan #}
+<div class="card assign-card">
+  <div class="assign-label">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+    <div>
+      <div class="k">Hamkor</div>
+      <div class="v">
+        {% if station.partner %}
+          <a href="{% url 'dashboard:partner_detail' station.partner.id %}">{{ station.partner.name }}</a>
+          <span style="color:var(--text-muted);font-size:12px;">· komissiya {{ station.partner.commission_percent }}%</span>
+        {% else %}
+          <span class="badge warning">Biriktirilmagan</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <form method="post" action="{% url 'dashboard:station_assign_partner' station.id %}" class="inline-form">
+    {% csrf_token %}
+    <select name="partner">
+      <option value="">— Hamkorsiz —</option>
+      {% for p in partners %}
+        <option value="{{ p.id }}" {% if station.partner_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn secondary">Saqlash</button>
+  </form>
+</div>
+
+{# Jonli sessiyalar — kim, qaysi ulagichda, qancha #}
+{% if active_sessions %}
+<div class="section-head"><h2>Hozir zaryadlanmoqda</h2></div>
+{% for s in active_sessions %}
+  <div class="card live-session">
+    <div class="ls-main">
+      <div class="ls-ring">{{ s.current_percent }}%</div>
+      <div>
+        <div class="ls-user">
+          <a href="{% url 'dashboard:user_detail' s.user.id %}">{{ s.user.username |phone }}</a>
+          <span class="badge warning"><span class="live-dot"></span> {{ s.connector_label }} ulagich</span>
+        </div>
+        <div class="ls-meta">
+          {{ s.kwh_charged|num:2 }} kVt·s · {{ s.cost_so_far|som }} so'm · boshlangan {{ s.started_at|date:"H:i" }}
+          {% if s.is_live %}<span class="badge success">Jonli</span>{% else %}<span class="badge muted">Simulyatsiya</span>{% endif %}
+        </div>
+        <div class="mini-progress" style="margin-top:8px;max-width:260px;">
+          <span class="track"><span class="fill" style="width: {{ s.current_percent }}%;"></span></span>
+        </div>
+      </div>
+    </div>
+    <div class="row-actions">
+      <a href="{% url 'dashboard:session_detail' s.id %}" class="btn small secondary">Sessiya</a>
+      <form method="post" action="{% url 'dashboard:session_force_stop' s.id %}"
+            onsubmit="return confirm(&quot;Zaryadlash majburan uzilsinmi? Qurilmaga uzish buyrug'i yuboriladi.&quot;);">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn small danger">Majburan uzish</button>
+      </form>
+    </div>
+  </div>
+{% endfor %}
+{% endif %}
+
+{# Stansiya bo'yicha umumiy ko'rsatkichlar #}
+<div class="kpi-grid">
+  <div class="kpi"><span class="kpi-label">Sessiyalar</span><div class="kpi-value">{{ stats.sessions_total }}</div></div>
+  <div class="kpi"><span class="kpi-label">Tushum</span><div class="kpi-value">{{ stats.revenue|som }} <span class="unit">so'm</span></div></div>
+  <div class="kpi"><span class="kpi-label">Berilgan energiya</span><div class="kpi-value">{{ stats.kwh|num:1 }} <span class="unit">kVt·s</span></div></div>
+  <div class="kpi">
+    <span class="kpi-label">Reyting</span>
+    <div class="kpi-value">{% if stats.rating %}{{ stats.rating|num:1 }}{% else %}—{% endif %}</div>
+    <div class="kpi-foot">{{ stats.reviews }} ta sharh</div>
+  </div>
+</div>
+
+{# Stansiya ma'lumotlari — boshqa detal sahifalaridagi kabi kv-grid #}
+<div class="kv-grid">
+  <div class="kv">
+    <div class="k">Turi va quvvati</div>
+    <div class="v" style="font-size:16px;">{{ station.charger_type }} · {{ station.power_kw }} kVt</div>
+  </div>
+  <div class="kv">
+    <div class="k">Narx</div>
+    <div class="v" style="font-size:16px;">
+      {{ station.price_per_kwh|som }} <span style="font-size:12px;font-weight:600;color:var(--text-muted);">so'm/kVt</span>
+      {% if station.has_discount %}
+        <span class="price-was" style="margin-left:6px;">{{ station.standard_price_per_kwh|som }}</span>
+      {% endif %}
+    </div>
+    {% if station.has_discount %}
+      <div class="kv-note">
+        <span class="badge success">chegirma</span>
+        avval standart {{ station.standard_price_per_kwh|som }} so'm edi
+      </div>
+    {% elif station.discount_price_per_kwh %}
+      <div class="kv-note">Stansiyaning o'z narxi · standart {{ station.standard_price_per_kwh|som }} so'm</div>
+    {% else %}
+      <div class="kv-note">Sozlamalardagi standart narx</div>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <div class="k">Holat</div>
+    <div class="v" style="margin-top:8px;">
+      {% if station.status == 'available' %}<span class="badge success">Bo'sh</span>
+      {% elif station.status == 'busy' %}<span class="badge warning">Band</span>
+      {% else %}<span class="badge muted">Ishlamayapti</span>{% endif %}
+    </div>
+  </div>
+  <div class="kv">
+    <div class="k">OCPP ulanish</div>
+    <div class="v" style="margin-top:8px;">
+      {% if not station.ocpp_id %}
+        <span class="badge muted">Bog'lanmagan</span>
+      {% elif station.is_online %}
+        <span class="badge success"><span class="live-dot"></span> Onlayn</span>
+      {% else %}
+        <span class="badge danger">Oflayn</span>
+      {% endif %}
+    </div>
+    {% if station.ocpp_id %}
+      <div class="kv-note">
+        <code class="mono">{{ station.ocpp_id }}</code>
+        {% if station.ocpp_last_seen_at %} · oxirgi signal {{ station.ocpp_last_seen_at|date:"d.m H:i" }}{% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="section-head"><h2>Ulagichlar</h2></div>
+<div class="card">
+  {% for c in connectors %}
+    <div class="item-row">
+      <div class="letter">{{ c.obj.label }}</div>
+      <div class="grow">
+        <div class="title">
+          {{ c.obj.type }} · {{ c.obj.power_kw }} kVt
+          {% if c.obj.ocpp_connector_id %}
+            <span class="mono">OCPP #{{ c.obj.ocpp_connector_id }}</span>
+          {% else %}
+            <span class="badge muted">OCPP bog'lanmagan</span>
+          {% endif %}
+        </div>
+
+        <div class="sub">
+          {% if c.obj.status == 'offline' %}
+            <span class="badge danger">Ishlamayapti</span>
+            {{ c.obj.offline_reason|default:"sabab ko'rsatilmagan" }}
+          {% elif c.parking %}
+            <span class="badge warning">Pullik parkovka</span>
+            {{ c.parking_minutes }} daqiqadan beri · {{ c.obj.parking_fee_per_min|som }} so'm/daq
+          {% elif c.obj.status == 'charging' %}
+            <span class="badge warning"><span class="live-dot"></span> Zaryadlanmoqda</span>
+            {% if c.session %}
+              <a href="{% url 'dashboard:user_detail' c.session.user.id %}">{{ c.session.user.username |phone }}</a>
+              · {{ c.session.current_percent }}% · {{ c.session.cost_so_far|som }} so'm
+            {% else %}
+              <span style="color:var(--danger);">faol sessiya topilmadi — sinxronlash kerak</span>
+            {% endif %}
+          {% else %}
+            <span class="badge success">Bo'sh</span>
+          {% endif %}
+        </div>
+
+        {% if c.session %}
+          <div class="mini-progress" style="margin-top:8px;max-width:220px;">
+            <span class="track"><span class="fill" style="width: {{ c.session.current_percent }}%;"></span></span>
+            <span class="pct">{{ c.session.current_percent }}%</span>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="row-actions">
+        {% if c.obj.status == 'charging' %}
+          <form method="post" action="{% url 'dashboard:connector_remote_stop' station.id c.obj.id %}"
+                onsubmit="return confirm(&quot;Zaryadlash majburan uzilsinmi? Qurilmaga uzish buyrug'i yuboriladi.&quot;);">
+            {% csrf_token %}
+            <button type="submit" class="btn small danger">Majburan uzish</button>
+          </form>
+        {% elif station.ocpp_id and c.obj.ocpp_connector_id and c.obj.status == 'available' %}
+          <form method="post" action="{% url 'dashboard:connector_remote_start' station.id c.obj.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn small secondary">Boshlash</button>
+          </form>
+        {% endif %}
+        {% comment %}
+          Tezkor amal: ta'mirga qo'yish / xizmatga qaytarish. Ikki holat ikki
+          alohida forma — shunda confirm() matnida shartli ifoda ham,
+          HTML atributini buzadigan tirnoq ham bo'lmaydi.
+        {% endcomment %}
+        {% if not c.session %}
+          {% if c.obj.status == 'offline' %}
+            <form method="post" action="{% url 'dashboard:connector_toggle_service' station.id c.obj.id %}"
+                  onsubmit="return confirm(&quot;Ulagich xizmatga qaytarilsinmi?&quot;);">
+              {% csrf_token %}
+              <button type="submit" class="btn small secondary">Xizmatga qaytarish</button>
+            </form>
+          {% else %}
+            <form method="post" action="{% url 'dashboard:connector_toggle_service' station.id c.obj.id %}"
+                  onsubmit="return confirm(&quot;Ulagich xizmatdan chiqarilsinmi? Mobil ilovada ishlamayapti deb ko'rinadi.&quot;);">
+              {% csrf_token %}
+              <button type="submit" class="btn small secondary">Xizmatdan chiqarish</button>
+            </form>
+          {% endif %}
+        {% endif %}
+        <a href="{% url 'dashboard:connector_edit' station.id c.obj.id %}" class="btn small secondary">Tahrirlash</a>
+      </div>
+    </div>
+  {% empty %}
+    <p class="empty" style="padding:14px 0;">Hali ulagich qo'shilmagan</p>
+  {% endfor %}
+
+  {% comment %}
+    Yangi ulagich holatsiz qo'shiladi: u "bo'sh" bo'lib boshlanadi va keyingi
+    holatni qurilma yoki Profilaktika bo'limi belgilaydi.
+  {% endcomment %}
+  <form method="post" class="inline-form subform">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_connector">
+    <div class="field"><label>{{ connector_form.label.label }}</label>{{ connector_form.label }}</div>
+    <div class="field"><label>{{ connector_form.type.label }}</label>{{ connector_form.type }}</div>
+    <div class="field"><label>{{ connector_form.power_kw.label }}</label>{{ connector_form.power_kw }}</div>
+    <div class="field"><label>{{ connector_form.ocpp_connector_id.label }}</label>{{ connector_form.ocpp_connector_id }}</div>
+    <button type="submit" class="btn small">+ Qo'shish</button>
+  </form>
+</div>
+
+<div class="section-head"><h2>Qulayliklar</h2></div>
+<div class="card">
+  {% for amenity in station.amenities.all %}
+    <div class="item-row">
+      <div class="grow">
+        <div class="title">{{ amenity.title }}</div>
+        <div class="sub">{{ amenity.get_icon_display }}{% if amenity.subtitle %} · {{ amenity.subtitle }}{% endif %}</div>
+      </div>
+      <form method="post" action="{% url 'dashboard:amenity_delete' station.id amenity.id %}" onsubmit="return confirm(&quot;O'chirilsinmi?&quot;);">
+        {% csrf_token %}
+        <button type="submit" class="btn small danger">O'chirish</button>
+      </form>
+    </div>
+  {% empty %}
+    <p class="empty" style="padding:14px 0;">Hali qulaylik qo'shilmagan</p>
+  {% endfor %}
+
+  <form method="post" class="inline-form subform">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_amenity">
+    <div class="field"><label>Ikonka</label>{{ amenity_form.icon }}</div>
+    <div class="field"><label>Sarlavha</label>{{ amenity_form.title }}</div>
+    <div class="field"><label>Qo'shimcha matn</label>{{ amenity_form.subtitle }}</div>
+    <button type="submit" class="btn small">+ Qo'shish</button>
+  </form>
+</div>
+{# ── Shu stansiyadagi oxirgi sessiyalar ────────────────────── #}
+<div class="section-head">
+  <h2>Oxirgi sessiyalar</h2>
+  <a href="{% url 'dashboard:sessions' %}?q={{ station.name|urlencode }}" class="link">Barchasi →</a>
+</div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Foydalanuvchi</th><th>Ulagich</th><th>Zaryad</th><th>Summa</th><th>Holat</th><th>Sana</th></tr></thead>
+    <tbody>
+    {% for s in recent_sessions %}
+      <tr>
+        <td><a href="{% url 'dashboard:user_detail' s.user.id %}">{{ s.user.username |phone }}</a></td>
+        <td><span class="conn-chip">{{ s.connector_label }}</span></td>
+        <td>
+          <div class="mini-progress">
+            <span class="track"><span class="fill" style="width: {{ s.current_percent }}%;"></span></span>
+            <span class="pct">{{ s.current_percent }}%</span>
+          </div>
+        </td>
+        <td>{{ s.cost_so_far|som }} so'm</td>
+        <td>
+          {% if s.status == 'charging' %}<span class="badge warning"><span class="live-dot"></span> Zaryadda</span>
+          {% elif s.status == 'error' %}<span class="badge danger">Xatolik</span>
+          {% else %}<span class="badge muted">Tugagan</span>{% endif %}
+        </td>
+        <td>{{ s.started_at|date:"d.m.Y H:i" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6"><p class="empty">Bu stansiyada hali sessiya bo'lmagan</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# ── Sharhlar ──────────────────────────────────────────────── #}
+<div class="section-head">
+  <h2>Sharhlar</h2>
+  {% if stats.rating %}<span style="font-size:12.5px;color:var(--text-muted);">{{ stats.rating|num:1 }} ★ · {{ stats.reviews }} ta</span>{% endif %}
+</div>
+<div class="card">
+  {% for r in reviews %}
+    <div class="item-row">
+      <div class="grow">
+        <div class="title">
+          {{ r.user.username |phone }}
+          <span class="badge {% if r.rating >= 4 %}success{% elif r.rating == 3 %}warning{% else %}danger{% endif %}">{{ r.rating }} ★</span>
+        </div>
+        <div class="sub">{{ r.comment|default:"— izohsiz —" }}</div>
+      </div>
+      <span style="color:var(--text-muted);font-size:12px;">{{ r.created_at|date:"d.m.Y" }}</span>
+    </div>
+  {% empty %}
+    <p class="empty" style="padding:14px 0;">Hali sharh yo'q</p>
+  {% endfor %}
+</div>
+
+{% comment %}
+  ── Qurilma bo'limi ────────────────────────────────────────────
+  Hammasi chargerning O'ZIDAN keladi: pasport BootNotification'da, sozlamalar
+  GetConfiguration javobida, jurnal esa har bir xabarda. Bizda faqat oxirgi
+  o'qilgan nusxa turadi — shuning uchun vaqt belgisi ham ko'rsatiladi.
+{% endcomment %}
+<div class="section-head">
+  <h2>Qurilma</h2>
+  <span class="page-sub">
+    {% if info %}{{ info.title }}{% else %}Charger hali ulanmagan{% endif %}
+  </span>
+</div>
+
+<div class="card">
+  {% if info %}
+    <div class="kv-list">
+      <div class="kv-row"><span class="k">Ishlab chiqaruvchi</span><span class="v">{{ info.vendor|default:"—" }}</span></div>
+      <div class="kv-row"><span class="k">Model</span><span class="v">{{ info.model|default:"—" }}</span></div>
+      <div class="kv-row"><span class="k">Seriya raqami</span><span class="v mono">{{ info.serial_number|default:"—" }}</span></div>
+      {% if info.charge_box_serial %}
+        <div class="kv-row"><span class="k">Korpus seriyasi</span><span class="v mono">{{ info.charge_box_serial }}</span></div>
+      {% endif %}
+      <div class="kv-row">
+        <span class="k">Proshivka</span>
+        <span class="v mono">
+          {{ info.firmware_version|default:"—" }}
+          {% if info.firmware_status %}<span class="cell-sub">{{ info.firmware_status }}</span>{% endif %}
+        </span>
+      </div>
+      {% if info.meter_type or info.meter_serial %}
+        <div class="kv-row">
+          <span class="k">Hisoblagich</span>
+          <span class="v">{{ info.meter_type|default:"—" }} <span class="cell-sub mono">{{ info.meter_serial }}</span></span>
+        </div>
+      {% endif %}
+      {% if info.iccid or info.imsi %}
+        <div class="kv-row">
+          <span class="k">SIM karta</span>
+          <span class="v mono">{{ info.iccid|default:"—" }}{% if info.imsi %} <span class="cell-sub">IMSI {{ info.imsi }}</span>{% endif %}</span>
+        </div>
+      {% endif %}
+      <div class="kv-row">
+        <span class="k">Yuklanishlar</span>
+        <span class="v">
+          {{ info.boot_count }} marta
+          {% if info.last_boot_at %}<span class="cell-sub">oxirgisi {{ info.last_boot_at|date:"d.m.Y H:i" }}</span>{% endif %}
+        </span>
+      </div>
+      {% if info.diagnostics_status %}
+        <div class="kv-row">
+          <span class="k">Diagnostika</span>
+          <span class="v">{{ info.diagnostics_status }} <span class="cell-sub">{{ info.diagnostics_status_at|date:"d.m H:i" }}</span></span>
+        </div>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="empty" style="padding:14px 0;">
+      Qurilma hali BootNotification yubormagan — pasport ma'lumoti u ulanganda paydo bo'ladi
+    </p>
+  {% endif %}
+
+  {% if station.ocpp_id %}
+    <div class="row-actions" style="justify-content:flex-start;margin-top:16px;">
+      <form method="post" action="{% url 'dashboard:device_read_config' station.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn small secondary">Sozlamalarni o'qish</button>
+      </form>
+      <form method="post" action="{% url 'dashboard:device_clear_cache' station.id %}"
+            onsubmit="return confirm(&quot;Chargerdagi avtorizatsiya keshi tozalansinmi? Saqlangan RFID ruxsatlari o'chadi.&quot;);">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn small secondary">Keshni tozalash</button>
+      </form>
+      <form method="post" action="{% url 'dashboard:device_reset' station.id %}"
+            onsubmit="return confirm(&quot;Qurilma qayta ishga tushirilsinmi? Ketayotgan sessiyalar to'g'ri yakunlanadi.&quot;);">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="hidden" name="mode" value="soft">
+        <button type="submit" class="btn small secondary">Qayta ishga tushirish</button>
+      </form>
+      <form method="post" action="{% url 'dashboard:device_reset' station.id %}"
+            onsubmit="return confirm(&quot;HARD reset — quvvatni uzib yoqishga teng. Ketayotgan zaryadlash yarim uzilib qolishi mumkin. Davom etilsinmi?&quot;);">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="hidden" name="mode" value="hard">
+        <button type="submit" class="btn small danger">Hard reset</button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+
+{% if station.ocpp_id %}
+  <div class="section-head">
+    <h2>Xizmat ko'rsatish</h2>
+    <span class="page-sub">Proshivka va diagnostika — fayl manzilini operator beradi</span>
+  </div>
+  <div class="card">
+    <form method="post" action="{% url 'dashboard:device_update_firmware' station.id %}" class="inline-form"
+          onsubmit="return confirm(&quot;Qurilmaga yangi proshivka yuklab olish buyrug'i yuborilsinmi? Jarayon davomida charger qayta yuklanishi mumkin.&quot;);">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <div class="field" style="flex:1;">
+        <label>Proshivka fayli havolasi</label>
+        <input type="url" name="location" placeholder="https://... yoki ftp://..." required>
+      </div>
+      <button type="submit" class="btn secondary">Proshivkani yangilash</button>
+    </form>
+
+    <form method="post" action="{% url 'dashboard:device_get_diagnostics' station.id %}" class="inline-form"
+          style="margin-top:12px;">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <div class="field" style="flex:1;">
+        <label>Diagnostika faylini yuklash manzili</label>
+        <input type="url" name="location" placeholder="ftp://... (charger faylni shu yerga jo'natadi)" required>
+      </div>
+      <button type="submit" class="btn secondary">Diagnostika so'rash</button>
+    </form>
+  </div>
+
+  <div class="section-head">
+    <h2>Quvvat chegarasi</h2>
+    <span class="page-sub">Tarmoq yukini cheklash uchun (OCPP SetChargingProfile)</span>
+  </div>
+  <div class="card">
+    {% for c in connectors %}
+      <div class="item-row">
+        <div class="letter">{{ c.obj.label }}</div>
+        <div class="grow">
+          <div class="title">
+            {{ c.obj.power_kw }} kVt
+            {% if c.obj.power_limit_kw %}
+              <span class="badge warning">{{ c.obj.power_limit_kw }} kVt gacha cheklangan</span>
+            {% else %}
+              <span class="badge muted">cheklovsiz</span>
+            {% endif %}
+          </div>
+          <div class="sub">
+            {% if c.obj.ocpp_connector_id %}OCPP #{{ c.obj.ocpp_connector_id }}{% else %}OCPP bog'lanmagan{% endif %}
+          </div>
+        </div>
+        {% if c.obj.ocpp_connector_id %}
+          <form method="post" action="{% url 'dashboard:device_power_limit' station.id c.obj.id %}" class="inline-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <input type="number" name="limit_kw" min="1" max="{{ c.obj.power_kw }}"
+                   value="{{ c.obj.power_limit_kw|default_if_none:'' }}" placeholder="kVt" style="width:90px;">
+            <button type="submit" class="btn small secondary">Qo'llash</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endfor %}
+    <div class="help" style="margin-top:8px;">
+      Bo'sh qoldirib "Qo'llash" bosilsa chegara olib tashlanadi.
+    </div>
+  </div>
+{% endif %}
+
+{% if configuration %}
+  <div class="section-head">
+    <h2>Qurilma sozlamalari</h2>
+    <span class="page-sub">{{ configuration|length }} ta kalit · qurilmaning o'zidan o'qilgan</span>
+  </div>
+  <div class="table-wrap" style="overflow-x:auto;">
+    <table>
+      <thead><tr><th>Kalit</th><th>Qiymat</th><th>O'qilgan</th><th class="actions">Yangi qiymat</th></tr></thead>
+      <tbody>
+      {% for row in configuration %}
+        <tr>
+          <td class="mono">
+            {{ row.key }}
+            {% if row.is_unknown %}<span class="badge muted">qo'llab-quvvatlanmaydi</span>
+            {% elif row.is_readonly %}<span class="badge muted">faqat o'qish</span>{% endif %}
+          </td>
+          <td class="mono">{{ row.value|default:"—" }}</td>
+          <td>{{ row.fetched_at|date:"d.m H:i" }}</td>
+          <td class="actions">
+            {% if not row.is_readonly and not row.is_unknown %}
+              <form method="post" action="{% url 'dashboard:device_write_config' station.id %}" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="hidden" name="key" value="{{ row.key }}">
+                <input type="text" name="value" value="{{ row.value }}" size="12">
+                <button type="submit" class="btn small secondary">Yozish</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="empty"><b>Sozlama o'qilmagan</b><span>Yuqoridagi "Sozlamalarni o'qish" tugmasini bosing</span></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+{% if logs %}
+  <div class="section-head">
+    <h2>Qurilma jurnali</h2>
+    <span class="page-sub">Oxirgi {{ logs|length }} ta xabar</span>
+  </div>
+  <div class="card">
+    {% for entry in logs %}
+      <div class="item-row">
+        <div class="grow">
+          <div class="title">
+            {{ entry.summary|default:entry.action }}
+            {% if entry.kind == 'error' %}<span class="badge danger">nosozlik</span>
+            {% elif entry.kind == 'boot' %}<span class="badge success">yuklanish</span>
+            {% elif entry.kind == 'stop' %}<span class="badge muted">sessiya</span>{% endif %}
+          </div>
+          <div class="sub mono">{{ entry.action }}</div>
+        </div>
+        <span style="color:var(--text-muted);font-size:12px;">{{ entry.created_at|date:"d.m H:i:s" }}</span>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% endblock %}

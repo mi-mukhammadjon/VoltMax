@@ -1,0 +1,35 @@
+{% comment %}
+Xabarlar — sahifa oqimidagi qator emas, o'ng yuqorida suzuvchi alohida
+alertlar. Har biri yopiladigan (×) va muvaffaqiyat xabarlari o'zi so'nadi;
+xatolar esa foydalanuvchi yopmaguncha turadi (app.js).
+{% endcomment %}
+{% if messages %}
+<div class="toast-stack" aria-live="polite">
+  {% for message in messages %}
+    <div class="toast {{ message.tags }}" role="alert">
+      <span class="toast-icon">
+        {% if 'error' in message.tags %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16h.01"/></svg>
+        {% elif 'warning' in message.tags %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17h.01"/></svg>
+        {% else %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-9"/></svg>
+        {% endif %}
+      </span>
+
+      <div class="toast-body">
+        <div class="toast-title">
+          {% if 'error' in message.tags %}Xatolik
+          {% elif 'warning' in message.tags %}Diqqat
+          {% else %}Bajarildi{% endif %}
+        </div>
+        <div class="toast-text">{{ message }}</div>
+      </div>
+
+      <button type="button" class="toast-close" aria-label="Yopish">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+  {% endfor %}
+</div>
+{% endif %}

@@ -1,0 +1,40 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}{{ title }} — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1 class="page-title">{{ title }}</h1><div class="page-sub">{{ subtitle }}</div></div>
+  <a href="{% url create_url %}" class="btn">+ Qo'shish</a>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Xodim</th><th>Email</th><th>Rollar</th><th>Holat</th><th>Oxirgi kirish</th><th></th></tr></thead>
+    <tbody>
+    {% for s in page_obj %}
+      <tr>
+        <td>
+          <div class="cell-2">
+            <a href="{% url detail_url s.id %}" class="top">{{ s.get_full_name|default:s.username }}</a>
+            <span class="sub">{{ s.username }}</span>
+          </div>
+        </td>
+        <td>{{ s.email|default:"—" }}</td>
+        <td>
+          {% for g in s.groups.all %}<span class="badge muted">{{ g.name }}</span> {% empty %}
+            {% if is_admin_section %}<span class="badge success">Barcha huquqlar</span>{% else %}<span style="color:var(--text-muted);">rol yo'q</span>{% endif %}
+          {% endfor %}
+        </td>
+        <td>{% if s.is_active %}<span class="badge success">Faol</span>{% else %}<span class="badge danger">Bloklangan</span>{% endif %}</td>
+        <td>{{ s.last_login|date:"d.m.Y H:i"|default:"—" }}</td>
+        <td class="actions">
+          <div class="row-actions"><a href="{% url detail_url s.id %}" class="btn small secondary">Ko'rish</a></div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6"><p class="empty">Hali xodim qo'shilmagan</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' %}
+{% endblock %}

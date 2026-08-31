@@ -1,0 +1,129 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Korporativ mijoz — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:companies' %}" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  Korporativ mijozlar
+</a>
+
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{% if instance %}{{ instance.name }}{% else %}Yangi korporativ mijoz{% endif %}</h1>
+    <div class="page-sub">
+      {% if instance %}Ma'lumotlarni tahrirlash{% else %}Kartalar keyin biriktiriladi{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if not instance %}
+  <div class="device-state is-none">
+    <span class="ds-dot" aria-hidden="true"></span>
+    <div class="ds-text">
+      <b>Hamyon avtomatik yaratiladi</b>
+      <small>
+        Kompaniya uchun alohida hisob ochiladi. RFID bo'limida kartani ochib
+        shu mijozni belgilaganingizdan keyin barcha sessiyalar shu hamyondan yechiladi.
+      </small>
+    </div>
+  </div>
+{% endif %}
+
+<div class="card form-card">
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <div class="field">
+      <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+      {{ form.name }}{{ form.name.errors }}
+    </div>
+
+    <div class="my-field-row">
+      <div class="field">
+        <label for="{{ form.contact_name.id_for_label }}">{{ form.contact_name.label }}</label>
+        {{ form.contact_name }}{{ form.contact_name.errors }}
+      </div>
+      <div class="field">
+        <label for="{{ form.contact_phone.id_for_label }}">{{ form.contact_phone.label }}</label>
+        {{ form.contact_phone }}{{ form.contact_phone.errors }}
+      </div>
+    </div>
+
+    <label class="check-row">
+      {{ form.is_active }}
+      <span>
+        <b>{{ form.is_active.label }}</b>
+        <small>Belgilanmasa kartalari ishlaydi, lekin pul haydovchining o'z hamyonidan yechiladi</small>
+      </span>
+    </label>
+
+    {% comment %}
+      Yuridik va bank rekvizitlari — hisob-faktura hamda to'lov
+      topshiriqnomasi uchun. Mijozni ochish uchun majburiy emas: shartnoma
+      tuzilganda to'ldiriladi, shuning uchun alohida bo'limda turadi.
+    {% endcomment %}
+    <div class="section-head" style="margin-top:28px;">
+      <h2>Yuridik rekvizitlar</h2>
+      <span class="page-sub">Hisob-faktura va shartnoma uchun</span>
+    </div>
+
+    <div class="field">
+      <label for="{{ form.legal_name.id_for_label }}">{{ form.legal_name.label }}</label>
+      {{ form.legal_name }}
+      <div class="help">{{ form.legal_name.help_text }}</div>
+      {{ form.legal_name.errors }}
+    </div>
+
+    <div class="my-field-row">
+      <div class="field">
+        <label for="{{ form.inn.id_for_label }}">{{ form.inn.label }}</label>
+        {{ form.inn }}{{ form.inn.errors }}
+      </div>
+      <div class="field">
+        <label for="{{ form.oked.id_for_label }}">{{ form.oked.label }}</label>
+        {{ form.oked }}{{ form.oked.errors }}
+      </div>
+      <div class="field">
+        <label for="{{ form.vat_code.id_for_label }}">{{ form.vat_code.label }}</label>
+        {{ form.vat_code }}{{ form.vat_code.errors }}
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="{{ form.legal_address.id_for_label }}">{{ form.legal_address.label }}</label>
+      {{ form.legal_address }}{{ form.legal_address.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.director.id_for_label }}">{{ form.director.label }}</label>
+      {{ form.director }}{{ form.director.errors }}
+    </div>
+
+    <div class="section-head" style="margin-top:28px;">
+      <h2>Bank rekvizitlari</h2>
+      <span class="page-sub">To'lov topshiriqnomasida ko'rsatiladi</span>
+    </div>
+
+    <div class="field">
+      <label for="{{ form.bank_name.id_for_label }}">{{ form.bank_name.label }}</label>
+      {{ form.bank_name }}{{ form.bank_name.errors }}
+    </div>
+
+    <div class="my-field-row">
+      <div class="field">
+        <label for="{{ form.bank_account.id_for_label }}">{{ form.bank_account.label }}</label>
+        {{ form.bank_account }}{{ form.bank_account.errors }}
+      </div>
+      <div class="field">
+        <label for="{{ form.bank_mfo.id_for_label }}">{{ form.bank_mfo.label }}</label>
+        {{ form.bank_mfo }}{{ form.bank_mfo.errors }}
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn">Saqlash</button>
+      <a href="{% url 'dashboard:companies' %}" class="btn secondary">Bekor qilish</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

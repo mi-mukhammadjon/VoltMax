@@ -1,0 +1,164 @@
+{% extends 'dashboard/base.html' %}{% load money %}
+{% block title %}Qurilma holati — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Qurilma holati</h1>
+    <div class="page-sub">Stansiyalarning OCPP aloqasi va ulagichlar darajasidagi nosozliklar</div>
+  </div>
+  <div class="head-actions">
+    <form method="post" action="{% url 'dashboard:sync_status' %}"
+          onsubmit="return confirm(&quot;Barcha stansiya va ulagich holatlari sessiyalarga qarab qayta hisoblansinmi?&quot;);">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button type="submit" class="btn secondary">Holatni sinxronlash</button>
+    </form>
+    <a href="{% url 'dashboard:stations' %}" class="btn secondary">Stansiyalar ro'yxati</a>
+  </div>
+</div>
+
+{# ── Stansiya darajasidagi xulosa ──────────────────────────── #}
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Onlayn</span>
+      <span class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12.5 10 17l9-9"/></svg></span>
+    </div>
+    <div class="kpi-value">{{ summary.online }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Nosozlik bilan</span>
+      <span class="kpi-icon warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17h.01"/></svg></span>
+    </div>
+    <div class="kpi-value">{{ summary.warn }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Aloqa yo'q</span>
+      <span class="kpi-icon danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l16 16"/><path d="M12 19h.01"/><path d="M5 12.5a10 10 0 0 1 4-2.4M15 10a10 10 0 0 1 4 2.5"/></svg></span>
+    </div>
+    <div class="kpi-value">{{ summary.down }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Charger ulanmagan</span>
+      <span class="kpi-icon neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5"/></svg></span>
+    </div>
+    <div class="kpi-value">{{ summary.none }}</div>
+  </div>
+</div>
+
+<div class="filter-tabs">
+  <a href="?" class="{% if not health_filter %}active{% endif %}">Barchasi</a>
+  <a href="?health=ok" class="{% if health_filter == 'ok' %}active{% endif %}">Onlayn</a>
+  <a href="?health=warn" class="{% if health_filter == 'warn' %}active{% endif %}">Nosozlik bilan</a>
+  <a href="?health=down" class="{% if health_filter == 'down' %}active{% endif %}">Aloqa yo'q</a>
+  <a href="?health=none" class="{% if health_filter == 'none' %}active{% endif %}">Ulanmagan</a>
+</div>
+
+<div class="table-wrap" style="overflow-x:auto;">
+  <table>
+    <thead><tr><th>Stansiya</th><th>Hamkor</th><th>OCPP ID</th><th>Holat</th><th>Ulagichlar</th><th>Oxirgi signal</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>
+          <div class="cell-2">
+            <a href="{% url 'dashboard:station_detail' r.station.id %}" class="top">{{ r.station.name }}</a>
+            <span class="sub">{{ r.station.address }}</span>
+          </div>
+        </td>
+        <td>{% if r.station.partner %}{{ r.station.partner.name }}{% else %}<span style="color:var(--text-muted);">—</span>{% endif %}</td>
+        <td><code class="mono">{{ r.station.ocpp_id|default:"—" }}</code></td>
+        <td>
+          {% if r.health == 'ok' %}<span class="badge success"><span class="live-dot"></span> {{ r.label }}</span>
+          {% elif r.health == 'warn' %}<span class="badge warning">{{ r.label }}</span>
+          {% elif r.health == 'down' %}<span class="badge danger">{{ r.label }}</span>
+          {% else %}<span class="badge muted">{{ r.label }}</span>{% endif %}
+        </td>
+        <td>
+          {% for c in r.connectors %}
+            <span class="badge {% if c.status == 'available' %}success{% elif c.status == 'charging' %}warning{% else %}danger{% endif %}">{{ c.label }}</span>
+          {% empty %}<span style="color:var(--text-muted);">yo'q</span>{% endfor %}
+        </td>
+        <td>{{ r.station.ocpp_last_seen_at|date:"d.m.Y H:i"|default:"—" }}</td>
+        <td><div class="row-actions"><a href="{% url 'dashboard:station_detail' r.station.id %}" class="btn small secondary">Boshqarish</a></div></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7"><p class="empty">Bu filtr bo'yicha stansiya yo'q</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' with page_obj=rows %}
+
+{# ── Ulagichlar darajasi ───────────────────────────────────── #}
+<div class="section-head">
+  <h2>Ulagichlar</h2>
+  <span style="font-size:12.5px;color:var(--text-muted);">
+    {{ connector_summary.total }} ta ·
+    <span style="color:var(--success);">{{ connector_summary.available }} bo'sh</span> ·
+    <span style="color:var(--warning);">{{ connector_summary.charging }} zaryadda</span> ·
+    <span style="color:var(--warning);">{{ connector_summary.parking }} parkovka</span> ·
+    <span style="color:var(--danger);">{{ connector_summary.offline }} nosoz</span>
+  </span>
+</div>
+
+<div class="table-wrap" style="overflow-x:auto;">
+  <table>
+    <thead><tr><th>Ulagich</th><th>Stansiya</th><th>Quvvat</th><th>OCPP #</th><th>Holat</th><th>Izoh</th><th></th></tr></thead>
+    <tbody>
+    {% for c in connector_rows %}
+      <tr>
+        <td><span class="conn-chip">{{ c.connector.label }}</span> <span style="color:var(--text-muted);font-size:12px;">{{ c.connector.type }}</span></td>
+        <td><a href="{% url 'dashboard:station_detail' c.station.id %}">{{ c.station.name }}</a></td>
+        <td>{{ c.connector.power_kw }} kVt</td>
+        <td><code class="mono">{{ c.connector.ocpp_connector_id|default:"—" }}</code></td>
+        <td>
+          {% if c.connector.status == 'offline' %}<span class="badge danger">Ishlamayapti</span>
+          {% elif c.parking %}<span class="badge warning">Pullik parkovka</span>
+          {% elif c.connector.status == 'charging' %}<span class="badge warning"><span class="live-dot"></span> Zaryadlanmoqda</span>
+          {% else %}<span class="badge success">Bo'sh</span>{% endif %}
+        </td>
+        <td style="max-width:280px;color:var(--text-secondary);font-size:12.5px;">
+          {% if c.connector.status == 'offline' %}{{ c.connector.offline_reason|default:"sabab ko'rsatilmagan" }}
+          {% elif c.parking %}{{ c.parking_minutes }} daqiqadan beri · {{ c.connector.parking_fee_per_min|som }} so'm/daq
+          {% elif c.connector.charging_percent %}{{ c.connector.charging_percent }}% zaryad
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          <div class="row-actions">
+            {% if c.station_online and c.connector.ocpp_connector_id %}
+              {% if c.connector.status == 'charging' %}
+                <form method="post" action="{% url 'dashboard:connector_remote_stop' c.station.id c.connector.id %}"
+                      onsubmit="return confirm(&quot;Zaryadlash majburan uzilsinmi? Qurilmaga uzish buyrug'i yuboriladi.&quot;);">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit" class="btn small danger">Majburan uzish</button>
+                </form>
+              {% else %}
+                <form method="post" action="{% url 'dashboard:connector_remote_start' c.station.id c.connector.id %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit" class="btn small secondary">Boshlash</button>
+                </form>
+              {% endif %}
+            {% elif c.connector.status == 'charging' %}
+              {# Charger oflayn — buyruq yetmaydi, lekin hisobda yopish kerak #}
+              <form method="post" action="{% url 'dashboard:connector_remote_stop' c.station.id c.connector.id %}"
+                    onsubmit="return confirm(&quot;Charger oflayn. Sessiya faqat hisobda yopiladi — qurilmani joyida tekshiring. Davom etilsinmi?&quot;);">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="btn small danger">Hisobda yopish</button>
+              </form>
+            {% else %}
+              <span style="color:var(--text-muted);font-size:12px;">masofadan boshqarib bo'lmaydi</span>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7"><p class="empty">Ulagich qo'shilmagan</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' with page_obj=connector_rows param='cpage' %}
+{% endblock %}

@@ -1,0 +1,51 @@
+{% comment %}
+  Shartnoma bo'limini qo'shish/tahrirlash oynasi.
+
+  Django formasi o'rniga oddiy inputlar: har bir bo'lim uchun alohida forma
+  obyekti yasash kerak bo'lardi, holbuki maydonlar uchta va tekshiruv
+  serverda baribir `ContractSectionForm` orqali o'tadi.
+
+  `target` — tahrirlanayotgan bo'lim yoki bo'sh (yangi bo'lim).
+{% endcomment %}
+<div class="modal" id="{% if target %}section-{{ target.id }}{% else %}section-new{% endif %}-modal" hidden>
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">{% if target %}Bo'limni tahrirlash{% else %}Yangi bo'lim{% endif %}</div>
+        <div class="modal-sub">Har bir satr — alohida band, «-» bilan boshlangani ichki band</div>
+      </div>
+      <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+    </div>
+
+    <form method="post" action="{% if target %}{% url 'dashboard:contract_section_edit' target.id %}{% else %}{% url 'dashboard:contract_section_new' %}{% endif %}">
+      {% csrf_token %}
+      <div class="modal-body">
+        <div class="field">
+          <label for="section-title-{{ target.id|default:'new' }}">Bo'lim sarlavhasi</label>
+          <input type="text" id="section-title-{{ target.id|default:'new' }}" name="title"
+                 value="{{ target.title|default:'' }}" maxlength="200"
+                 placeholder="SHARTNOMA PREDMETI" required>
+        </div>
+        <div class="field">
+          <label for="section-body-{{ target.id|default:'new' }}">Bandlar</label>
+          <textarea id="section-body-{{ target.id|default:'new' }}" name="body" rows="12"
+                    required>{{ target.body|default:'' }}</textarea>
+          <div class="help">Raqamlarni yozish shart emas — ular o'zi qo'yiladi</div>
+        </div>
+        <div class="field switch-row">
+          <div class="switch-text">
+            <label for="section-active-{{ target.id|default:'new' }}">Shartnomaga kiritilsin</label>
+            <div class="help">O'chirilsa bo'lim saqlanadi, lekin hujjatga tushmaydi</div>
+          </div>
+          <input type="checkbox" id="section-active-{{ target.id|default:'new' }}"
+                 name="is_active" {% if not target or target.is_active %}checked{% endif %}>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn secondary" data-modal-close>Bekor qilish</button>
+        <button type="submit" class="btn">Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>

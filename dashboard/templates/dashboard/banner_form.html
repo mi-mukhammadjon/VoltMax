@@ -1,0 +1,28 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Banner — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:content_banners' %}" class="back-link">← Bannerlar</a>
+<h1 class="page-title">{% if instance %}{{ instance.title }}{% else %}Yangi banner{% endif %}</h1>
+<div class="card form-card">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% include 'dashboard/_form_fields.html' %}
+    <div class="form-actions">
+      <button type="submit" class="btn">Saqlash</button>
+      <a href="{% url 'dashboard:content_banners' %}" class="btn secondary">Bekor qilish</a>
+    </div>
+  </form>
+</div>
+{% if instance %}
+<div class="danger-zone">
+  <div class="dz-text">
+    <div class="dz-title">Bannerni o'chirish</div>
+    <div class="dz-note">Banner ilovadan darhol yo'qoladi.</div>
+  </div>
+  <form method="post" action="{% url 'dashboard:banner_delete' instance.id %}" onsubmit="return confirm(&quot;Banner o'chirilsinmi?&quot;);">
+    {% csrf_token %}
+    <button type="submit" class="btn danger">O'chirish</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

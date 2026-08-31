@@ -1,0 +1,27 @@
+{% comment %}
+  Forma maydonlari.
+
+  Mantiqiy maydon (checkbox) alohida ko'rinishda: yozuv chapda, yoqish
+  tugmachasi o'ngda. Oddiy tartibda — yorliq tepada, katakcha ostida —
+  sozlamalar ro'yxati notekis ko'rinardi va tushuntirish yozuvi
+  katakchadan uzoqda qolardi.
+{% endcomment %}
+{% for field in form %}
+  {% if field.field.widget.input_type == 'checkbox' %}
+    <div class="field switch-row">
+      <div class="switch-text">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+        {{ field.errors }}
+      </div>
+      {{ field }}
+    </div>
+  {% else %}
+    <div class="field">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+      {{ field.errors }}
+    </div>
+  {% endif %}
+{% endfor %}

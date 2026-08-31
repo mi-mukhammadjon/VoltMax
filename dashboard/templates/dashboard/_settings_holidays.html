@@ -1,0 +1,115 @@
+{% comment %}Bayramlar tabi: yordam kartochkasi va kunlar ro'yxati.{% endcomment %}
+{% if active_tab == 'holiday' %}
+  <div class="card" style="max-width:820px;">
+    <div style="font-weight:800;margin-bottom:6px;">Bayramlar qayerdan olinadi</div>
+    <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.55;">
+      Google Calendar mamlakatlar bo'yicha ochiq bayram kalendarlarini ICS
+      faylida beradi — kalit ham, ro'yxatdan o'tish ham kerak emas. Ma'lumot
+      serverda olinadi va bazada saqlanadi, shuning uchun internet uzilsa ham
+      kalendar ishlayveradi.
+      <br><br>
+      Google ro'yxati O'zbekistondagi <b>ko'chirilgan ish kunlarini</b> har doim
+      ham bilmaydi — bunday kunlarni qo'lda qo'shing. Qo'lda kiritilgan yozuv
+      sinxronlashda o'chirilmaydi va Google nusxasidan ustun turadi.
+      <br><br>
+      Google O'zbekiston bayramlarini <b>ingliz tilida</b> beradi
+      («New Year», «Independence Day»). Nomni o'zgartirish uchun o'sha kunni
+      qo'lda qo'shing — u Google yozuvining ustidan yozadi va keyingi
+      sinxronlashda saqlanib qoladi.
+      <br><br>
+      Hozir ro'yxatda <b>{{ holiday_count }} ta kun</b> bor.
+    </div>
+  </div>
+
+{% endif %}
+
+{% if active_tab == 'holiday' %}
+  <div class="page-head" style="margin-top:var(--s6);">
+    <div>
+      <h2 class="page-title" style="font-size:var(--t-lg);">Bayram kunlari</h2>
+      <div class="page-sub">
+        Panelning barcha sana maydonlarida ajratib ko'rsatiladi
+        {% if settings_obj.holidays_synced_at %}
+          · oxirgi yangilanish {{ settings_obj.holidays_synced_at|date:"d.m.Y H:i" }}
+        {% endif %}
+      </div>
+    </div>
+    <div class="head-actions">
+      <form method="post" action="{% url 'dashboard:holidays_sync' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn secondary">Google'dan yangilash</button>
+      </form>
+      <button type="button" class="btn" data-modal-open="#holiday-add-modal">+ Kun qo'shish</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="w-date">Sana</th>
+          <th>Nomi</th>
+          <th class="w-badge">Manba</th>
+          <th class="actions">Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for holiday in holidays %}
+        <tr>
+          <td class="w-date">{{ holiday.date|date:"d.m.Y" }}</td>
+          <td>{{ holiday.name }}</td>
+          <td class="w-badge">
+            {% if holiday.source == 'google' %}<span class="badge muted">Google</span>
+            {% else %}<span class="badge success">Qo'lda</span>{% endif %}
+          </td>
+          <td class="actions">
+            <div class="row-actions">
+              <form method="post" action="{% url 'dashboard:holiday_delete' holiday.id %}"
+                    onsubmit="return confirm('Kun ro’yxatdan olib tashlansinmi?')">
+                {% csrf_token %}
+                <button type="submit" class="btn small danger">O'chirish</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="empty">
+          <b>Bayram kunlari yo'q</b>
+          <span>"Google'dan yangilash" tugmasini bosing yoki kunni qo'lda qo'shing</span>
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="modal" id="holiday-add-modal" hidden>
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title">Bayram kuni</div>
+          <div class="modal-sub">Qo'lda kiritilgan kun sinxronlashda o'chirilmaydi</div>
+        </div>
+        <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+      </div>
+      <form method="post" action="{% url 'dashboard:holiday_add' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="field">
+            <label for="holiday-date">Sana</label>
+            <input type="date" id="holiday-date" name="date" required>
+          </div>
+          <div class="field">
+            <label for="holiday-name">Nomi</label>
+            <input type="text" id="holiday-name" name="name" maxlength="150"
+                   placeholder="Mustaqillik kuni" required>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn secondary" data-modal-close>Bekor qilish</button>
+          <button type="submit" class="btn">Saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endif %}

@@ -1,0 +1,70 @@
+{% extends 'dashboard/base.html' %}{% load money phone %}
+{% block title %}Sessiyalar — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Zaryadlash sessiyalari</h1>
+    <div class="page-sub">Barcha boshlangan va yakunlangan sessiyalar</div>
+  </div>
+</div>
+
+<div class="filter-tabs">
+  <a href="?{% if q %}q={{ q }}&{% endif %}" class="{% if not status %}active{% endif %}">Barchasi</a>
+  {% for value, label in status_choices %}
+    <a href="?status={{ value }}{% if q %}&q={{ q }}{% endif %}" class="{% if status == value %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<form method="get" class="inline-form" style="margin-bottom:18px;">
+  {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+  <input type="text" name="q" value="{{ q }}" placeholder="Foydalanuvchi yoki stansiya"
+         >
+</form>
+
+{% if page_obj %}
+<div class="table-wrap" style="overflow-x:auto;">
+  <table>
+    <thead><tr><th>Foydalanuvchi</th><th>Stansiya</th><th>Ulagich</th><th>Manba</th><th>Holat</th><th>Boshlangan</th><th>Tugagan</th><th>Narx</th><th></th></tr></thead>
+    <tbody>
+    {% for s in page_obj %}
+      <tr>
+        <td><a href="{% url 'dashboard:user_detail' s.user.id %}">{{ s.user.username |phone }}</a></td>
+        <td>{{ s.station.name }}</td>
+        <td>{{ s.connector_label }}</td>
+        <td>{% if s.is_live %}<span class="badge success">Jonli</span>{% else %}<span class="badge muted">Mock</span>{% endif %}</td>
+        <td>
+          {% if s.status == 'charging' %}<span class="badge warning"><span class="live-dot"></span> Zaryadlanmoqda</span>
+          {% elif s.status == 'completed' %}<span class="badge success">Tugallandi</span>
+          {% elif s.status == 'stopped' %}<span class="badge muted">To'xtatildi</span>
+          {% else %}<span class="badge danger">Xatolik</span>{% endif %}
+        </td>
+        <td>{{ s.started_at|date:"d.m.Y H:i" }}</td>
+        <td>{{ s.stopped_at|date:"d.m.Y H:i"|default:"—" }}</td>
+        <td>{{ s.cost_so_far|som }} so'm</td>
+        <td class="actions">
+          <div class="row-actions">
+            {% if s.status == 'charging' %}
+              <form method="post" action="{% url 'dashboard:session_force_stop' s.id %}"
+                    onsubmit="return confirm(&quot;Sessiya majburan to'xtatilsinmi? Qurilmaga uzish buyrug'i yuboriladi.&quot;);">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="btn small danger">Majburan uzish</button>
+              </form>
+            {% endif %}
+            <a href="{% url 'dashboard:session_detail' s.id %}" class="btn small secondary">Ko'rish</a>
+          </div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="9" class="empty"><b>Sessiya yo'q</b><span>Zaryadlash boshlanganda shu yerda ko'rinadi</span></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+
+{% include 'dashboard/_pagination.html' %}
+{% else %}
+  <p class="empty">Hali sessiya yo'q.</p>
+{% endif %}
+{% endblock %}

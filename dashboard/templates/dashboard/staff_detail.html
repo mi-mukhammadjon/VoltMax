@@ -1,0 +1,44 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}{{ member.username }} — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% if is_admin_section %}{% url 'dashboard:admins' %}{% else %}{% url 'dashboard:managers' %}{% endif %}" class="back-link">← Orqaga</a>
+<div class="detail-header">
+  <div>
+    <h1>{{ member.get_full_name|default:member.username }}</h1>
+    <div class="sub">{{ member.username }} · {% if member.is_superuser %}Administrator{% else %}Menejer{% endif %}</div>
+  </div>
+  <a href="{% url edit_url member.id %}" class="btn">Tahrirlash</a>
+</div>
+
+<div class="kv-grid">
+  <div class="kv"><div class="k">Holat</div><div class="v" style="font-size:15px;">{% if member.is_active %}Faol{% else %}Bloklangan{% endif %}</div></div>
+  <div class="kv"><div class="k">Email</div><div class="v" style="font-size:15px;">{{ member.email|default:"—" }}</div></div>
+  <div class="kv"><div class="k">Qo'shilgan</div><div class="v" style="font-size:15px;">{{ member.date_joined|date:"d.m.Y" }}</div></div>
+  <div class="kv"><div class="k">Oxirgi kirish</div><div class="v" style="font-size:15px;">{{ member.last_login|date:"d.m.Y H:i"|default:"—" }}</div></div>
+</div>
+
+<div class="section-head"><h2>Rollari</h2></div>
+<div class="card">
+  {% for g in member.groups.all %}
+    <span class="badge muted" style="margin-right:6px;">{{ g.name }}</span>
+  {% empty %}
+    {% if member.is_superuser %}
+      <p style="margin:0;color:var(--text-secondary);">Administrator — tizimning barcha huquqlariga ega, rol talab qilinmaydi.</p>
+    {% else %}
+      <p style="margin:0;color:var(--text-muted);">Rol biriktirilmagan.</p>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<div class="danger-zone">
+  <div class="dz-text">
+    <div class="dz-title">Xodimni o'chirish</div>
+    <div class="dz-note">Hisob o'chiriladi va panelga kirish imkoni yo'qoladi.</div>
+  </div>
+  <form method="post" action="{% url 'dashboard:staff_delete' member.id %}"
+        onsubmit="return confirm(&quot;Xodim o'chirilsinmi?&quot;);">
+    {% csrf_token %}
+    <button type="submit" class="btn danger">Xodimni o'chirish</button>
+  </form>
+</div>
+{% endblock %}

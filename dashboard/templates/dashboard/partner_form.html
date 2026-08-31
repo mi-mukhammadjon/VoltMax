@@ -1,0 +1,28 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}{% if instance %}Hamkorni tahrirlash{% else %}Yangi hamkor{% endif %} — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:partners' %}" class="back-link">← Hamkorlar</a>
+<h1 class="page-title">{% if instance %}{{ instance.name }}{% else %}Yangi hamkor{% endif %}</h1>
+<div class="card form-card">
+  <form method="post">
+    {% csrf_token %}
+    {% include 'dashboard/_form_fields.html' %}
+    <div class="form-actions">
+      <button type="submit" class="btn">Saqlash</button>
+      <a href="{% url 'dashboard:partners' %}" class="btn secondary">Bekor qilish</a>
+    </div>
+  </form>
+</div>
+{% if instance %}
+<div class="danger-zone">
+  <div class="dz-text">
+    <div class="dz-title">Hamkorni o'chirish</div>
+    <div class="dz-note">Hamkor o'chiriladi, uning stansiyalari esa 'biriktirilmagan' holatiga o'tadi.</div>
+  </div>
+  <form method="post" action="{% url 'dashboard:partner_delete' instance.id %}" onsubmit="return confirm(&quot;Hamkor o'chirilsinmi?&quot;);">
+    {% csrf_token %}
+    <button type="submit" class="btn danger">Hamkorni o'chirish</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

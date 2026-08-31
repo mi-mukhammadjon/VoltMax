@@ -1,0 +1,250 @@
+{% extends 'dashboard/base.html' %}
+{% load money phone %}
+{% block title %}Bosh sahifa — VoltMax Panel{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Bosh sahifa</h1>
+    <div class="page-sub">Tarmoq holati va bugungi ko'rsatkichlar</div>
+  </div>
+  <div class="head-actions">
+    {% if stats.active_sessions %}
+      <span class="live-chip"><span class="live-dot"></span>{{ stats.active_sessions }} ta faol sessiya</span>
+    {% endif %}
+    <a href="{% url 'dashboard:station_new' %}" class="btn">+ Yangi stansiya</a>
+  </div>
+</div>
+
+{# ── KPI kartalar ───────────────────────────────────────────── #}
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-top">
+      <span class="kpi-label">Bugungi tushum</span>
+      <span class="kpi-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 6.5c-1.2-1-3-1.5-5-1.5-2.8 0-5 1.1-5 3.2 0 4.6 10 2.3 10 6.8 0 2.1-2.2 3.2-5 3.2-2 0-3.8-.5-5-1.5"/></svg>
+      </span>
+    </div>
+    <div class="kpi-value">{{ stats.today_revenue|som }} <span class="unit">so'm</span></div>
+    <div class="kpi-foot">
+      {% if stats.revenue_delta > 0 %}
+        <span class="kpi-trend up">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+          +{{ stats.revenue_delta|som }}
+        </span>
+      {% elif stats.revenue_delta < 0 %}
+        <span class="kpi-trend down">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          {{ stats.revenue_delta|som }}
+        </span>
+      {% else %}
+        <span class="kpi-trend flat">o'zgarishsiz</span>
+      {% endif %}
+      kechagiga nisbatan
+    </div>
+  </div>
+
+  <div class="kpi">
+    <div class="kpi-top">
+      <span class="kpi-label">Faol sessiyalar</span>
+      <span class="kpi-icon {% if not stats.active_sessions %}neutral{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 11-14h-7z"/></svg>
+      </span>
+    </div>
+    <div class="kpi-value">{{ stats.active_sessions }}</div>
+    <div class="kpi-foot">bugun jami {{ stats.today_sessions }} ta boshlangan</div>
+  </div>
+
+  <div class="kpi">
+    <div class="kpi-top">
+      <span class="kpi-label">Bo'sh stansiyalar</span>
+      <span class="kpi-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.4-7-11a7 7 0 0 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+      </span>
+    </div>
+    <div class="kpi-value">{{ stats.available }} <span class="unit">/ {{ stats.total }}</span></div>
+    <div class="kpi-foot">tarmoqning {{ stats.available_pct }}% qismi hozir bo'sh</div>
+  </div>
+
+  <div class="kpi">
+    <div class="kpi-top">
+      <span class="kpi-label">Foydalanuvchilar</span>
+      <span class="kpi-icon neutral">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.2c1.4-3.6 4.3-5.6 7.5-5.6s6.1 2 7.5 5.6"/></svg>
+      </span>
+    </div>
+    <div class="kpi-value">{{ stats.users }}</div>
+    <div class="kpi-foot">
+      {% if stats.new_users_today %}
+        <span class="kpi-trend up">+{{ stats.new_users_today }}</span> bugun qo'shildi
+      {% else %}
+        bugun yangi ro'yxatdan o'tish yo'q
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Grafiklar ──────────────────────────────────────────────── #}
+<div class="chart-row">
+  <div class="chart-card">
+    <div class="chart-head">
+      <div>
+        <div class="chart-title">Haftalik tushum</div>
+        <div class="chart-sub">Oxirgi 7 kun, zaryadlash to'lovlari</div>
+      </div>
+      <div class="chart-total">
+        <div class="v">{{ stats.week_revenue|som }}</div>
+        <div class="k">so'm / hafta</div>
+      </div>
+    </div>
+    <div class="bars">
+      {% for p in revenue_points %}
+        <div class="bar-col {% if p.is_today %}today{% endif %}">
+          <div class="bar-track">
+            <div class="bar-fill" style="height: {{ p.height }}%;">
+              <span class="tip">{{ p.amount|som }} so'm</span>
+            </div>
+          </div>
+          <span class="bar-label">{{ p.label }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-head">
+      <div>
+        <div class="chart-title">Stansiyalar holati</div>
+        <div class="chart-sub">Jami {{ connector_stats.total }} ta ulagich</div>
+      </div>
+    </div>
+
+    <div class="donut-wrap">
+      {# Donut sof SVG: har segment stroke-dasharray/offset bilan chiziladi #}
+      <div class="donut">
+        <svg viewBox="0 0 42 42">
+          <circle cx="21" cy="21" r="15.915" fill="none" stroke="var(--input-bg)" stroke-width="5"></circle>
+          {% for seg in donut %}
+            {% if seg.pct %}
+              <circle cx="21" cy="21" r="15.915" fill="none"
+                      stroke="{{ seg.color }}" stroke-width="5"
+                      stroke-dasharray="{{ seg.dash }} {{ seg.gap }}"
+                      stroke-dashoffset="-{{ seg.offset }}"
+                      stroke-linecap="butt"></circle>
+            {% endif %}
+          {% endfor %}
+        </svg>
+        <div class="donut-center">
+          <span class="v">{{ stats.total }}</span>
+          <span class="k">stansiya</span>
+        </div>
+      </div>
+
+      <div class="legend">
+        {% for seg in donut %}
+          <div class="legend-item">
+            <span class="legend-dot" style="background: {{ seg.color }};"></span>
+            <span class="legend-name">{{ seg.name }}</span>
+            <span class="legend-val">{{ seg.value }}</span>
+          </div>
+        {% endfor %}
+        <div class="legend-item" style="border-top:1px solid var(--border);padding-top:11px;">
+          <span class="legend-dot" style="background: var(--primary);"></span>
+          <span class="legend-name">Zaryadlanayotgan ulagich</span>
+          <span class="legend-val">{{ connector_stats.charging }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Oxirgi stansiyalar ─────────────────────────────────────── #}
+<div class="section-head">
+  <h2>Oxirgi qo'shilgan stansiyalar</h2>
+  <a href="{% url 'dashboard:stations' %}" class="link">Barchasi →</a>
+</div>
+
+{% if recent_stations %}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Stansiya</th><th>Holat</th><th>Ulagichlar</th><th>Narx</th><th></th></tr></thead>
+    <tbody>
+    {% for station in recent_stations %}
+      <tr>
+        <td>
+          <div class="cell-2">
+            <a href="{% url 'dashboard:station_detail' station.id %}" class="top">{{ station.name }}</a>
+            <span class="sub">{{ station.address }}</span>
+          </div>
+        </td>
+        <td>
+          {% if station.status == 'available' %}<span class="badge success">Bo'sh</span>
+          {% elif station.status == 'busy' %}<span class="badge warning">Band</span>
+          {% else %}<span class="badge muted">Ishlamayapti</span>{% endif %}
+        </td>
+        <td>{{ station.connectors.count }} ta · {{ station.power_kw }} kVt</td>
+        <td>{{ station.price_per_kwh|som }} so'm/kVt</td>
+        <td class="actions">
+          <div class="row-actions"><a href="{% url 'dashboard:station_detail' station.id %}" class="btn small secondary">Ko'rish</a></div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="empty"><b>Hali stansiya qo'shilmagan</b></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <div class="table-wrap"><p class="empty">Hali stansiya yo'q. Birinchi stansiyani qo'shing.</p></div>
+{% endif %}
+
+{# ── Oxirgi sessiyalar ──────────────────────────────────────── #}
+<div class="section-head">
+  <h2>Oxirgi sessiyalar</h2>
+  <a href="{% url 'dashboard:sessions' %}" class="link">Barchasi →</a>
+</div>
+
+{% if recent_sessions %}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Foydalanuvchi</th><th>Stansiya</th><th>Zaryad</th><th>Summa</th><th>Holat</th></tr></thead>
+    <tbody>
+    {% for s in recent_sessions %}
+      <tr>
+        <td>
+          <div class="cell-2">
+            <a href="{% url 'dashboard:user_detail' s.user.id %}" class="top">{{ s.user.username |phone }}</a>
+            <span class="sub">{{ s.started_at|date:"d.m.Y H:i" }}</span>
+          </div>
+        </td>
+        <td>
+          <div class="cell-2">
+            <a href="{% url 'dashboard:session_detail' s.id %}" class="top">{{ s.station.name }}</a>
+            <span class="sub">{{ s.connector_label }} ulagich</span>
+          </div>
+        </td>
+        <td>
+          <div class="mini-progress">
+            <span class="track"><span class="fill" style="width: {{ s.current_percent }}%;"></span></span>
+            <span class="pct">{{ s.current_percent }}%</span>
+          </div>
+        </td>
+        <td>{{ s.cost_so_far|som }} so'm</td>
+        <td>
+          {% if s.status == 'charging' %}<span class="badge success"><span class="live-dot"></span> Zaryadlanmoqda</span>
+          {% elif s.status == 'completed' %}<span class="badge success">Tugallandi</span>
+          {% elif s.status == 'stopped' %}<span class="badge muted">To'xtatildi</span>
+          {% else %}<span class="badge danger">Xatolik</span>{% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="empty"><b>Hali sessiya yo'q</b></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <div class="table-wrap"><p class="empty">Hali sessiya yo'q.</p></div>
+{% endif %}
+
+{% endblock %}

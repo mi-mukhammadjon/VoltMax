@@ -1,0 +1,165 @@
+{% comment %}
+  Bildirishnoma tabi: matnlar panelda tahrirlanadi.
+
+  Nima uchun bazada, kodda emas: xabar matni tez-tez o'zgaradi (uslub,
+  qo'shimcha izoh, tilni tekislash), har safar dasturchi va deploy kerak
+  bo'lardi.
+
+  Yuqoridagi tugmachalar — RUXSAT (umuman yuboriladimi), quyidagi jadval
+  esa MATN (aynan nima yoziladi). Ular ataylab ajratilgan: matnni
+  tahrirlash uchun xabarni o'chirib qo'yish shart emas.
+{% endcomment %}
+{% if active_tab == 'notification' %}
+  {% comment %}
+    Yetkazish holati. Xabar bazaga yozilishi — uni foydalanuvchi ko'rdi
+    degani emas: ilova ochilmasa u bexabar qoladi. Ro'yxatdan o'tgan
+    qurilma bo'lmasa push umuman ketmaydi.
+  {% endcomment %}
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-top"><span class="kpi-label">Ro'yxatdagi qurilmalar</span></div>
+      <div class="kpi-value">{{ push_devices }}</div>
+      {% comment %}
+        Qurilma bo'lmasa push umuman ketmaydi — xabarlar faqat ilova ichida
+        ko'rinadi. Buni ko'rsatkichning o'zi aytadi: alohida ogohlantirish
+        bloki sozlamalar sahifasida tizim xatosidek ko'rinardi.
+      {% endcomment %}
+      <div class="kpi-foot">
+        {% if push_devices %}ilovaga kirgan telefonlar
+        {% else %}hali yo'q — xabar faqat ilova ichida ko'rinadi{% endif %}
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top"><span class="kpi-label">Yetkazilgan</span></div>
+      <div class="kpi-value">{{ push_sent }}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top"><span class="kpi-label">Navbatda</span></div>
+      <div class="kpi-value">{{ push_pending }}</div>
+      <div class="kpi-foot">yuborish jarayoni oladi</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top"><span class="kpi-label">Yetkazilmadi</span></div>
+      <div class="kpi-value">{{ push_failed }}</div>
+      <div class="kpi-foot">urinishlar tugagan</div>
+    </div>
+  </div>
+
+  <div class="page-head" style="margin-top:var(--s6);">
+    <div>
+      <h2 class="page-title" style="font-size:var(--t-lg);">Xabar matnlari</h2>
+      <div class="page-sub">
+        Foydalanuvchi ilovada aynan shu matnni ko'radi
+        {% if unread_total %} · {{ unread_total }} ta o'qilmagan xabar{% endif %}
+      </div>
+    </div>
+    <div class="head-actions">
+      <form method="post" action="{% url 'dashboard:notification_templates_reset' %}"
+            onsubmit="return confirm('Barcha matnlar standart holatiga qaytariladi. Davom etamizmi?')">
+        {% csrf_token %}
+        <button type="submit" class="btn secondary">Standart matnlarni tiklash</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="w-name">Hodisa</th>
+          <th>Xabar</th>
+          <th class="w-badge">Holat</th>
+          <th class="actions">Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for template in templates %}
+        {% with sample=template.sample %}
+          <tr>
+            <td class="w-name">
+              <div style="font-weight:700;">{{ template.get_event_display }}</div>
+              <div class="cell-sub mono">{{ template.event }}</div>
+            </td>
+            <td>
+              {# Namuna qiymatlar bilan: operator natijani darrov ko'radi #}
+              <div style="font-weight:600;">{{ sample.0 }}</div>
+              <div class="cell-sub">{{ sample.1 }}</div>
+            </td>
+            <td class="w-badge">
+              {% if template.is_active %}<span class="badge success">Yuboriladi</span>
+              {% else %}<span class="badge muted">O'chirilgan</span>{% endif %}
+            </td>
+            <td class="actions">
+              <div class="row-actions">
+                <button type="button" class="btn small secondary"
+                        data-modal-open="#notif-{{ template.id }}-modal">Tahrirlash</button>
+              </div>
+            </td>
+          </tr>
+        {% endwith %}
+      {% empty %}
+        <tr><td colspan="4" class="empty">
+          <b>Shablon yo'q</b>
+          <span>"Standart matnlarni tiklash" tugmasi ularni qaytadan yaratadi</span>
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% for template in templates %}
+    <div class="modal" id="notif-{{ template.id }}-modal" hidden>
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-panel" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">{{ template.get_event_display }}</div>
+            <div class="modal-sub">Foydalanuvchi ilovada shu matnni ko'radi</div>
+          </div>
+          <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+        </div>
+
+        <form method="post" action="{% url 'dashboard:notification_template_edit' template.id %}">
+          {% csrf_token %}
+          <div class="modal-body">
+            <div class="field">
+              <label for="notif-title-{{ template.id }}">Sarlavha</label>
+              <input type="text" id="notif-title-{{ template.id }}" name="title"
+                     value="{{ template.title }}" maxlength="150" required>
+            </div>
+            <div class="field">
+              <label for="notif-body-{{ template.id }}">Matn</label>
+              <textarea id="notif-body-{{ template.id }}" name="body" rows="3"
+                        maxlength="400" required>{{ template.body }}</textarea>
+            </div>
+
+            {% comment %}
+              Har hodisada o'z o'rin egallovchilari bor: `{summa}` ni
+              stansiya xabariga yozib bo'lmaydi — u yerda bunday qiymat yo'q.
+            {% endcomment %}
+            <div class="help" style="margin-bottom:6px;">Shu hodisada ishlaydigan qiymatlar:</div>
+            <div class="placeholder-list">
+              {% for name in template.placeholders %}
+                <span><code>{{ '{' }}{{ name }}{{ '}' }}</code></span>
+              {% endfor %}
+            </div>
+
+            <div class="field switch-row" style="margin-top:var(--s4);">
+              <div class="switch-text">
+                <label for="notif-active-{{ template.id }}">Yuborilsin</label>
+                <div class="help">O'chirilsa bu hodisa bo'yicha xabar yozilmaydi</div>
+              </div>
+              <input type="checkbox" id="notif-active-{{ template.id }}" name="is_active"
+                     {% if template.is_active %}checked{% endif %}>
+            </div>
+          </div>
+
+          <div class="modal-foot">
+            <button type="button" class="btn secondary" data-modal-close>Bekor qilish</button>
+            <button type="submit" class="btn">Saqlash</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+{% endif %}

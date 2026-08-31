@@ -1,0 +1,46 @@
+{% comment %}
+  Rasm yuklash maydoni (dashboard.widgets.ImageDropInput).
+
+  Holatlar JS orqali almashadi (app.js, `data-image-drop`):
+    - joriy rasm bor        -> .has-image, ko'rinishda rasm
+    - o'chirildi            -> yashirin `-clear` maydoni "1" bo'ladi
+    - yangi rasm tanlandi   -> ko'rinish FileReader orqali darhol yangilanadi
+
+  JS ishlamasa ham forma ishlayveradi: `<label>` fayl tanlash oynasini ochadi,
+  o'chirish tugmasi esa `-clear` maydonini to'ldiradi (`onclick` emas, JS).
+{% endcomment %}
+<div class="image-drop{% if widget.is_initial %} has-image{% endif %}" data-image-drop
+     {% if widget.is_initial %}data-initial-src="{{ widget.value.url }}" data-initial-name="{{ widget.basename }}"{% endif %}>
+
+  <input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
+
+  {# Django'ning o'chirish mexanizmi — belgilash qutisi o'rniga yashirin maydon #}
+  <input type="hidden" name="{{ widget.checkbox_name }}" value="" data-clear-flag>
+
+  <label class="id-drop" {% if widget.attrs.id %}for="{{ widget.attrs.id }}"{% endif %}>
+    <img class="id-preview" data-preview alt=""
+         src="{% if widget.is_initial %}{{ widget.value.url }}{% endif %}">
+
+    <span class="id-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <path d="M21 15l-5-5L5 21"/>
+      </svg>
+      <b>Rasm tanlang</b>
+      <small>yoki shu yerga tashlang · PNG, JPG</small>
+    </span>
+
+    <span class="id-overlay">Almashtirish</span>
+  </label>
+
+  <div class="id-bar">
+    <span class="id-name" data-file-name>{{ widget.basename }}</span>
+    <span class="id-actions">
+      <button type="button" class="btn small secondary" data-pick>Almashtirish</button>
+      <button type="button" class="btn small danger" data-remove>O'chirish</button>
+      <button type="button" class="btn small secondary" data-undo hidden>Qaytarish</button>
+    </span>
+  </div>
+</div>

@@ -1,0 +1,340 @@
+{% extends 'dashboard/base.html' %}{% load money phone %}
+{% block title %}{{ card.id_tag }} — RFID karta{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:rfid_cards' %}" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  RFID kartalar
+</a>
+
+<div class="page-head">
+  <div>
+    <h1 class="page-title mono">{{ card.id_tag }}</h1>
+    <div class="page-sub">
+      <span class="card-name">{{ card.label|default:"nomsiz" }}</span>
+      {% if card.company %}
+        · <a href="{% url 'dashboard:company_detail' card.company.id %}">{{ card.company.name }}</a>
+      {% elif card.user %}
+        · <a href="{% url 'dashboard:user_detail' card.user.id %}">{{ card.user.username |phone }}</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="head-actions">
+    {% if card.effective_status == 'active' %}<span class="badge success">Faol</span>
+    {% elif card.effective_status == 'pending' %}<span class="badge warning">Tasdiqlanmagan</span>
+    {% elif card.effective_status == 'expired' %}<span class="badge warning">Muddati tugagan</span>
+    {% else %}<span class="badge danger">Bloklangan</span>{% endif %}
+    {% if card.blocked_by_owner %}<span class="badge muted">egasi bloklagan</span>{% endif %}
+
+    {% comment %}
+      Tahrirlash formasi sahifada emas, oynada. Sahifaning asosiy vazifasi —
+      kartani KO'RSATISH; forma esa uni ikkiga bo'lib, sarf hisobotini
+      pastga surib yuborardi.
+    {% endcomment %}
+    {% if card.company %}
+      {# Shartnoma korporativ mijoz bilan tuziladi — karta shu mijozniki #}
+      <a href="{% url 'dashboard:company_contract' card.company.id %}"
+         class="btn secondary" data-no-ajax
+         title="{{ card.company.name }} bilan shartnoma shablonini yuklab olish">
+        Shartnoma (Word)
+      </a>
+    {% endif %}
+
+    <button type="button" class="btn secondary" data-modal-open="#card-edit-modal">
+      Tahrirlash
+    </button>
+
+    <form method="post" action="{% url 'dashboard:rfid_card_status' card.id %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      {% if card.effective_status == 'blocked' %}
+        <input type="hidden" name="status" value="active">
+        <button type="submit" class="btn">Blokdan chiqarish</button>
+      {% elif card.effective_status == 'pending' %}
+        <input type="hidden" name="status" value="active">
+        <button type="submit" class="btn">Tasdiqlash</button>
+      {% else %}
+        <input type="hidden" name="status" value="blocked">
+        <button type="submit" class="btn secondary">Bloklash</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+{% comment %}
+  ── Sarf hisoboti ──────────────────────────────────────────────
+  Asosiy savol: shu karta bilan QAYERDA qancha energiya olingan va
+  qancha pul sarflangan.
+{% endcomment %}
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Sessiyalar</span></div>
+    <div class="kpi-value">{{ usage.count }}</div>
+    <div class="kpi-foot">
+      {% if card.last_used_at %}oxirgisi {{ card.last_used_at|date:"d.m.Y" }}{% else %}hali ishlatilmagan{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Olingan energiya</span></div>
+    <div class="kpi-value">{{ usage.kwh|num:1 }}<span class="kpi-unit">kVt·s</span></div>
+    <div class="kpi-foot">{{ usage.stations|length }} ta stansiyada</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Sarflangan</span></div>
+    <div class="kpi-value">{{ usage.cost|som }}</div>
+    <div class="kpi-foot">sessiyaga o'rtacha {{ usage.avg_cost|som }} so'm</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Eng ko'p stansiya</span></div>
+    <div class="kpi-value" style="font-size:19px;">
+      {% if usage.top %}{{ usage.top.name }}{% else %}—{% endif %}
+    </div>
+    <div class="kpi-foot">
+      {% if usage.top %}umumiy sarfning {{ usage.top.share }}%{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="detail-cols">
+  {# ── Chap ustun: karta haqida ma'lumot (faqat o'qish) ──── #}
+  <div>
+    <div class="section-head">
+      <h2>Karta</h2>
+      <button type="button" class="link" data-modal-open="#card-edit-modal">Tahrirlash</button>
+    </div>
+    <div class="card">
+      <div class="kv-list">
+        <div class="kv-row">
+          <span class="k">Raqami</span>
+          <span class="v mono">{{ card.id_tag }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Nomi</span>
+          <span class="v card-name">{{ card.label|default:"—" }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Egasi</span>
+          <span class="v">
+            {% if card.user %}
+              <a href="{% url 'dashboard:user_detail' card.user.id %}">{{ card.user.username |phone }}</a>
+            {% else %}—{% endif %}
+          </span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Korporativ mijoz</span>
+          <span class="v">
+            {% if card.company %}
+              <a href="{% url 'dashboard:company_detail' card.company.id %}">{{ card.company.name }}</a>
+            {% else %}—{% endif %}
+          </span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Pul kimdan yechiladi</span>
+          <span class="v">
+            {% if card.company %}
+              {{ card.company.name }}
+              <span class="cell-sub">korporativ hamyon — {{ card.company.balance|som }} so'm</span>
+            {% elif card.user %}
+              {{ card.user.username |phone }}
+              <span class="cell-sub">{{ card.user.wallet.amount|default:0|som }} so'm</span>
+            {% else %}
+              <span class="badge muted">Xizmat kartasi</span>
+              <span class="cell-sub">pul yechilmaydi</span>
+            {% endif %}
+          </span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Qo'shilgan</span>
+          <span class="v">{{ card.created_at|date:"d.m.Y H:i" }}</span>
+        </div>
+        {% if card.first_seen_station %}
+          <div class="kv-row">
+            <span class="k">Birinchi ko'rilgan</span>
+            <span class="v">
+              <a href="{% url 'dashboard:station_detail' card.first_seen_station.id %}">{{ card.first_seen_station.name }}</a>
+            </span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% comment %}
+      Muddat oynadagi formada ham bor, lekin u yerda sana kiritish kerak.
+      Bu yerda tez tanlov: sanoq kartaning JORIY muddatidan boshlanadi,
+      shuning uchun hali tugamagan kartani uzaytirish uni qisqartirmaydi.
+    {% endcomment %}
+    <div class="section-head">
+      <h2>Amal qilish muddati</h2>
+      {% if card.effective_status == 'expired' %}<span class="badge warning">tugagan</span>{% endif %}
+    </div>
+    <div class="card">
+      <div class="kv-list">
+        <div class="kv-row">
+          <span class="k">Holat</span>
+          <span class="v">
+            {% if card.expires_at %}
+              {{ card.expires_at|date:"d.m.Y H:i" }} gacha
+              {% if card.is_expired %}<span class="cell-sub">muddat o'tgan — karta ishlamaydi</span>{% endif %}
+            {% else %}
+              Muddatsiz <span class="cell-sub">karta doimiy amal qiladi</span>
+            {% endif %}
+          </span>
+        </div>
+      </div>
+
+      <div class="row-actions" style="justify-content:flex-start;margin-top:14px;">
+        {% for months, label in extend_options %}
+          <form method="post" action="{% url 'dashboard:rfid_card_extend' card.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <input type="hidden" name="months" value="{{ months }}">
+            <button type="submit" class="btn small secondary">+{{ label }}</button>
+          </form>
+        {% endfor %}
+        {% if card.expires_at %}
+          <form method="post" action="{% url 'dashboard:rfid_card_extend' card.id %}"
+                onsubmit="return confirm(&quot;Muddat butunlay olib tashlansinmi? Karta doimiy amal qiladi.&quot;);">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <input type="hidden" name="months" value="clear">
+            <button type="submit" class="btn small danger">Muddatsiz qilish</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── O'ng ustun: sarf hisoboti va tarix ────────────────── #}
+  <div>
+    <div class="section-head">
+      <h2>Stansiyalar bo'yicha sarf</h2>
+      <span class="page-sub">qayerda qancha olingan</span>
+    </div>
+    <div class="card">
+      {% if usage.stations %}
+        <div class="usage-list">
+          {% for row in usage.stations %}
+            <div class="usage-row">
+              <div class="usage-head">
+                <span class="usage-name">{{ row.name }}</span>
+                <span class="usage-value">{{ row.cost|som }}</span>
+              </div>
+              <div class="usage-bar"><span style="width: {{ row.pct }}%;"></span></div>
+              <div class="usage-meta">
+                {{ row.kwh|num:1 }} kVt·s · {{ row.count }} ta sessiya
+                <span class="usage-share">{{ row.share }}%</span>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty" style="padding:28px 0;">
+          <b>Hali sarf yo'q</b>
+          <span>Bu karta bilan zaryadlash boshlangach shu yerda stansiyalar bo'yicha taqsimot chiqadi</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="section-head">
+      <h2>Sessiyalar tarixi</h2>
+      <span class="page-sub">bu karta bilan boshlangan</span>
+    </div>
+    <div class="table-wrap" style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Sana</th><th>Stansiya</th><th class="num">Energiya</th><th class="num">Summa</th></tr></thead>
+        <tbody>
+        {% for s in sessions_page %}
+          <tr>
+            <td>
+              <a href="{% url 'dashboard:session_detail' s.id %}">{{ s.started_at|date:"d.m.Y H:i" }}</a>
+              {% if s.status == 'charging' %}<span class="badge warning">ketmoqda</span>
+              {% elif s.status == 'stopped' %}<span class="badge muted">to'xtatilgan</span>
+              {% elif s.status == 'error' %}<span class="badge danger">xatolik</span>{% endif %}
+            </td>
+            <td>{{ s.station.name }} <span class="cell-sub">{{ s.connector_label }}</span></td>
+            <td class="num">{{ s.kwh_charged|num:2 }}</td>
+            <td class="num">{{ s.cost_so_far|som }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="empty">
+            <b>Sessiya yo'q</b>
+            <span>Bu karta bilan hali zaryadlash boshlanmagan</span>
+          </td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include 'dashboard/_pagination.html' with page_obj=sessions_page %}
+  </div>
+</div>
+
+<div class="danger-zone">
+  <div class="dz-text">
+    <div class="dz-title">Kartani o'chirish</div>
+    <div class="dz-note">Sessiyalar tarixi saqlanib qoladi. Kartani vaqtincha to'xtatish uchun uni bloklang.</div>
+  </div>
+  <form method="post" action="{% url 'dashboard:rfid_card_delete' card.id %}"
+        onsubmit="return confirm(&quot;Karta butunlay o'chirilsinmi?&quot;);">
+    {% csrf_token %}
+    <button type="submit" class="btn danger">O'chirish</button>
+  </form>
+</div>
+
+{% comment %}
+  Tahrirlash oynasi. Forma xatosi bo'lsa server sahifani qayta chizadi va
+  oyna yopiq qoladi — shu sabab xato bo'lganda u avtomatik ochiladi.
+{% endcomment %}
+<div class="modal" id="card-edit-modal" {% if not form.errors %}hidden{% endif %}>
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="card-edit-title">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="card-edit-title">Kartani tahrirlash</div>
+        <div class="modal-sub mono">{{ card.id_tag }}</div>
+      </div>
+      <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="modal-body">
+        {{ form.non_field_errors }}
+        <div class="field">
+          <label for="{{ form.id_tag.id_for_label }}">{{ form.id_tag.label }}</label>
+          {{ form.id_tag }}{{ form.id_tag.errors }}
+        </div>
+        <div class="field">
+          <label for="{{ form.label.id_for_label }}">{{ form.label.label }}</label>
+          {{ form.label }}{{ form.label.errors }}
+        </div>
+        <div class="field">
+          <label for="{{ form.user.id_for_label }}">{{ form.user.label }}</label>
+          {{ form.user }}
+          <div class="help">{{ form.user.help_text }}</div>
+          {{ form.user.errors }}
+        </div>
+        <div class="field">
+          <label for="{{ form.company.id_for_label }}">{{ form.company.label }}</label>
+          {{ form.company }}
+          <div class="help">{{ form.company.help_text }}</div>
+          {{ form.company.errors }}
+        </div>
+        <div class="my-field-row">
+          <div class="field">
+            <label for="{{ form.status.id_for_label }}">Holat</label>
+            {{ form.status }}{{ form.status.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.expires_at.id_for_label }}">{{ form.expires_at.label }}</label>
+            {{ form.expires_at }}{{ form.expires_at.errors }}
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn secondary" data-modal-close>Bekor qilish</button>
+        <button type="submit" class="btn">Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

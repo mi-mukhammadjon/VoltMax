@@ -1,0 +1,16 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}{{ page.title }} — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:content_pages' %}" class="back-link">← Sahifalar</a>
+<h1 class="page-title">{{ page.title }}</h1>
+<div class="card">
+  <form method="post">
+    {% csrf_token %}
+    {% include 'dashboard/_form_fields.html' %}
+    <div class="form-actions">
+      <button type="submit" class="btn">Saqlash</button>
+      <a href="{% url 'dashboard:content_pages' %}" class="btn secondary">Bekor qilish</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

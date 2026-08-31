@@ -1,0 +1,131 @@
+{% extends 'dashboard/base.html' %}{% load money %}
+{% block title %}Stansiya — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:stations' %}" class="back-link">← Stansiyalar</a>
+
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{% if instance %}{{ instance.name }}{% else %}Yangi stansiya{% endif %}</h1>
+    <div class="page-sub">{% if instance %}Stansiya ma'lumotlarini tahrirlash{% else %}Joylashuvni xaritadan belgilang{% endif %}</div>
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="form-with-map">
+  {% csrf_token %}
+
+  {# ── Chap ustun: forma ────────────────────────────────── #}
+  <div class="card fwm-form">
+    <div class="field"><label>Nomi</label>{{ form.name }}{{ form.name.errors }}</div>
+    <div class="field"><label>Manzil</label>{{ form.address }}{{ form.address.errors }}</div>
+
+    <div class="my-field-row">
+      <div class="field"><label>{{ form.charger_type.label }}</label>{{ form.charger_type }}{{ form.charger_type.errors }}</div>
+      <div class="field"><label>{{ form.power_kw.label }}</label>{{ form.power_kw }}{{ form.power_kw.errors }}</div>
+    </div>
+
+    {# Narx: standart markazlashgan, chegirma esa ixtiyoriy #}
+    <div class="price-block">
+      <div class="price-standard">
+        <div>
+          <div class="k">Standart narx</div>
+          <div class="v">{{ form.standard_price|som }} <span class="unit">so'm/kVt·s</span></div>
+        </div>
+        <a href="{% url 'dashboard:settings_payment' %}" class="btn small secondary">O'zgartirish</a>
+      </div>
+
+      <label class="check-row">
+        {{ form.apply_discount }}
+        <span>
+          <b>{{ form.apply_discount.label }}</b>
+          <small>{{ form.apply_discount.help_text }}</small>
+        </span>
+      </label>
+
+      {# Belgilash qutisi yoqilgandagina ochiladi (app.js) #}
+      <div class="field toggle-field" data-toggle-when="apply_discount">
+        <label>{{ form.discount_price_per_kwh.label }}</label>
+        {{ form.discount_price_per_kwh }}
+        <div class="help">{{ form.discount_price_per_kwh.help_text }}</div>
+        {{ form.discount_price_per_kwh.errors }}
+      </div>
+    </div>
+
+    <div class="field"><label>Reyting (0–5)</label>{{ form.rating }}{{ form.rating.errors }}</div>
+
+    <div class="field">
+      <label>{{ form.ocpp_id.label }}</label>{{ form.ocpp_id }}{{ form.ocpp_id.errors }}
+      <div class="help">Jismoniy charger shu ID bilan ulanadi (wss://.../ws/ocpp/&lt;ID&gt;/). Bo'sh — mock/qo'lda boshqariladi.</div>
+    </div>
+
+    {% comment %}
+      Holat qo'lda tanlanmaydi. Ilgari bu yerda tanlagich turardi va operator
+      qo'ygan qiymat qurilmanikiga zid bo'lib qolardi — masalan "bo'sh" deb
+      belgilangan stansiya aslida oflayn bo'lardi. Endi holat faqat
+      `stations.services.sync_station_status` orqali yoziladi, bu blok esa
+      uni ko'rsatadi.
+    {% endcomment %}
+    <div class="device-state is-{{ device.health }}">
+      <span class="ds-dot" aria-hidden="true"></span>
+      <div class="ds-text">
+        <b>{{ device.label }}</b>
+        <small>{{ device.note }}</small>
+      </div>
+      {% if instance %}
+        <a href="{% url 'dashboard:maintenance' %}?station={{ instance.id }}"
+           class="btn small secondary">Profilaktika</a>
+      {% endif %}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.photo.id_for_label }}">Rasm</label>
+      {{ form.photo }}{{ form.photo.errors }}
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn">Saqlash</button>
+      <a href="{% url 'dashboard:stations' %}" class="btn secondary">Bekor qilish</a>
+    </div>
+  </div>
+
+  {# ── O'ng ustun: joylashuvni xaritadan tanlash ────────── #}
+  <div class="card fwm-map">
+    <div class="map-head">
+      <div>
+        <div class="map-title">Joylashuv</div>
+        <div class="map-sub">Xaritani bosing yoki belgini suring</div>
+      </div>
+      <button type="button" class="btn small secondary" id="map-locate"
+              title="Manzil maydonidagi matn bo'yicha xaritadan qidiradi">Manzil bo'yicha topish</button>
+    </div>
+
+    {# Koordinatalar shu yerda yashirin turadi — xarita ularni to'ldiradi #}
+    {{ form.latitude }}{{ form.longitude }}
+
+    {% comment %}
+      Boshlang'ich nuqta yuqoridagi yashirin maydonlardan o'qiladi. Shablon
+      o'zgaruvchisi orqali takrorlansa, `uz` lokalida vergulli bo'lib ketardi
+      (41,2856) va parseFloat uni 41 deb o'qirdi.
+    {% endcomment %}
+    <div id="station-map"></div>
+
+    <div class="map-foot">
+      <span class="map-coords" id="map-coords">Nuqta tanlanmagan</span>
+      {{ form.latitude.errors }}{{ form.longitude.errors }}
+    </div>
+  </div>
+</form>
+
+{% if instance %}
+<div class="danger-zone">
+  <div class="dz-text">
+    <div class="dz-title">Stansiyani o'chirish</div>
+    <div class="dz-note">Ulagichlar, qulayliklar va sharhlar ham birga o'chadi. Sessiyalar tarixi saqlanib qoladi.</div>
+  </div>
+  <form method="post" action="{% url 'dashboard:station_delete' instance.id %}"
+        onsubmit="return confirm(&quot;Stansiya butunlay o'chirilsinmi?&quot;);">
+    {% csrf_token %}
+    <button type="submit" class="btn danger">Stansiyani o'chirish</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

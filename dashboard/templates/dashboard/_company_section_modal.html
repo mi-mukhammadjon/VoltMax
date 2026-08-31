@@ -1,0 +1,50 @@
+{% comment %}
+  Batafsil sahifadagi bo'limni tahrirlash oynasi.
+
+  Har bo'lim o'z formasi bilan saqlanadi: rekvizitlarni tahrirlashda mijoz
+  nomi yuborilmaydi, ya'ni bir bo'limdagi xato boshqasini bloklamaydi.
+
+  `section` — bo'lim nomi (basics | requisites), `form` — o'sha bo'lim
+  formasi, `title` va `subtitle` — oyna sarlavhasi.
+{% endcomment %}
+<div class="modal" id="company-{{ section }}-modal" hidden>
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">{{ title }}</div>
+        <div class="modal-sub">{{ subtitle }}</div>
+      </div>
+      <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+    </div>
+
+    <form method="post" action="{% url 'dashboard:company_section_edit' company.id section %}">
+      {% csrf_token %}
+      <div class="modal-body">
+        {% for field in form %}
+          {% if field.field.widget.input_type == 'checkbox' %}
+            <div class="field switch-row">
+              <div class="switch-text">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+                {{ field.errors }}
+              </div>
+              {{ field }}
+            </div>
+          {% else %}
+            <div class="field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+              {{ field.errors }}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn secondary" data-modal-close>Bekor qilish</button>
+        <button type="submit" class="btn">Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>

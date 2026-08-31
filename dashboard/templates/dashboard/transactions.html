@@ -1,0 +1,49 @@
+{% extends 'dashboard/base.html' %}{% load money phone %}
+{% block title %}Tranzaksiyalar — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">To'lovlar</h1>
+    <div class="page-sub">Hamyon to'ldirishlari va zaryadlash to'lovlari</div>
+  </div>
+</div>
+
+<div class="filter-tabs">
+  <a href="?{% if q %}q={{ q }}&{% endif %}" class="{% if not tx_type %}active{% endif %}">Barchasi</a>
+  {% for value, label in type_choices %}
+    <a href="?type={{ value }}{% if q %}&q={{ q }}{% endif %}" class="{% if tx_type == value %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<form method="get" class="inline-form" style="margin-bottom:18px;">
+  {% if tx_type %}<input type="hidden" name="type" value="{{ tx_type }}">{% endif %}
+  <input type="text" name="q" value="{{ q }}" placeholder="Foydalanuvchi yoki tavsif"
+         >
+</form>
+
+{% if page_obj %}
+<div class="table-wrap" style="overflow-x:auto;">
+  <table>
+    <thead><tr><th>Foydalanuvchi</th><th>Turi</th><th>Summa</th><th>Tavsif</th><th>Sana</th></tr></thead>
+    <tbody>
+    {% for tx in page_obj %}
+      <tr>
+        <td><a href="{% url 'dashboard:user_detail' tx.user.id %}">{{ tx.user.username |phone }}</a></td>
+        <td>{% if tx.type == 'topup' %}<span class="badge success">To'ldirish</span>{% else %}<span class="badge muted">Zaryadlash to'lovi</span>{% endif %}</td>
+        <td>{% if tx.type == 'topup' %}+{% else %}-{% endif %}{{ tx.amount|som }} so'm</td>
+        <td>{{ tx.description }}</td>
+        <td>{{ tx.created_at|date:"d.m.Y H:i" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="empty"><b>To'lov yo'q</b><span>Hamyon to'ldirish va zaryadlash to'lovlari shu yerga tushadi</span></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+
+{% include 'dashboard/_pagination.html' %}
+{% else %}
+  <p class="empty">Hali tranzaksiya yo'q.</p>
+{% endif %}
+{% endblock %}

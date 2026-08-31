@@ -1,0 +1,192 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Profilaktika — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Profilaktika</h1>
+    <div class="page-sub">Qurilmalardagi nosozliklar: sabab, davomiylik va foydalanuvchilarga xabar</div>
+  </div>
+  <div class="head-actions">
+    {% if counts.unnotified %}
+      <form method="post" action="{% url 'dashboard:maintenance_notify_all' %}"
+            onsubmit="return confirm(&quot;Xabar berilmagan barcha nosozliklar bo'yicha foydalanuvchilarga bildirishnoma yuborilsinmi?&quot;);">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn secondary">Xabar berilmaganlarga yuborish ({{ counts.unnotified }})</button>
+      </form>
+    {% endif %}
+    <form method="post" action="{% url 'dashboard:maintenance_sync' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button type="submit" class="btn">Qurilmalar bilan sinxronlash</button>
+    </form>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Ochiq nosozlik</span>
+      <span class="kpi-icon danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17h.01"/></svg></span>
+    </div>
+    <div class="kpi-value">{{ counts.open }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Xabar berilmagan</span>
+      <span class="kpi-icon warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>
+    </div>
+    <div class="kpi-value">{{ counts.unnotified }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Tuzatilgan</span>
+      <span class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12.5 10 17l9-9"/></svg></span>
+    </div>
+    <div class="kpi-value">{{ counts.resolved }}</div>
+  </div>
+</div>
+
+{# ── Qo'lda ta'mirga qo'yish ─────────────────────────────────── #}
+<div class="section-head">
+  <h2>Ta'mirga qo'yish</h2>
+  <span class="page-sub">Ulagich xizmatdan chiqariladi va chargerga ham buyruq yuboriladi</span>
+</div>
+<div class="card">
+  <form method="post" action="{% url 'dashboard:maintenance_open' %}" class="inline-form">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <select name="connector" required>
+      <option value="">Ulagichni tanlang…</option>
+      {% for c in healthy_connectors %}
+        <option value="{{ c.id }}">{{ c.station.name }} — {{ c.label }} ({{ c.get_type_display }} {{ c.power_kw }} kVt)</option>
+      {% empty %}
+        <option value="" disabled>Soz turgan ulagich yo'q</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="reason" maxlength="200" placeholder="Sabab, masalan: kabel almashtirilmoqda">
+    <button type="submit" class="btn secondary">Ta'mirga qo'yish</button>
+  </form>
+</div>
+
+{# ── Filtrlar ────────────────────────────────────────────────── #}
+<div class="filter-tabs">
+  <a href="?state=open{% if station_id %}&amp;station={{ station_id }}{% endif %}"
+     class="{% if state == 'open' %}active{% endif %}">Ochiq</a>
+  <a href="?state=resolved{% if station_id %}&amp;station={{ station_id }}{% endif %}"
+     class="{% if state == 'resolved' %}active{% endif %}">Tuzatilgan</a>
+  <a href="?state=all{% if station_id %}&amp;station={{ station_id }}{% endif %}"
+     class="{% if state == 'all' %}active{% endif %}">Barchasi</a>
+</div>
+
+<div class="table-wrap" style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Stansiya</th><th>Nishon</th><th>Sabab</th><th>Manba</th>
+        <th>Boshlangan</th><th>Davomiyligi</th><th>Xabar</th>
+        <th class="num">Oluvchi</th><th class="actions">Amallar</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}{% with issue=row.issue %}
+      <tr>
+        <td><a href="{% url 'dashboard:station_detail' issue.station.id %}">{{ issue.station.name }}</a></td>
+        <td>
+          {{ issue.target_label }}
+          {% if issue.status == 'open' %}
+            <span class="badge danger">Ochiq</span>
+          {% else %}
+            <span class="badge success">Tuzatilgan</span>
+          {% endif %}
+        </td>
+        <td>
+          {{ issue.reason }}
+          {% if issue.error_code %}<div class="cell-sub">{{ issue.error_code }}</div>{% endif %}
+          {% if issue.resolution_note %}<div class="cell-sub">Izoh: {{ issue.resolution_note }}</div>{% endif %}
+        </td>
+        <td>{% if issue.source == 'ocpp' %}<span class="badge muted">Qurilmadan</span>{% else %}<span class="badge muted">Qo'lda</span>{% endif %}</td>
+        <td>{{ issue.opened_at|date:"d.m.Y H:i" }}</td>
+        <td>
+          {{ issue.duration_hours }} soat
+          {% if issue.resolved_by %}<div class="cell-sub">{{ issue.resolved_by.username }} yopgan</div>{% endif %}
+        </td>
+        <td>
+          {% if issue.notified_at %}
+            <span class="badge success">Yuborilgan</span>
+            {% if issue.status == 'resolved' and not issue.resolved_notified_at %}
+              <div class="cell-sub">tuzatilgani aytilmagan</div>
+            {% endif %}
+          {% else %}
+            <span class="badge warning">Yo'q</span>
+          {% endif %}
+        </td>
+        <td class="num">
+          {% if row.count %}
+            {# Ismlar oynada — jadvalda faqat son, aks holda ustun kengayib ketardi #}
+            <button type="button" class="link-count" data-recipients
+                    data-url="{% url 'dashboard:maintenance_recipients' issue.id %}"
+                    title="Kimga borishini ko'rish">{{ row.count }}</button>
+          {% else %}
+            <span class="text-muted">0</span>
+          {% endif %}
+        </td>
+        <td class="actions">
+          <div class="row-actions">
+            {% if issue.status == 'open' %}
+              <form method="post" action="{% url 'dashboard:maintenance_resolve' issue.id %}"
+                    onsubmit="return confirm(&quot;Nosozlik tuzatilgan deb belgilansinmi? Ulagich xizmatga qaytariladi.&quot;);">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="btn small">Tuzatildi</button>
+              </form>
+            {% endif %}
+            {% if issue.status == 'open' and not issue.notified_at or issue.status == 'resolved' and issue.notified_at and not issue.resolved_notified_at %}
+              {# Tasdiq oynasi o'rniga oyna: operator avval kimga ketishini ko'radi #}
+              <button type="button" class="btn small secondary" data-recipients
+                      data-url="{% url 'dashboard:maintenance_recipients' issue.id %}"
+                      data-notify="{% url 'dashboard:maintenance_notify' issue.id %}"
+                      {% if not row.count %}disabled title="Bu stansiyada xabar oluvchi yo'q"{% endif %}>
+                Xabar yuborish
+              </button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    {% endwith %}{% empty %}
+      <tr><td colspan="9" class="empty">
+        {% if state == 'open' %}Ochiq nosozlik yo'q — barcha qurilmalar soz{% else %}Yozuv topilmadi{% endif %}
+      </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include 'dashboard/_pagination.html' %}
+
+{% comment %}
+  Xabar oluvchilar oynasi — bitta, barcha qatorlar uchun umumiy.
+  Tarkibi va yuborish formasining manzili app.js tomonidan to'ldiriladi,
+  shuning uchun har bir qatorga yashirin ro'yxat qo'yish shart emas.
+{% endcomment %}
+<div class="modal" id="recipients-modal" hidden>
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="recipients-title">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="recipients-title">Xabar oluvchilar</div>
+        <div class="modal-sub" data-modal-sub></div>
+      </div>
+      <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+    </div>
+
+    <div class="modal-body" data-modal-body></div>
+
+    <div class="modal-foot">
+      <button type="button" class="btn secondary" data-modal-close>Yopish</button>
+      <form method="post" data-modal-form hidden>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn">Xabarni yuborish</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

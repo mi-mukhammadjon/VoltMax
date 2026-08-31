@@ -1,0 +1,16 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}{{ title }} — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% if is_admin_section %}{% url 'dashboard:admins' %}{% else %}{% url 'dashboard:managers' %}{% endif %}" class="back-link">← Orqaga</a>
+<h1 class="page-title">{% if instance %}{{ instance.username }}{% else %}Yangi {{ title|lower }}{% endif %}</h1>
+<div class="card form-card">
+  <form method="post">
+    {% csrf_token %}
+    {% include 'dashboard/_form_fields.html' %}
+    <div class="form-actions">
+      <button type="submit" class="btn">Saqlash</button>
+      <a href="{% if is_admin_section %}{% url 'dashboard:admins' %}{% else %}{% url 'dashboard:managers' %}{% endif %}" class="btn secondary">Bekor qilish</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

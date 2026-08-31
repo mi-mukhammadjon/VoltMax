@@ -1,0 +1,42 @@
+{% extends 'dashboard/base.html' %}{% load money %}
+{% block title %}Aksiyalar — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1 class="page-title">Aksiyalar</h1><div class="page-sub">Chegirmalar va promo-kodlar</div></div>
+  <a href="{% url 'dashboard:offer_new' %}" class="btn">+ Yangi aksiya</a>
+</div>
+
+<div class="filter-tabs">
+  <a href="?" class="{% if not status %}active{% endif %}">Barchasi</a>
+  <a href="?status=running" class="{% if status == 'running' %}active{% endif %}">Amalda</a>
+  <a href="?status=inactive" class="{% if status == 'inactive' %}active{% endif %}">Amalda emas</a>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Aksiya</th><th>Chegirma</th><th>Promo-kod</th><th>Muddat</th><th>Holat</th><th></th></tr></thead>
+    <tbody>
+    {% for o in page_obj %}
+      <tr>
+        <td>
+          <div class="cell-2">
+            <a href="{% url 'dashboard:offer_detail' o.id %}" class="top">{{ o.title }}</a>
+            <span class="sub">{% if o.stations.count %}{{ o.stations.count }} ta stansiya{% else %}Barcha stansiyalar{% endif %}</span>
+          </div>
+        </td>
+        <td><strong>{% if o.discount_type == 'percent' %}{{ o.discount_value }}%{% else %}{{ o.discount_value|som }} so'm{% endif %}</strong></td>
+        <td>{% if o.promo_code %}<span class="badge muted">{{ o.promo_code }}</span>{% else %}<span style="color:var(--text-muted);">avtomatik</span>{% endif %}</td>
+        <td>{{ o.starts_at|date:"d.m.Y" }} — {% if o.ends_at %}{{ o.ends_at|date:"d.m.Y" }}{% else %}muddatsiz{% endif %}</td>
+        <td>{% if o.is_running %}<span class="badge success">{{ o.status_label }}</span>{% else %}<span class="badge muted">{{ o.status_label }}</span>{% endif %}</td>
+        <td class="actions">
+          <div class="row-actions"><a href="{% url 'dashboard:offer_edit' o.id %}" class="btn small secondary">Tahrirlash</a></div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6"><p class="empty">Aksiya yo'q. Birinchisini qo'shing.</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' %}
+{% endblock %}

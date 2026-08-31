@@ -1,0 +1,35 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}{% if instance %}Rolni tahrirlash{% else %}Yangi rol{% endif %} — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:roles' %}" class="back-link">← Rollar</a>
+<h1 class="page-title">{% if instance %}{{ instance.name }}{% else %}Yangi rol{% endif %}</h1>
+<div class="card">
+  <form method="post">
+    {% csrf_token %}
+    <div class="field">
+      <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+      {{ form.name }}{{ form.name.errors }}
+    </div>
+    <div class="field">
+      <label>{{ form.permissions.label }}</label>
+      <div class="perm-list">{{ form.permissions }}</div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn">Saqlash</button>
+      <a href="{% url 'dashboard:roles' %}" class="btn secondary">Bekor qilish</a>
+    </div>
+  </form>
+</div>
+{% if instance %}
+<div class="danger-zone">
+  <div class="dz-text">
+    <div class="dz-title">Rolni o'chirish</div>
+    <div class="dz-note">Rol o'chiriladi, unga biriktirilgan xodimlar huquqlarini yo'qotadi.</div>
+  </div>
+  <form method="post" action="{% url 'dashboard:role_delete' instance.id %}" onsubmit="return confirm(&quot;Rol o'chirilsinmi?&quot;);">
+    {% csrf_token %}
+    <button type="submit" class="btn danger">Rolni o'chirish</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,453 @@
+{% extends 'dashboard/base.html' %}
+{% load phone %}
+{% block title %}RFID kartalar — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">RFID kartalar</h1>
+    <div class="page-sub">Zaryadlashni boshlash uchun ishlatiladigan kartalar (OCPP idTag)</div>
+  </div>
+  <div class="head-actions">
+    <a href="{% url 'dashboard:companies' %}" class="btn secondary">Korporativ mijozlar</a>
+    {% comment %}
+      Tugma faqat OCPP'ga ulangan stansiya bo'lganda ko'rinadi. Aks holda
+      bosilganda "yuboradigan qurilma yo'q" degan xato chiqar va operator
+      nima uchun ekanini tushunmasdi.
+    {% endcomment %}
+    {% if ocpp_stations %}
+      <form method="post" action="{% url 'dashboard:rfid_push' %}" class="inline-form"
+            onsubmit="return confirm(&quot;Kartalar ro'yxati chargerlarga yuborilsinmi? Bu ro'yxat internet uzilganda ishlaydi.&quot;);">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <select name="station" aria-label="Qaysi qurilmaga">
+          <option value="">Barcha onlayn chargerlar</option>
+          {% for st in ocpp_stations %}
+            <option value="{{ st.id }}">{{ st.name }}{% if not st.is_online %} — oflayn{% endif %}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn"{% if not online_stations %} disabled title="Barcha chargerlar oflayn"{% endif %}>
+          Ro'yxatni yuborish
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+{% comment %}
+  Rejim holati HAR DOIM ko'rinadi. Ilgari faqat o'chiq holatda ogohlantirish
+  chiqardi va operator rejim yoqilganini bilmasdi — "nega karta ishlamayapti"
+  degan savolga javob topib bo'lmasdi.
+{% endcomment %}
+<div class="device-state {% if strict %}is-ok{% else %}is-warn{% endif %}">
+  <span class="ds-dot" aria-hidden="true"></span>
+  <div class="ds-text">
+    {% if strict %}
+      <b>Qat'iy rejim yoqilgan</b>
+      <small>Faqat tasdiqlangan kartalar ishlaydi. Noma'lum karta rad etiladi va ro'yxatga tushadi.</small>
+    {% else %}
+      <b>Qat'iy rejim o'chiq</b>
+      <small>Ro'yxatda yo'q karta ham qabul qilinadi. Kartalarni tasdiqlab, keyin rejimni yoqing.</small>
+    {% endif %}
+  </div>
+  <a href="{% url 'dashboard:settings_security' %}" class="btn small secondary">Sozlamalar</a>
+</div>
+
+{% if not ocpp_stations %}
+  {% comment %}
+    Kartalar faqat OCPP orqali ulangan charger bilan ishlaydi. Qurilma
+    ulanmagan bo'lsa bu bo'lim hozircha faqat ro'yxat bo'lib turadi —
+    buni aytib qo'ymasak, operator "nega ishlamayapti" deb qidiradi.
+  {% endcomment %}
+  <div class="device-state is-warn">
+    <span class="ds-dot" aria-hidden="true"></span>
+    <div class="ds-text">
+      <b>Hech bir stansiyaga charger ulanmagan</b>
+      <small>
+        Kartalar OCPP orqali ishlaydi. Stansiyani tahrirlab, chargerning
+        <b>OCPP Charge Point ID</b> sini kiriting — shundan keyin karta
+        tekshiruvi va ro'yxatni qurilmaga yuborish ishlaydi.
+      </small>
+    </div>
+    <a href="{% url 'dashboard:stations' %}" class="btn small secondary">Stansiyalar</a>
+  </div>
+{% endif %}
+
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Faol</span></div>
+    <div class="kpi-value">{{ counts.active }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Tasdiqlanmagan</span></div>
+    <div class="kpi-value">{{ counts.pending }}</div>
+    <div class="kpi-foot">qurilma ko'rgan, hali ko'rib chiqilmagan</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Bloklangan</span></div>
+    <div class="kpi-value">{{ counts.blocked }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Muddati tugagan</span></div>
+    <div class="kpi-value">{{ counts.expired }}</div>
+    <div class="kpi-foot">bazada faol, lekin ishlamaydi</div>
+  </div>
+</div>
+
+<div class="section-head"><h2>Karta qo'shish</h2></div>
+<div class="card">
+  <form method="post" action="{% url 'dashboard:rfid_card_create' %}" class="inline-form">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <div class="field"><label>{{ form.id_tag.label }}</label>{{ form.id_tag }}</div>
+    <div class="field"><label>{{ form.label.label }}</label>{{ form.label }}</div>
+    <div class="field wide"><label>{{ form.user.label }}</label>{{ form.user }}</div>
+    <div class="field wide"><label>{{ form.company.label }}</label>{{ form.company }}</div>
+    <button type="submit" class="btn small">+ Qo'shish</button>
+  </form>
+  <div class="help" style="margin-top:10px;">
+    Karta <b>tasdiqlanmagan</b> holatda qo'shiladi va ishlamaydi. Ro'yxatdan
+    topib "Tasdiqlash" tugmasini bosing — shunda tasodifan faol karta
+    yaratib qo'yilmaydi.
+  </div>
+</div>
+
+{% comment %}
+  Tablar chapda, qidiruv o'ngda — bitta qatorda. Ikkalasi alohida turganda
+  ikki qator joy egallardi.
+
+  Qidiruv va filtr birga ishlaydi: filtr havolasi joriy qidiruvni saqlaydi,
+  qidiruv formasi esa joriy filtrni. Aks holda birini o'zgartirganda
+  ikkinchisi yo'qolib ketardi.
+{% endcomment %}
+<div class="filter-row">
+  <div class="filter-tabs">
+    <a href="?" class="{% if not status %}active{% endif %}"
+       data-live-filter data-filter-value="">Barchasi</a>
+    <a href="?status=pending" class="{% if status == 'pending' %}active{% endif %}"
+       data-live-filter data-filter-value="pending">Tasdiqlanmagan</a>
+    <a href="?status=active" class="{% if status == 'active' %}active{% endif %}"
+       data-live-filter data-filter-value="active">Faol</a>
+    <a href="?status=blocked" class="{% if status == 'blocked' %}active{% endif %}"
+       data-live-filter data-filter-value="blocked">Bloklangan</a>
+    <a href="?status=expired" class="{% if status == 'expired' %}active{% endif %}"
+       data-live-filter data-filter-value="expired">Muddati tugagan</a>
+  </div>
+
+  {% comment %}
+    Hammasi BITTA formada: tab, qidiruv va «Filtr» oynasidagi mezonlar —
+    shunda ular bir-birini bekor qilmaydi. Kam ishlatiladigan mezonlar
+    oynada: qatorda turganda ekran torayishi bilan ikkinchi qatorga
+    tushib ketardi.
+
+    `data-live-search` — yozilgani sari jadval yangilanadi (app.js).
+    JS o'chirilgan bo'lsa forma odatdagidek "Qidirish" tugmasi bilan
+    ishlayveradi, shuning uchun tugma ham qoldirilgan.
+  {% endcomment %}
+  <form method="get" class="filter-search" data-live-search data-target="#card-results">
+    <input type="hidden" name="status" value="{{ status }}">
+
+    <input type="search" name="q" value="{{ filters.q }}"
+           placeholder="Karta, egasi yoki mijoz"
+           autocomplete="off" aria-label="Kartalarni qidirish">
+
+    <span class="filter-actions" id="card-filter-actions" data-live-sync>
+      {% if filters.q or advanced_count %}
+        <span class="filter-found">{{ found }} ta</span>
+      {% endif %}
+      <button type="button"
+              class="btn secondary filter-btn{% if advanced_count %} is-filtered{% endif %}"
+              data-modal-open="#card-filter-modal"
+              aria-haspopup="dialog"
+              title="{% if advanced_count %}{{ advanced_count }} ta mezon qo'llanilgan{% else %}Kengaytirilgan filtr{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 5h18l-7 8.2V19l-4 2v-7.8z"/>
+        </svg>
+        Filtr
+        {% if advanced_count %}<span class="fb-count">{{ advanced_count }}</span>{% endif %}
+      </button>
+      <button type="submit" class="btn secondary">Qidirish</button>
+      {% if filters.q or advanced_count %}
+        <a href="?{% if status %}status={{ status }}{% endif %}" class="btn secondary"
+           title="Filtrlarni tozalash">&times;</a>
+      {% endif %}
+    </span>
+
+    <div class="modal" id="card-filter-modal" hidden>
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-panel" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">Kengaytirilgan filtr</div>
+            <div class="modal-sub">Mijoz, egasi, muddati va ishlatilishi bo'yicha</div>
+          </div>
+          <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+        </div>
+
+        <div class="modal-body" id="card-filter-fields" data-live-sync>
+          <div class="filter-group">
+            <div class="filter-group-title">Kimga tegishli</div>
+
+            {% comment %}
+              Korporativ mijoz bo'yicha ko'p tanlovli filtr. Oddiy
+              `<select multiple>` amalda noqulay (Ctrl bilan bosish,
+              tanlanganini ko'rib bo'lmaydi), shuning uchun katakchali ro'yxat.
+            {% endcomment %}
+            <div class="field{% if selected_companies %} is-set{% endif %}">
+              <label>Korporativ mijoz</label>
+              <div class="multi-select{% if selected_companies %} has-value{% endif %}" data-multi-select>
+                <button type="button" class="ms-toggle" data-ms-toggle
+                        aria-haspopup="true" aria-expanded="false">
+                  {% if selected_companies %}Tanlangan{% else %}Barchasi{% endif %}
+                  <span class="ms-count" data-ms-count{% if not selected_companies %} hidden{% endif %}>{{ selected_companies|length }}</span>
+                  <svg class="ms-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+
+                <div class="ms-panel" data-ms-panel hidden>
+                  <div class="ms-list">
+                    <label class="ms-option">
+                      <input type="checkbox" name="company" value="none" data-ms-item
+                             {% if 'none' in selected_companies %}checked{% endif %}>
+                      <span>Korporativ emas</span>
+                    </label>
+                    {% for c in companies %}
+                      <label class="ms-option">
+                        <input type="checkbox" name="company" value="{{ c.id }}" data-ms-item
+                               {% if c.id|stringformat:'s' in selected_companies %}checked{% endif %}>
+                        <span>{{ c.name }}</span>
+                      </label>
+                    {% empty %}
+                      <div class="ms-empty">Korporativ mijoz yo'q</div>
+                    {% endfor %}
+                  </div>
+                  <div class="ms-foot">
+                    <button type="button" class="btn small secondary" data-ms-clear>Tozalash</button>
+                    <button type="button" class="btn small" data-ms-close>Yopish</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="field{% if filters.owner %} is-set{% endif %}">
+              <label for="f-owner">Egasi</label>
+              <select id="f-owner" name="owner">
+                <option value="">Farqi yo'q</option>
+                <option value="with"{% if filters.owner == 'with' %} selected{% endif %}>Egasi biriktirilgan</option>
+                <option value="without"{% if filters.owner == 'without' %} selected{% endif %}>Egasiz — xizmat kartasi</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-group-title">Muddati va ishlatilishi</div>
+            <div class="field-row">
+              <div class="field{% if filters.expiry %} is-set{% endif %}">
+                <label for="f-expiry">Amal qilish muddati</label>
+                <select id="f-expiry" name="expiry">
+                  <option value="">Farqi yo'q</option>
+                  <option value="soon"{% if filters.expiry == 'soon' %} selected{% endif %}>30 kun ichida tugaydi</option>
+                  <option value="set"{% if filters.expiry == 'set' %} selected{% endif %}>Muddati belgilangan</option>
+                  <option value="none"{% if filters.expiry == 'none' %} selected{% endif %}>Muddatsiz</option>
+                </select>
+              </div>
+              <div class="field{% if filters.usage %} is-set{% endif %}">
+                <label for="f-usage">Ishlatilishi</label>
+                <select id="f-usage" name="usage">
+                  <option value="">Farqi yo'q</option>
+                  <option value="used"{% if filters.usage == 'used' %} selected{% endif %}>Ishlatilgan</option>
+                  <option value="unused"{% if filters.usage == 'unused' %} selected{% endif %}>Hech ishlatilmagan</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-group-title">Qo'shilgan sana</div>
+            <div class="range-row">
+              <div class="field{% if filters.added_from %} is-set{% endif %}">
+                <label for="f-from">Dan</label>
+                <input type="date" id="f-from" name="added_from" value="{{ filters.added_from }}">
+              </div>
+              <span class="range-dash" aria-hidden="true">—</span>
+              <div class="field{% if filters.added_to %} is-set{% endif %}">
+                <label for="f-to">Gacha</label>
+                <input type="date" id="f-to" name="added_to" value="{{ filters.added_to }}">
+              </div>
+            </div>
+            <div class="help">Bittasini to'ldirish ham yetarli</div>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-group-title">Ro'yxat</div>
+            <div class="field{% if filters.sort %} is-set{% endif %}">
+              <label for="f-sort">Tartiblash</label>
+              <select id="f-sort" name="sort">
+                <option value="">Yangi qo'shilgan</option>
+                <option value="used"{% if filters.sort == 'used' %} selected{% endif %}>Ko'p ishlatilgan</option>
+                <option value="expiring"{% if filters.sort == 'expiring' %} selected{% endif %}>Muddati yaqin</option>
+                <option value="tag"{% if filters.sort == 'tag' %} selected{% endif %}>Karta raqami bo'yicha</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <a href="?{% if status %}status={{ status }}{% endif %}{% if filters.q %}&amp;q={{ filters.q|urlencode }}{% endif %}"
+             class="btn secondary">Tozalash</a>
+          <button type="submit" class="btn">Qo'llash</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+
+{% comment %}
+  Ommaviy amal formasi jadvaldan TASHQARIDA turadi, katakchalar esa
+  `form="rfid-bulk"` atributi orqali unga bog'lanadi. Jadvalni forma ichiga
+  olib bo'lmaydi: har qatorda o'z formasi bor va HTML ichma-ich formani
+  qo'llamaydi — brauzer ichkarisini shunchaki tashlab yuborardi.
+{% endcomment %}
+<form method="post" action="{% url 'dashboard:rfid_bulk' %}" id="rfid-bulk">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+  <div class="bulk-bar" data-bulk-bar hidden>
+    <span class="bulk-count"><b data-bulk-count>0</b> ta karta belgilandi</span>
+    <span class="row-actions">
+      <button type="submit" name="bulk_action" value="active" class="btn small">Tasdiqlash</button>
+      <button type="submit" name="bulk_action" value="blocked" class="btn small secondary">Bloklash</button>
+      <select name="months" aria-label="Uzaytirish muddati">
+        {% for months, label in extend_options %}
+          <option value="{{ months }}"{% if months == 3 %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" name="bulk_action" value="extend" class="btn small secondary">Uzaytirish</button>
+      <button type="submit" name="bulk_action" value="delete" class="btn small danger"
+              onclick="return confirm(&quot;Belgilangan kartalar o'chirilsinmi?&quot;);">O'chirish</button>
+    </span>
+  </div>
+</form>
+
+{% comment %}
+  Jonli filtr FAQAT shu hududni almashtiradi (app.js `partialSwap`).
+  Qidiruv maydoni tashqarida qolgani uchun fokus ham, kursor ham
+  joyida turadi va sahifa siljimaydi.
+{% endcomment %}
+<div id="card-results" data-live-region>
+<div class="table-wrap" style="overflow-x:auto;">
+  <table>
+    {% comment %}
+      Ustunlar ataylab kam: karta raqami va nomi bitta katakda, ishlatilish
+      soni va oxirgi sanasi ham bitta katakda. Ilgari 7 ta ustun bor edi va
+      amallar tugmalari siqilib qolardi.
+    {% endcomment %}
+    <thead>
+      <tr>
+        <th class="check"><input type="checkbox" form="rfid-bulk" data-check-all aria-label="Hammasini belgilash"></th>
+        <th>Karta</th><th>Egasi</th><th>Korporativ</th><th class="w-badge">Holat</th>
+        <th class="num">Ishlatilgan</th><th class="actions">Amallar</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for card in page_obj %}
+      <tr>
+        <td class="check">
+          <input type="checkbox" form="rfid-bulk" name="ids" value="{{ card.id }}"
+                 data-check-item aria-label="{{ card.id_tag }}">
+        </td>
+        <td>
+          <a href="{% url 'dashboard:rfid_card_detail' card.id %}" class="mono" style="font-weight:700;">{{ card.id_tag }}</a>
+          {% if card.label %}<div class="cell-sub card-name">{{ card.label }}</div>{% endif %}
+          {% if card.first_seen_station and not card.label %}
+            <div class="cell-sub">{{ card.first_seen_station.name }}da ko'rilgan</div>
+          {% endif %}
+        </td>
+        <td>
+          {% if card.user %}
+            <a href="{% url 'dashboard:user_detail' card.user.id %}">{{ card.user.username |phone }}</a>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if card.company %}
+            <a href="{% url 'dashboard:company_detail' card.company.id %}">{{ card.company.name }}</a>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        {% comment %}
+          Holat `effective_status` dan olinadi: muddati tugagan karta bazada
+          "faol" bo'lib tursa ham ishlamaydi, shuning uchun "Faol" deb
+          ko'rsatish chalg'itardi.
+        {% endcomment %}
+        <td class="w-badge">
+          {% if card.effective_status == 'active' %}<span class="badge success">Faol</span>
+          {% elif card.effective_status == 'pending' %}<span class="badge warning">Tasdiqlanmagan</span>
+          {% elif card.effective_status == 'expired' %}<span class="badge warning">Muddati tugagan</span>
+          {% else %}<span class="badge danger">Bloklangan</span>{% endif %}
+          {% if card.effective_status == 'expired' %}
+            <div class="cell-sub">{{ card.expires_at|date:"d.m.Y" }}</div>
+          {% endif %}
+        </td>
+        <td class="num">
+          {{ card.use_count }}
+          <div class="cell-sub">
+            {% if card.last_used_at %}{{ card.last_used_at|date:"d.m.Y" }}{% else %}ishlatilmagan{% endif %}
+          </div>
+        </td>
+        {% comment %}
+          Qatorda faqat ikkita amal: holatni almashtirish (eng ko'p
+          ishlatiladigani) va kartani ochish. O'chirish karta sahifasida —
+          u qaytarib bo'lmaydigan amal, tasodifan bosilmasligi kerak.
+        {% endcomment %}
+        <td class="actions">
+          <div class="row-actions">
+            <form method="post" action="{% url 'dashboard:rfid_card_status' card.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              {% if card.effective_status == 'blocked' %}
+                <input type="hidden" name="status" value="active">
+                <button type="submit" class="btn small">Blokdan chiqarish</button>
+              {% elif card.effective_status == 'pending' %}
+                <input type="hidden" name="status" value="active">
+                <button type="submit" class="btn small">Tasdiqlash</button>
+              {% else %}
+                <input type="hidden" name="status" value="blocked">
+                <button type="submit" class="btn small secondary">Bloklash</button>
+              {% endif %}
+            </form>
+            {% if card.effective_status == 'expired' %}
+              {# Muddati tugagan kartada eng kerakli amal — uzaytirish #}
+              <form method="post" action="{% url 'dashboard:rfid_card_extend' card.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="hidden" name="months" value="3">
+                <button type="submit" class="btn small" title="3 oyga uzaytirish">+3 oy</button>
+              </form>
+            {% endif %}
+            <a href="{% url 'dashboard:rfid_card_detail' card.id %}" class="btn small secondary">Batafsil</a>
+          </div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7" class="empty">
+        {% if status == 'pending' %}
+          <b>Tasdiqlanmagan karta yo'q</b>
+          <span>Qurilma noma'lum karta ko'rsa u shu yerda paydo bo'ladi</span>
+        {% elif q %}
+          <b>"{{ q }}" bo'yicha topilmadi</b>
+        {% else %}
+          <b>Hali karta qo'shilmagan</b>
+          <span>Yuqoridagi forma orqali qo'shing yoki kartani chargerga taqing</span>
+        {% endif %}
+      </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include 'dashboard/_pagination.html' %}
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% comment %}
+Umumiy sahifalash bloki.
+
+Ishlatish:
+    {% include 'dashboard/_pagination.html' %}
+    {% include 'dashboard/_pagination.html' with page_obj=connector_page param='cpage' %}
+
+`param` — sahifa raqami uzatiladigan GET kaliti (standarti `page`). Bitta
+sahifada ikkita jadval bo'lsa, ikkinchisiga boshqa kalit beriladi.
+
+Qolgan barcha GET parametrlari (qidiruv, filtr, saralash) avtomatik saqlanadi —
+shuning uchun har bir sahifada filtr kalitlarini qo'lda sanab chiqish shart emas.
+{% endcomment %}
+{% firstof param 'page' as page_key %}
+{% if page_obj.has_other_pages %}
+<div class="pagination">
+  {% if page_obj.has_previous %}
+    <a href="?{{ page_key }}={{ page_obj.previous_page_number }}{% for k, v in request.GET.items %}{% if k != page_key %}&amp;{{ k }}={{ v|urlencode }}{% endif %}{% endfor %}">&larr; Oldingi</a>
+  {% endif %}
+
+  <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  <span class="page-total">{{ page_obj.paginator.count }} ta yozuv</span>
+
+  {% if page_obj.has_next %}
+    <a href="?{{ page_key }}={{ page_obj.next_page_number }}{% for k, v in request.GET.items %}{% if k != page_key %}&amp;{{ k }}={{ v|urlencode }}{% endif %}{% endfor %}">Keyingi &rarr;</a>
+  {% endif %}
+</div>
+{% endif %}

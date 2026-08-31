@@ -1,0 +1,59 @@
+{% extends 'dashboard/base.html' %}{% load money %}
+{% block title %}Foydalanish hisoboti — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Foydalanish hisoboti</h1>
+    <div class="page-sub">Oxirgi {{ days }} kun</div>
+  </div>
+  <div class="filter-tabs" style="margin:0;">
+    <a href="?days=7" class="{% if days == 7 %}active{% endif %}">7 kun</a>
+    <a href="?days=30" class="{% if days == 30 %}active{% endif %}">30 kun</a>
+    <a href="?days=90" class="{% if days == 90 %}active{% endif %}">90 kun</a>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi"><span class="kpi-label">Sessiyalar</span><div class="kpi-value">{{ total_sessions }}</div><div class="kpi-foot">{{ finished_sessions }} tasi yakunlangan</div></div>
+  <div class="kpi"><span class="kpi-label">Jami energiya</span><div class="kpi-value">{{ total_kwh|num:1 }} <span class="unit">kVt·s</span></div></div>
+  <div class="kpi"><span class="kpi-label">Sessiyaga o'rtacha</span><div class="kpi-value">{{ avg_kwh|num:1 }} <span class="unit">kVt·s</span></div></div>
+</div>
+
+<div class="chart-card" style="margin-bottom:14px;">
+  <div class="chart-head"><div><div class="chart-title">Kunlik sessiyalar</div></div></div>
+  <div class="bars">
+    {% for p in points %}
+      <div class="bar-col">
+        <div class="bar-track"><div class="bar-fill" style="height: {{ p.height }}%;"><span class="tip">{{ p.value }} ta</span></div></div>
+        {% if days <= 14 %}<span class="bar-label">{{ p.label }}</span>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="chart-card" style="margin-bottom:22px;">
+  <div class="chart-head"><div><div class="chart-title">Soatlar bo'yicha yuklama</div><div class="chart-sub">Tarmoqning eng band vaqtlari</div></div></div>
+  <div class="bars" style="height:120px;gap:3px;">
+    {% for h in hours %}
+      <div class="bar-col">
+        <div class="bar-track"><div class="bar-fill" style="height: {{ h.height }}%;"><span class="tip">{{ h.hour }}:00 — {{ h.value }} ta</span></div></div>
+        {% if h.hour|divisibleby:3 %}<span class="bar-label">{{ h.hour }}</span>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="section-head"><h2>Eng faol stansiyalar</h2></div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Stansiya</th><th>Sessiyalar</th></tr></thead>
+    <tbody>
+    {% for s in top_stations %}
+      <tr><td>{{ s.station__name }}</td><td><strong>{{ s.c }}</strong></td></tr>
+    {% empty %}
+      <tr><td colspan="2"><p class="empty">Ma'lumot yo'q</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

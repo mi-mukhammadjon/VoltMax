@@ -1,0 +1,54 @@
+{% extends 'dashboard/base.html' %}{% load money %}
+{% block title %}Tushum hisoboti — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Tushum hisoboti</h1>
+    <div class="page-sub">Oxirgi {{ days }} kun</div>
+  </div>
+  <div class="filter-tabs" style="margin:0;">
+    <a href="?days=7" class="{% if days == 7 %}active{% endif %}">7 kun</a>
+    <a href="?days=30" class="{% if days == 30 %}active{% endif %}">30 kun</a>
+    <a href="?days=90" class="{% if days == 90 %}active{% endif %}">90 kun</a>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi"><span class="kpi-label">Davr tushumi</span><div class="kpi-value">{{ total|som }} <span class="unit">so'm</span></div></div>
+  <div class="kpi"><span class="kpi-label">Kunlik o'rtacha</span><div class="kpi-value">{{ avg_per_day|som }} <span class="unit">so'm</span></div></div>
+  <div class="kpi"><span class="kpi-label">Jami to'ldirishlar</span><div class="kpi-value">{{ topups_total|som }} <span class="unit">so'm</span></div></div>
+</div>
+
+<div class="chart-card" style="margin-bottom:22px;">
+  <div class="chart-head">
+    <div><div class="chart-title">Kunlik tushum</div><div class="chart-sub">Zaryadlash to'lovlari</div></div>
+  </div>
+  <div class="bars">
+    {% for p in points %}
+      <div class="bar-col {% if p.is_today %}today{% endif %}">
+        <div class="bar-track"><div class="bar-fill" style="height: {{ p.height }}%;"><span class="tip">{{ p.amount|som }}</span></div></div>
+        {% if days <= 14 %}<span class="bar-label">{{ p.label }}</span>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="section-head"><h2>Stansiyalar bo'yicha</h2></div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Stansiya</th><th>Sessiyalar</th><th>Tushum</th><th style="width:35%;">Ulush</th></tr></thead>
+    <tbody>
+    {% for r in station_rows %}
+      <tr>
+        <td>{{ r.name }}</td>
+        <td>{{ r.count }}</td>
+        <td><strong>{{ r.revenue|som }} so'm</strong></td>
+        <td><div class="mini-progress"><span class="track"><span class="fill" style="width: {{ r.width }}%;"></span></span></div></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4"><p class="empty">Ma'lumot yo'q</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

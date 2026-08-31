@@ -1,0 +1,33 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Profil — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1 class="page-title">Profil</h1><div class="page-sub">O'z hisobingiz sozlamalari</div></div>
+</div>
+
+<div class="kv-grid">
+  <div class="kv"><div class="k">Login</div><div class="v" style="font-size:16px;">{{ member.username }}</div></div>
+  <div class="kv"><div class="k">Roli</div><div class="v" style="font-size:16px;">{% if member.is_superuser %}Administrator{% else %}Menejer{% endif %}</div></div>
+  <div class="kv"><div class="k">Oxirgi kirish</div><div class="v" style="font-size:15px;">{{ member.last_login|date:"d.m.Y H:i"|default:"—" }}</div></div>
+</div>
+
+<div class="card form-card">
+  <form method="post">
+    {% csrf_token %}
+    <div class="my-field-row">
+      <div class="field"><label>Ism</label><input type="text" name="first_name" value="{{ member.first_name }}"></div>
+      <div class="field"><label>Familiya</label><input type="text" name="last_name" value="{{ member.last_name }}"></div>
+    </div>
+    <div class="field"><label>Email</label><input type="text" name="email" value="{{ member.email }}"></div>
+
+    <div class="section-title" style="margin-top:22px;">Parolni o'zgartirish</div>
+    <div class="my-field-row">
+      <div class="field"><label>Yangi parol</label><input type="password" name="new_password" autocomplete="new-password"></div>
+      <div class="field"><label>Tasdiqlash</label><input type="password" name="confirm_password" autocomplete="new-password"></div>
+    </div>
+    <div class="help">Parol o'zgartirilsa, qaytadan kirish talab qilinadi.</div>
+
+    <div class="form-actions"><button type="submit" class="btn">Saqlash</button></div>
+  </form>
+</div>
+{% endblock %}

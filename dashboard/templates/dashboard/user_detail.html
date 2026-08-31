@@ -1,0 +1,113 @@
+{% extends 'dashboard/base.html' %}{% load money phone %}
+{% block title %}{{ phone_user.username |phone }} — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:users' %}" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  Foydalanuvchilar
+</a>
+<div class="detail-header">
+  <div>
+    <h1>{{ phone_user.username |phone }}</h1>
+    <div class="sub">
+      Ro'yxatdan o'tgan: {{ phone_user.date_joined|date:"d.m.Y H:i" }} ·
+      Oxirgi kirish: {{ phone_user.last_login|date:"d.m.Y H:i"|default:"—" }}
+      {% if phone_user.is_active %}<span class="badge success">Faol</span>{% else %}<span class="badge danger">Bloklangan</span>{% endif %}
+    </div>
+  </div>
+  <form method="post" action="{% url 'dashboard:user_toggle_active' phone_user.id %}"
+        onsubmit="return confirm(&quot;{% if phone_user.is_active %}Foydalanuvchi bloklansinmi?{% else %}Foydalanuvchi faollashtirilsinmi?{% endif %}&quot;);">
+    {% csrf_token %}
+    {% if phone_user.is_active %}
+      <button type="submit" class="btn danger">Bloklash</button>
+    {% else %}
+      <button type="submit" class="btn">Faollashtirish</button>
+    {% endif %}
+  </form>
+</div>
+
+<div class="kv-grid">
+  <div class="kv"><div class="k">Hamyon balansi</div><div class="v">{{ wallet.amount|default:0 }} so'm</div></div>
+  <div class="kv"><div class="k">Jami sessiyalar</div><div class="v">{{ phone_user.session_count }}</div></div>
+</div>
+
+<div class="section-title">Oxirgi sessiyalar</div>
+{% if sessions_page %}
+<div class="table-wrap" style="overflow-x:auto;">
+  <table>
+    <thead><tr><th>Stansiya</th><th>Ulagich</th><th>Holat</th><th>Boshlangan</th><th></th></tr></thead>
+    <tbody>
+    {% for s in sessions_page %}
+      <tr>
+        <td>{{ s.station.name }}</td>
+        <td>{{ s.connector_label }}</td>
+        <td>
+          {% if s.status == 'charging' %}<span class="badge warning">Zaryadlanmoqda</span>
+          {% elif s.status == 'completed' %}<span class="badge success">Tugallandi</span>
+          {% elif s.status == 'stopped' %}<span class="badge muted">To'xtatildi</span>
+          {% else %}<span class="badge danger">Xatolik</span>{% endif %}
+        </td>
+        <td>{{ s.started_at|date:"d.m.Y H:i" }}</td>
+        <td><a href="{% url 'dashboard:session_detail' s.id %}" class="btn small secondary">Ko'rish</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="empty"><b>Hali sessiya yo'q</b></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' with page_obj=sessions_page %}
+{% else %}
+  <p class="empty">Hali sessiya yo'q.</p>
+{% endif %}
+
+<div class="section-title">Oxirgi tranzaksiyalar</div>
+{% if transactions_page %}
+<div class="table-wrap" style="overflow-x:auto;">
+  <table>
+    <thead><tr><th>Turi</th><th>Summa</th><th>Tavsif</th><th>Sana</th></tr></thead>
+    <tbody>
+    {% for tx in transactions_page %}
+      <tr>
+        <td>{% if tx.type == 'topup' %}<span class="badge success">To'ldirish</span>{% else %}<span class="badge muted">Zaryadlash to'lovi</span>{% endif %}</td>
+        <td>{% if tx.type == 'topup' %}+{% else %}-{% endif %}{{ tx.amount|som }} so'm</td>
+        <td>{{ tx.description }}</td>
+        <td>{{ tx.created_at|date:"d.m.Y H:i" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="empty"><b>Hali tranzaksiya yo'q</b></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' with page_obj=transactions_page param='tpage' %}
+{% else %}
+  <p class="empty">Hali tranzaksiya yo'q.</p>
+{% endif %}
+
+<div class="section-head">
+  <h2>RFID kartalar</h2>
+  <a href="{% url 'dashboard:rfid_cards' %}" class="link">Barcha kartalar</a>
+</div>
+<div class="card">
+  {% for card in rfid_cards %}
+    <div class="item-row">
+      <div class="grow">
+        <div class="title mono">
+          {{ card.id_tag }}
+          {% if card.status == 'active' %}<span class="badge success">Faol</span>
+          {% elif card.status == 'pending' %}<span class="badge warning">Tasdiqlanmagan</span>
+          {% else %}<span class="badge danger">Bloklangan</span>{% endif %}
+        </div>
+        <div class="sub">
+          <span class="card-name">{{ card.label|default:"nomsiz" }}</span> · {{ card.use_count }} marta ishlatilgan
+          {% if card.last_used_at %} · oxirgi {{ card.last_used_at|date:"d.m.Y" }}{% endif %}
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <p class="empty" style="padding:14px 0;">
+      Bu mijozga karta biriktirilmagan — u faqat ilova orqali zaryadlay oladi
+    </p>
+  {% endfor %}
+</div>
+{% endblock %}

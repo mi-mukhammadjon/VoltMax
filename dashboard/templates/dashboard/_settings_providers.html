@@ -1,0 +1,153 @@
+{% comment %}
+  To'lov tizimlari tabi.
+
+  Ro'yxat bazada: yangi to'lov tizimi qo'shilganda kodni o'zgartirish va
+  deploy qilish kerak bo'lmasin. Har birining o'z identifikatorlari bor —
+  ular ham shu yerda sozlanadi.
+
+  Maxfiy kalit ro'yxatda to'liq ko'rsatilmaydi: u pul o'tkazmalarini
+  tasdiqlash uchun ishlatiladi, ya'ni parol darajasidagi ma'lumot.
+{% endcomment %}
+{% load money phone %}
+{% if active_tab == 'providers' %}
+  <div class="card" style="max-width:820px;">
+    <div style="font-weight:800;margin-bottom:6px;">To'lov tizimlari qanday ishlaydi</div>
+    <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.55;">
+      Mobil ilovada hamyonni to'ldirishda faqat <b>yoqilgan</b> va
+      identifikatorlari to'ldirilgan tizimlar ko'rinadi. <code>Kod</code> —
+      integratsiya qaraydigan nom (<code>payme</code>, <code>click</code>),
+      uni tizim ishga tushgandan keyin o'zgartirmang.
+      <br><br>
+      Maxfiy kalit saqlangach to'liq ko'rsatilmaydi — faqat oxirgi 4 belgisi.
+      Uni almashtirish uchun yangisini kiriting, bo'sh qoldirilsa eskisi qoladi.
+    </div>
+  </div>
+
+  <div class="page-head" style="margin-top:var(--s6);">
+    <div>
+      <h2 class="page-title" style="font-size:var(--t-lg);">To'lov tizimlari</h2>
+      <div class="page-sub">Mobil ilovadagi to'ldirish usullari</div>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn" data-modal-open="#provider-new-modal">
+        + Tizim qo'shish
+      </button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="w-name">Nomi</th>
+          <th>Merchant ID</th>
+          <th>Kalit</th>
+          <th class="w-badge">Holat</th>
+          <th class="actions">Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for provider in providers %}
+        <tr>
+          <td class="w-name">
+            <div style="font-weight:700;">{{ provider.name }}</div>
+            <div class="cell-sub mono">{{ provider.code }}</div>
+          </td>
+          <td class="mono">{{ provider.merchant_id|default:"—" }}</td>
+          <td class="mono">{{ provider.masked_key|default:"—" }}</td>
+          <td class="w-badge">
+            {% if not provider.is_active %}
+              <span class="badge muted">To'xtatilgan</span>
+            {% elif provider.is_configured %}
+              <span class="badge success">Ishlayapti</span>
+            {% else %}
+              {# Yoqilgan, lekin identifikatorsiz — to'lov o'tmaydi #}
+              <span class="badge warning">Sozlanmagan</span>
+            {% endif %}
+          </td>
+          <td class="actions">
+            <div class="row-actions">
+              <button type="button" class="btn small secondary"
+                      data-modal-open="#provider-{{ provider.id }}-modal">Tahrirlash</button>
+              <form method="post" action="{% url 'dashboard:provider_toggle' provider.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn small secondary">
+                  {% if provider.is_active %}To'xtatish{% else %}Yoqish{% endif %}
+                </button>
+              </form>
+              <form method="post" action="{% url 'dashboard:provider_delete' provider.id %}"
+                    onsubmit="return confirm('Tizim ro’yxatdan butunlay o’chirilsinmi? To’lov tarixi saqlanadi.')">
+                {% csrf_token %}
+                <button type="submit" class="btn small danger">O'chirish</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="empty">
+          <b>To'lov tizimi qo'shilmagan</b>
+          <span>Mobil ilovada hamyon to'ldirilmaydi — kamida bittasini qo'shing</span>
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% comment %}
+    Oxirgi to'lovlar. Integratsiya ishlayaptimi degan savolga eng tez javob
+    shu yerda: "kutilmoqda" holatida qotib qolgan to'lov — to'lov tizimi
+    bizning serverga yeta olmayotganini bildiradi.
+  {% endcomment %}
+  <div class="page-head" style="margin-top:var(--s6);">
+    <div>
+      <h2 class="page-title" style="font-size:var(--t-lg);">Oxirgi to'lovlar</h2>
+      <div class="page-sub">
+        Jami to'langan: {{ paid_total|som }} so'm
+        {% if open_orders %} · {{ open_orders }} ta yakunlanmagan{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="w-date">Vaqti</th>
+          <th class="w-name">Foydalanuvchi</th>
+          <th>Tizim</th>
+          <th class="num">Summa</th>
+          <th class="w-badge">Holat</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for order in orders %}
+        <tr>
+          <td class="w-date">{{ order.created_at|date:"d.m.Y H:i" }}</td>
+          <td class="w-name">{{ order.user.username|phone }}</td>
+          <td>
+            {{ order.provider.name }}
+            {% if order.external_id %}<div class="cell-sub mono">{{ order.external_id }}</div>{% endif %}
+          </td>
+          <td class="num">{{ order.amount|som }}</td>
+          <td class="w-badge">
+            {% if order.state == 2 %}<span class="badge success">To'langan</span>
+            {% elif order.state == 1 %}<span class="badge warning">Kutilmoqda</span>
+            {% elif order.state == 0 %}<span class="badge muted">Boshlangan</span>
+            {% else %}<span class="badge danger">{{ order.get_state_display }}</span>{% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="empty">
+          <b>Hali to'lov bo'lmagan</b>
+          <span>Ilovadan hamyon to'ldirilganda bu yerda ko'rinadi</span>
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include 'dashboard/_provider_modal.html' with target=None form=provider_form %}
+  {% for provider in providers %}
+    {% include 'dashboard/_provider_modal.html' with target=provider form=None %}
+  {% endfor %}
+{% endif %}

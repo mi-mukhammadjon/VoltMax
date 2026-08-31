@@ -1,0 +1,153 @@
+{% extends 'dashboard/base.html' %}{% load money %}
+{% block title %}Stansiyalar — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Stansiyalar</h1>
+    <div class="page-sub">{{ result_count }} ta stansiya ko'rsatilmoqda</div>
+  </div>
+  <div class="head-actions">
+    <form method="get" class="inline-form">
+      {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+      {% if partner_id %}<input type="hidden" name="partner" value="{{ partner_id }}">{% endif %}
+      <input type="text" name="q" value="{{ q }}" placeholder="Nomi yoki manzil bo'yicha">
+      <button type="submit" class="btn secondary">Qidirish</button>
+    </form>
+    <a href="{% url 'dashboard:station_new' %}" class="btn">+ Yangi stansiya</a>
+  </div>
+</div>
+
+{# ── Umumiy ko'rsatkichlar ─────────────────────────────────── #}
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Jami</span></div>
+    <div class="kpi-value">{{ summary.total }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Bo'sh</span></div>
+    <div class="kpi-value" style="color:var(--success);">{{ summary.available }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Band</span></div>
+    <div class="kpi-value" style="color:var(--warning);">{{ summary.busy }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Hamkorsiz</span></div>
+    <div class="kpi-value">{{ summary.unassigned }}</div>
+    <div class="kpi-foot">egasi biriktirilmagan</div>
+  </div>
+</div>
+
+{# ── Filtrlar ──────────────────────────────────────────────── #}
+<div class="filter-bar">
+  <div class="filter-tabs" style="margin:0;">
+    <a href="?{% if q %}q={{ q }}&{% endif %}{% if partner_id %}partner={{ partner_id }}{% endif %}" class="{% if not status %}active{% endif %}">Barchasi</a>
+    {% for value, label in status_choices %}
+      <a href="?status={{ value }}{% if q %}&q={{ q }}{% endif %}{% if partner_id %}&partner={{ partner_id }}{% endif %}"
+         class="{% if status == value %}active{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </div>
+
+  <form method="get" class="inline-form" style="margin-left:auto;">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    <select name="partner" onchange="this.form.submit()">
+      <option value="">Barcha hamkorlar</option>
+      <option value="none" {% if partner_id == 'none' %}selected{% endif %}>— Hamkorsiz —</option>
+      {% for p in partners %}
+        <option value="{{ p.id }}" {% if partner_id == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="ocpp" onchange="this.form.submit()">
+      <option value="">OCPP: barchasi</option>
+      <option value="linked" {% if ocpp == 'linked' %}selected{% endif %}>Charger ulangan</option>
+      <option value="unlinked" {% if ocpp == 'unlinked' %}selected{% endif %}>Charger ulanmagan</option>
+    </select>
+  </form>
+</div>
+
+{% if page_obj %}
+<div class="table-wrap" style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Stansiya</th><th>Hamkor</th><th>Turi</th><th>Narx</th>
+        <th>Ulagichlar</th><th>Holat</th><th>OCPP</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for station in page_obj %}
+      <tr>
+        <td>
+          <div class="cell-2">
+            <a href="{% url 'dashboard:station_detail' station.id %}" class="top">{{ station.name }}</a>
+            <span class="sub">{{ station.address }}</span>
+          </div>
+        </td>
+        <td>
+          {% if station.partner %}
+            <a href="{% url 'dashboard:partner_detail' station.partner.id %}">{{ station.partner.name }}</a>
+          {% else %}
+            <span class="badge warning">Biriktirilmagan</span>
+          {% endif %}
+        </td>
+        <td>{{ station.charger_type }} · {{ station.power_kw }} kVt</td>
+        <td>
+          <div class="cell-2">
+            <span class="top">{{ station.price_per_kwh|som }} so'm</span>
+            {% if station.has_discount %}
+              {# Avval standart narx qancha edi — chizib ko'rsatiladi #}
+              <span class="sub">
+                <span class="price-was">{{ station.original_price_per_kwh|som }}</span>
+                <span style="color:var(--success);font-weight:700;"> chegirma</span>
+              </span>
+            {% elif not station.discount_price_per_kwh %}
+              <span class="sub">standart</span>
+            {% endif %}
+          </div>
+        </td>
+        <td>
+          {% for c in station.connectors.all %}
+            <span class="badge {% if c.status == 'available' %}success{% elif c.status == 'charging' %}warning{% else %}danger{% endif %}">{{ c.label }}</span>
+          {% empty %}
+            <span style="color:var(--text-muted);">yo'q</span>
+          {% endfor %}
+        </td>
+        <td>
+          {% if station.status == 'available' %}<span class="badge success">Bo'sh</span>
+          {% elif station.status == 'busy' %}<span class="badge warning">Band</span>
+          {% else %}<span class="badge muted">Ishlamayapti</span>{% endif %}
+        </td>
+        <td>
+          {% if not station.ocpp_id %}<span class="badge muted">—</span>
+          {% elif station.is_online %}<span class="badge success"><span class="live-dot"></span> Onlayn</span>
+          {% else %}<span class="badge danger">Oflayn</span>{% endif %}
+        </td>
+        <td>
+          <div class="row-actions">
+            <a href="{% url 'dashboard:station_detail' station.id %}" class="btn small secondary">Boshqarish</a>
+            <a href="{% url 'dashboard:station_edit' station.id %}" class="btn small secondary">Tahrirlash</a>
+          </div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="8" class="empty"><b>Stansiya topilmadi</b><span>Qidiruv yoki filtrni o'zgartiring</span></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' %}
+{% else %}
+  <div class="table-wrap">
+    <p class="empty">
+      {% if q or status or partner_id %}
+        Tanlangan shartlarga mos stansiya topilmadi.
+        <a href="{% url 'dashboard:stations' %}" class="btn small secondary" style="margin-top:10px;">Filtrni tozalash</a>
+      {% else %}
+        Hali stansiya yo'q.
+        <a href="{% url 'dashboard:station_new' %}" class="btn small" style="margin-top:10px;">Birinchi stansiyani qo'shish</a>
+      {% endif %}
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

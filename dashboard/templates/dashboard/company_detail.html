@@ -1,0 +1,351 @@
+{% extends 'dashboard/base.html' %}{% load money phone banking %}
+{% block title %}{{ company.name }} — Korporativ mijoz{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:companies' %}" class="back-link">← Korporativ mijozlar</a>
+
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{ company.name }}</h1>
+    <div class="page-sub">
+      {{ company.contact_name|default:"mas'ul shaxs ko'rsatilmagan" }}
+      {% if company.contact_phone %} · {{ company.contact_phone|phone }}{% endif %}
+      {% if company.inn %} · STIR {{ company.inn|inn }}{% endif %}
+    </div>
+  </div>
+  <div class="head-actions">
+    {% if company.is_active %}<span class="badge success">Faol</span>
+    {% else %}<span class="badge muted">To'xtatilgan</span>{% endif %}
+    {% comment %}
+      Shartnoma har safar qaytadan yig'iladi — rekvizitlar, tariflar va
+      kartalar ro'yxati o'zgarib turadi. `data-no-ajax`: fayl yuklab olish
+      AJAX qatlamidan o'tmasligi kerak.
+    {% endcomment %}
+    <a href="{% url 'dashboard:company_contract' company.id %}" class="btn secondary" data-no-ajax>
+      Shartnoma (Word)
+    </a>
+    <a href="{% url 'dashboard:wallet_detail' company.wallet.id %}" class="btn secondary">Hamyon tarixi</a>
+    {% comment %}
+      Hamyonni to'ldirish shu sahifada, "To'lovlar" bo'limida bo'ladi —
+      tugma o'sha yerga olib boradi (oynani ochadi). Ilgari "Hamyon va
+      to'ldirish" tugmasi hamyon TARIXI sahifasiga olib borardi, u yerda esa
+      to'ldirish formasi yo'q edi.
+    {% endcomment %}
+    <button type="button" class="btn" data-modal-open="#invoice-new-modal">
+      + Hisob yozish
+    </button>
+  </div>
+</div>
+
+{% if company.balance <= 0 %}
+  {# Balans bo'sh bo'lsa kartalar ishlamaydi — buni darhol ko'rsatish kerak #}
+  <div class="device-state is-down">
+    <span class="ds-dot" aria-hidden="true"></span>
+    <div class="ds-text">
+      <b>Hamyon bo'sh</b>
+      <small>Balans to'ldirilmaguncha bu mijozning kartalari bilan zaryadlash boshlanmaydi.</small>
+    </div>
+    <button type="button" class="btn small" data-modal-open="#invoice-new-modal">
+      Hisob yozish
+    </button>
+  </div>
+{% endif %}
+
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Balans</span></div>
+    <div class="kpi-value">{{ company.balance|som }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Kartalar</span></div>
+    <div class="kpi-value">{{ cards|length }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Sessiyalar</span></div>
+    <div class="kpi-value">{{ session_count }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Kutilayotgan to'lov</span></div>
+    <div class="kpi-value">{{ pending_total|som }}</div>
+    <div class="kpi-foot">yozilgan, hali kelmagan</div>
+  </div>
+</div>
+
+{% comment %}
+  ── To'lovlar ────────────────────────────────────────────────
+  Korporativ mijoz karta bilan emas, bank o'tkazmasi bilan to'laydi.
+  Tartib shunday: operator hisob yozadi → Word faylini mijozga yuboradi →
+  mijoz banki orqali o'tkazadi → pul kelgach operator hisobni "to'langan"
+  deb belgilaydi va AYNI SHU PAYTDA mablag' hamyonga tushadi.
+
+  Nima uchun hamyon darhol to'ldirilmaydi: o'tkazma bir necha kun yo'lda
+  bo'ladi. Hisob shu oraliqni ko'rsatib turadi — qancha pul kutilayotgani
+  ro'yxatdan ko'rinadi va kelgan o'tkazma topshiriqnoma raqami bilan
+  solishtiriladi.
+{% endcomment %}
+<div class="section-head">
+  <h2>To'lovlar va hamyonni to'ldirish</h2>
+  <button type="button" class="btn small" data-modal-open="#invoice-new-modal">
+    + Hisob yozish
+  </button>
+</div>
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="w-name">Hisob</th>
+          <th class="w-date">Yozilgan</th>
+          <th class="num">Summa</th>
+          <th>To'lov</th>
+          <th class="w-badge">Holat</th>
+          <th class="actions">Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for invoice in invoices %}
+        <tr>
+          <td class="w-name">
+            <div style="font-weight:700;">№{{ invoice.number }}</div>
+            <div class="cell-sub">{{ invoice.purpose|truncatechars:70 }}</div>
+          </td>
+          <td class="w-date">{{ invoice.issued_at|date:"d.m.Y" }}</td>
+          <td class="num">{{ invoice.amount|som }}</td>
+          <td>
+            {% if invoice.status == 'paid' %}
+              {# Bankdagi o'tkazma bilan solishtirish uchun asosiy ma'lumot #}
+              t/t №{{ invoice.payment_ref|default:"—" }}
+              <div class="cell-sub">{{ invoice.payment_date|date:"d.m.Y" }}</div>
+            {% else %}
+              <span style="color:var(--text-muted);">—</span>
+            {% endif %}
+          </td>
+          <td class="w-badge">
+            {% if invoice.status == 'paid' %}<span class="badge success">To'langan</span>
+            {% elif invoice.status == 'pending' %}<span class="badge warning">Kutilmoqda</span>
+            {% else %}<span class="badge muted">Bekor qilingan</span>{% endif %}
+          </td>
+          <td class="actions">
+            <div class="row-actions">
+              <a href="{% url 'dashboard:company_invoice_document' invoice.id %}"
+                 class="btn small secondary" data-no-ajax>Word</a>
+              {% if invoice.is_pending %}
+                <button type="button" class="btn small"
+                        data-modal-open="#invoice-{{ invoice.id }}-paid-modal">
+                  To'landi
+                </button>
+                <form method="post" action="{% url 'dashboard:company_invoice_cancel' invoice.id %}"
+                      onsubmit="return confirm('Hisob bekor qilinsinmi?')">
+                  {% csrf_token %}
+                  <button type="submit" class="btn small danger">Bekor</button>
+                </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="empty">
+          <b>Hisob yozilmagan</b>
+          <span>Mijoz bank orqali to'lashi uchun avval hisob yozing</span>
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% comment %}
+  Hisobsiz to'ldirish — pul hisob yozilmasdan kelib qolgan holat uchun
+  (mijoz eski shartnoma bo'yicha to'lagan, yoki summa boshqacha kelgan).
+  Odatdagi yo'l emas, shuning uchun yopiq turadi.
+{% endcomment %}
+<details class="card soft-details">
+  <summary>Hamyonni qo'lda to'ldirish (hisobsiz)</summary>
+  <form method="post" action="{% url 'dashboard:company_topup' company.id %}" class="inline-form">
+    {% csrf_token %}
+    <div class="field">
+      <label>Summa (so'm)</label>
+      <input type="text" name="amount" class="money-input" inputmode="decimal"
+             autocomplete="off" placeholder="1 000 000" required>
+    </div>
+    <div class="field wide">
+      <label>To'lov asosi</label>
+      <input type="text" name="reference" maxlength="150"
+             placeholder="masalan: №142 to'lov topshiriqnomasi, 30.08.2026">
+    </div>
+    <button type="submit" class="btn secondary">To'ldirish</button>
+  </form>
+  <div class="help" style="margin-top:10px;">
+    Pul darhol hamyonga tushadi. To'lov asosini yozib qo'ying — keyin
+    bankdagi o'tkazma bilan solishtirish shu orqali qilinadi.
+  </div>
+</details>
+
+
+<div class="detail-cols">
+  <div>
+    {% comment %}
+      Tahrirlash sahifaning O'ZIDA, bo'limlar ustida: alohida forma
+      sahifasiga o'tib qaytish uchun ikki qadam ketardi va operator qaysi
+      ma'lumotni o'zgartirayotgani kontekstdan uzilib qolardi.
+    {% endcomment %}
+    <div class="section-head">
+      <h2>Mijoz</h2>
+      <button type="button" class="link" data-modal-open="#company-basics-modal">Tahrirlash</button>
+    </div>
+    <div class="card">
+      <div class="kv-list">
+        <div class="kv-row"><span class="k">Nomi</span><span class="v">{{ company.name }}</span></div>
+        <div class="kv-row">
+          <span class="k">Mas'ul shaxs</span>
+          <span class="v">{{ company.contact_name|default:"—" }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Telefon</span>
+          <span class="v">{{ company.contact_phone|phone }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Holati</span>
+          <span class="v">
+            {% if company.is_active %}<span class="badge success">Faol</span>
+            {% else %}<span class="badge muted">To'xtatilgan</span>{% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2>Kartalar</h2>
+      <a href="{% url 'dashboard:rfid_cards' %}" class="link">Barcha kartalar</a>
+    </div>
+    <div class="card">
+      {% for card in cards %}
+        <div class="item-row">
+          <div class="grow">
+            <div class="title mono">
+              <a href="{% url 'dashboard:rfid_card_detail' card.id %}">{{ card.id_tag }}</a>
+              {% if card.status == 'active' %}<span class="badge success">Faol</span>
+              {% elif card.status == 'pending' %}<span class="badge warning">Tasdiqlanmagan</span>
+              {% else %}<span class="badge danger">Bloklangan</span>{% endif %}
+            </div>
+            <div class="sub">
+              <span class="card-name">{{ card.label|default:"nomsiz" }}</span>
+              {% if card.user %} · {{ card.user.username |phone }}{% endif %}
+              · {{ card.use_count }} marta
+            </div>
+          </div>
+        </div>
+      {% empty %}
+        <div class="empty" style="padding:20px 0;">
+          <b>Karta biriktirilmagan</b>
+          <span>RFID bo'limida kartani oching va "Korporativ mijoz" maydonida shu mijozni tanlang</span>
+          <a href="{% url 'dashboard:rfid_cards' %}" class="btn small secondary" style="margin-top:10px;">
+            RFID kartalarga o'tish
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="section-head">
+      <h2>Rekvizitlar</h2>
+      {% if not company.has_bank_details %}
+        <span class="badge warning">to'liq emas</span>
+      {% endif %}
+      <button type="button" class="link" data-modal-open="#company-requisites-modal">Tahrirlash</button>
+    </div>
+    <div class="card">
+      <div class="kv-list">
+        <div class="kv-row">
+          <span class="k">Yuridik nomi</span>
+          <span class="v">{{ company.legal_name|default:"—" }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">STIR</span>
+          <span class="v mono">{{ company.inn|inn }}</span>
+        </div>
+        {% if company.oked or company.vat_code %}
+          <div class="kv-row">
+            <span class="k">OKED / QQS</span>
+            <span class="v mono">{{ company.oked|default:"—" }} / {{ company.vat_code|default:"—" }}</span>
+          </div>
+        {% endif %}
+        {% if company.legal_address %}
+          <div class="kv-row">
+            <span class="k">Yuridik manzil</span>
+            <span class="v">{{ company.legal_address }}</span>
+          </div>
+        {% endif %}
+        {% if company.director %}
+          <div class="kv-row"><span class="k">Rahbar</span><span class="v">{{ company.director }}</span></div>
+        {% endif %}
+        <div class="kv-row">
+          <span class="k">Bank</span>
+          <span class="v">{{ company.bank_name|default:"—" }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Hisob raqami</span>
+          <span class="v mono">{{ company.bank_account|account }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">MFO</span>
+          <span class="v mono">{{ company.bank_mfo|default:"—" }}</span>
+        </div>
+      </div>
+      {% if not company.has_bank_details %}
+        <div class="help" style="margin-top:12px;">
+          Hisob-faktura yozish uchun STIR, hisob raqami va MFO to'ldirilishi kerak.
+          <button type="button" class="link" data-modal-open="#company-requisites-modal">To'ldirish</button>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="section-head"><h2>Oxirgi tranzaksiyalar</h2></div>
+    <div class="card">
+      {% for tx in transactions %}
+        <div class="item-row">
+          <div class="grow">
+            <div class="title">{{ tx.get_type_display }} · {{ tx.amount|som }} so'm</div>
+            <div class="sub">{{ tx.description }}</div>
+          </div>
+          <span style="color:var(--text-muted);font-size:12px;">{{ tx.created_at|date:"d.m.Y H:i" }}</span>
+        </div>
+      {% empty %}
+        <p class="empty" style="padding:14px 0;">Hali tranzaksiya yo'q</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div>
+    <div class="section-head"><h2>Sessiyalar</h2></div>
+    <div class="table-wrap" style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Sana</th><th>Stansiya</th><th class="num">Energiya</th><th class="num">Summa</th></tr></thead>
+        <tbody>
+        {% for s in sessions_page %}
+          <tr>
+            {% comment %}
+              Sessiya holati ko'rinmasa ketayotgan sessiya "0.00 so'm" bo'lib
+              chiqib, buzuq qator kabi ko'rinardi.
+            {% endcomment %}
+            <td>
+              <a href="{% url 'dashboard:session_detail' s.id %}">{{ s.started_at|date:"d.m.Y H:i" }}</a>
+              {% if s.status == 'charging' %}<span class="badge warning">ketmoqda</span>
+              {% elif s.status == 'stopped' %}<span class="badge muted">to'xtatilgan</span>
+              {% elif s.status == 'error' %}<span class="badge danger">xatolik</span>{% endif %}
+            </td>
+            <td>{{ s.station.name }}</td>
+            <td class="num">{{ s.kwh_charged|num:2 }}</td>
+            <td class="num">{{ s.cost_so_far|som }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="empty">Hali sessiya yo'q</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include 'dashboard/_pagination.html' with page_obj=sessions_page %}
+  </div>
+</div>
+{% include 'dashboard/_invoice_modals.html' %}
+{% include 'dashboard/_company_section_modal.html' with section="basics" form=section_forms.basics title="Mijoz ma'lumoti" subtitle="Nomi, mas'ul shaxs va holati" %}
+{% include 'dashboard/_company_section_modal.html' with section="requisites" form=section_forms.requisites title="Rekvizitlar" subtitle="Shartnoma va hisob-faktura uchun" %}
+{% endblock %}

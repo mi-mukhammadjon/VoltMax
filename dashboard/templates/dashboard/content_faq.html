@@ -1,0 +1,38 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}FAQ — VoltMax Panel{% endblock %}
+{% block content %}
+{% include 'dashboard/_content_tabs.html' with active='faq' %}
+<div class="page-head">
+  <div><h1 class="page-title">Ko'p so'raladigan savollar</h1><div class="page-sub">Ilovadagi yordam bo'limi</div></div>
+  <a href="{% url 'dashboard:faq_new' %}" class="btn">+ Yangi savol</a>
+</div>
+
+<div class="filter-tabs">
+  <a href="?" class="{% if not category %}active{% endif %}">Barchasi</a>
+  {% for value, label in categories %}
+    <a href="?category={{ value }}" class="{% if category == value %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Savol</th><th>Bo'lim</th><th>Tartib</th><th>Holat</th><th></th></tr></thead>
+    <tbody>
+    {% for i in page_obj %}
+      <tr>
+        <td><div class="cell-2"><span class="top">{{ i.question }}</span><span class="sub">{{ i.answer|truncatechars:90 }}</span></div></td>
+        <td>{{ i.get_category_display }}</td>
+        <td>{{ i.order }}</td>
+        <td>{% if i.is_active %}<span class="badge success">Faol</span>{% else %}<span class="badge muted">Nofaol</span>{% endif %}</td>
+        <td class="actions">
+          <div class="row-actions"><a href="{% url 'dashboard:faq_edit' i.id %}" class="btn small secondary">Tahrirlash</a></div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5"><p class="empty">Savol qo'shilmagan</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' %}
+{% endblock %}

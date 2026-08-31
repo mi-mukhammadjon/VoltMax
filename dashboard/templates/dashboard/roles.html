@@ -1,0 +1,29 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Rollar — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1 class="page-title">Rollar va huquqlar</h1><div class="page-sub">Har rol xodimga qaysi bo'limlarni ochishini belgilaydi</div></div>
+  <a href="{% url 'dashboard:role_new' %}" class="btn">+ Yangi rol</a>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Rol</th><th>Huquqlar</th><th>Xodimlar</th><th></th></tr></thead>
+    <tbody>
+    {% for r in page_obj %}
+      <tr>
+        <td><strong>{{ r.name }}</strong></td>
+        <td>{{ r.permissions.count }} ta huquq</td>
+        <td>{{ r.user_set.count }} ta</td>
+        <td class="actions">
+          <div class="row-actions"><a href="{% url 'dashboard:role_edit' r.id %}" class="btn small secondary">Tahrirlash</a></div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4"><p class="empty">Rol yaratilmagan. Masalan "Operator" yoki "Buxgalter" rolini qo'shing.</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' %}
+{% endblock %}

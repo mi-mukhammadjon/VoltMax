@@ -1,0 +1,95 @@
+{% comment %}
+  To'lov tizimini qo'shish/tahrirlash oynasi.
+
+  Django formasi o'rniga oddiy inputlar: har bir tizim uchun alohida forma
+  obyekti yasash kerak bo'lardi, tekshiruv esa serverda baribir
+  `PaymentProviderForm` orqali o'tadi.
+
+  `target` — tahrirlanayotgan tizim yoki bo'sh (yangisi).
+{% endcomment %}
+<div class="modal" id="provider-{% if target %}{{ target.id }}{% else %}new{% endif %}-modal" hidden>
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">
+          {% if target %}{{ target.name }}{% else %}Yangi to'lov tizimi{% endif %}
+        </div>
+        <div class="modal-sub">Identifikatorlar to'lov tashkilotidan olinadi</div>
+      </div>
+      <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+    </div>
+
+    <form method="post" action="{% if target %}{% url 'dashboard:provider_edit' target.id %}{% else %}{% url 'dashboard:provider_new' %}{% endif %}">
+      {% csrf_token %}
+      <div class="modal-body">
+        <div class="field-row">
+          <div class="field">
+            <label for="p-name-{{ target.id|default:'new' }}">Nomi</label>
+            <input type="text" id="p-name-{{ target.id|default:'new' }}" name="name"
+                   value="{{ target.name|default:'' }}" maxlength="100"
+                   placeholder="Payme" required>
+          </div>
+          <div class="field">
+            <label for="p-code-{{ target.id|default:'new' }}">Kod</label>
+            <input type="text" id="p-code-{{ target.id|default:'new' }}" name="code"
+                   value="{{ target.code|default:'' }}" maxlength="40"
+                   placeholder="payme" required>
+            <div class="help">Integratsiya shunga qaraydi</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="p-merchant-{{ target.id|default:'new' }}">Merchant / Kassa ID</label>
+          <input type="text" id="p-merchant-{{ target.id|default:'new' }}" name="merchant_id"
+                 value="{{ target.merchant_id|default:'' }}" maxlength="100"
+                 autocomplete="off" placeholder="5e730e8e0e...">
+        </div>
+
+        <div class="field">
+          <label for="p-key-{{ target.id|default:'new' }}">Maxfiy kalit</label>
+          <input type="password" id="p-key-{{ target.id|default:'new' }}" name="secret_key"
+                 maxlength="200" autocomplete="new-password"
+                 placeholder="{% if target.secret_key %}{{ target.masked_key }}{% else %}kalitni kiriting{% endif %}">
+          <div class="help">
+            {% if target.secret_key %}
+              Bo'sh qoldirilsa avvalgi kalit saqlanib qoladi
+            {% else %}
+              To'lov tashkiloti bergan kalit
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="p-url-{{ target.id|default:'new' }}">Manzil (endpoint)</label>
+          <input type="url" id="p-url-{{ target.id|default:'new' }}" name="endpoint_url"
+                 value="{{ target.endpoint_url|default:'' }}" maxlength="300"
+                 placeholder="https://checkout.paycom.uz">
+        </div>
+
+        <div class="field">
+          <label for="p-note-{{ target.id|default:'new' }}">Izoh</label>
+          <input type="text" id="p-note-{{ target.id|default:'new' }}" name="note"
+                 value="{{ target.note|default:'' }}" maxlength="255"
+                 placeholder="faqat panelda ko'rinadi">
+        </div>
+
+        <div class="field switch-row">
+          <div class="switch-text">
+            <label for="p-active-{{ target.id|default:'new' }}">Yoqilgan</label>
+            <div class="help">O'chirilsa mobil ilovada bu usul ko'rinmaydi</div>
+          </div>
+          <input type="checkbox" id="p-active-{{ target.id|default:'new' }}" name="is_active"
+                 {% if not target or target.is_active %}checked{% endif %}>
+        </div>
+
+        <input type="hidden" name="order" value="{{ target.order|default:0 }}">
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn secondary" data-modal-close>Bekor qilish</button>
+        <button type="submit" class="btn">Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>

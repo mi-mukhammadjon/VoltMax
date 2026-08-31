@@ -1,0 +1,44 @@
+{% extends 'dashboard/base.html' %}
+{% load phone %}
+{% block title %}OTP kodlar — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">OTP kodlar</h1>
+    <div class="page-sub">Yuborilgan tasdiqlash kodlari tarixi</div>
+  </div>
+  <form method="get" class="inline-form">
+    <input type="text" name="q" value="{{ q }}" placeholder="Telefon raqami bo'yicha">
+    <button type="submit" class="btn secondary">Qidirish</button>
+  </form>
+</div>
+
+{% if page_obj %}
+<div class="table-wrap" style="overflow-x:auto;">
+  <table>
+    <thead><tr><th>Telefon</th><th>Kod</th><th>Yaratilgan</th><th>Holat</th></tr></thead>
+    <tbody>
+    {% for otp in page_obj %}
+      <tr>
+        <td>{{ otp.phone|phone }}</td>
+        <td style="font-family:monospace; font-weight:700; letter-spacing:1px;">{{ otp.code }}</td>
+        <td>{{ otp.created_at|date:"d.m.Y H:i:s" }}</td>
+        <td>
+          {% if otp.is_used %}<span class="badge muted">Ishlatilgan</span>
+          {% elif otp.is_expired %}<span class="badge danger">Muddati o'tgan</span>
+          {% else %}<span class="badge success">Faol</span>{% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="empty"><b>OTP kod yo'q</b><span>Tizimga kirishga urinishlar shu yerda qayd etiladi</span></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+
+{% include 'dashboard/_pagination.html' %}
+{% else %}
+  <p class="empty">{% if q %}"{{ q }}" bo'yicha kod topilmadi.{% else %}Hali OTP kod yo'q.{% endif %}</p>
+{% endif %}
+{% endblock %}

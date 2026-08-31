@@ -1,0 +1,28 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}{% if instance %}Aksiyani tahrirlash{% else %}Yangi aksiya{% endif %} — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:offers' %}" class="back-link">← Aksiyalar</a>
+<h1 class="page-title">{% if instance %}{{ instance.title }}{% else %}Yangi aksiya{% endif %}</h1>
+<div class="card form-card">
+  <form method="post">
+    {% csrf_token %}
+    {% include 'dashboard/_form_fields.html' %}
+    <div class="form-actions">
+      <button type="submit" class="btn">Saqlash</button>
+      <a href="{% url 'dashboard:offers' %}" class="btn secondary">Bekor qilish</a>
+    </div>
+  </form>
+</div>
+{% if instance %}
+<div class="danger-zone">
+  <div class="dz-text">
+    <div class="dz-title">Aksiyani o'chirish</div>
+    <div class="dz-note">Aksiya butunlay o'chiriladi. Unga bog'langan stansiyalar o'zgarmaydi.</div>
+  </div>
+  <form method="post" action="{% url 'dashboard:offer_delete' instance.id %}" onsubmit="return confirm(&quot;Aksiya o'chirilsinmi?&quot;);">
+    {% csrf_token %}
+    <button type="submit" class="btn danger">Aksiyani o'chirish</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

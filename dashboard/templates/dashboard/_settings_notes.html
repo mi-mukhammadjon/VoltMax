@@ -1,0 +1,48 @@
+{% comment %}
+  Tab boshidagi izohlar: o'zgarish nimaga ta'sir qilishini oldindan
+  aytadi. Operator ko'lamini bilmasdan o'zgartirsa, keyin sababni topish
+  qiyin bo'ladi.
+{% endcomment %}
+{% if active_tab == 'payment' %}
+  <div class="card" style="max-width:620px;">
+    <div style="font-weight:800;margin-bottom:6px;">Standart narx qayerda qo'llanadi</div>
+    <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.55;">
+      Bu narx o'z chegirma narxi belgilanmagan barcha stansiyalarda amal qiladi —
+      hozir <b>{{ stations_on_standard }} ta stansiya</b>. Uni o'zgartirsangiz,
+      o'sha stansiyalarning narxi darhol yangilanadi.
+      {% if stations_with_own_price %}
+        <br>Qolgan <b>{{ stations_with_own_price }} ta stansiya</b> o'z narxida ishlaydi —
+        ular stansiya sahifasidan alohida boshqariladi.
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+
+
+{% comment %}Xavfsizlik: qat'iy rejim nechta kartaga ta'sir qilishi{% endcomment %}
+{% if active_tab == 'security' and unknown_cards %}
+  <div class="card" style="max-width:620px;">
+    <div style="font-weight:800;margin-bottom:6px;">Qat'iy rejim nimani o'zgartiradi</div>
+    <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.55;">
+      Hozir ro'yxatda <b>{{ unknown_cards }} ta karta</b> tasdiqlanmagan yoki
+      bloklangan. Qat'iy rejim yoqilsa ular bilan zaryadlash <b>darhol
+      to'xtaydi</b> — avval RFID bo'limida kartalarni ko'rib chiqing.
+    </div>
+  </div>
+{% endif %}
+
+{% comment %}Bildirishnoma: ruxsat va matn ajratilgani tushuntiriladi{% endcomment %}
+{% if active_tab == 'notification' %}
+  <div class="card" style="max-width:820px;">
+    <div style="font-weight:800;margin-bottom:6px;">Ruxsat va matn</div>
+    <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.55;">
+      Yuqoridagi tugmachalar — <b>ruxsat</b>: xabar umuman yuboriladimi.
+      Quyidagi jadval esa <b>matn</b>: aynan nima yozilishi. Ular ataylab
+      ajratilgan — matnni tahrirlash uchun xabarni o'chirib qo'yish shart emas.
+      <br><br>
+      «Push bildirishnomalar» o'chirilsa qolgan tugmachalar amal qilmaydi:
+      xabarlar ilova ichida ko'rinadi, lekin telefonga chiqmaydi.
+    </div>
+  </div>
+{% endif %}

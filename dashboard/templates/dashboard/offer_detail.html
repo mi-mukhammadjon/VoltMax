@@ -1,0 +1,35 @@
+{% extends 'dashboard/base.html' %}{% load money %}
+{% block title %}{{ offer.title }} — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:offers' %}" class="back-link">← Aksiyalar</a>
+<div class="detail-header">
+  <div>
+    <h1>{{ offer.title }}</h1>
+    <div class="sub">{% if offer.is_running %}<span class="badge success">{{ offer.status_label }}</span>{% else %}<span class="badge muted">{{ offer.status_label }}</span>{% endif %}</div>
+  </div>
+  <a href="{% url 'dashboard:offer_edit' offer.id %}" class="btn">Tahrirlash</a>
+</div>
+
+<div class="kv-grid">
+  <div class="kv"><div class="k">Chegirma</div><div class="v">{% if offer.discount_type == 'percent' %}{{ offer.discount_value }}%{% else %}{{ offer.discount_value|som }}{% endif %}</div></div>
+  <div class="kv"><div class="k">Promo-kod</div><div class="v" style="font-size:16px;">{{ offer.promo_code|default:"avtomatik" }}</div></div>
+  <div class="kv"><div class="k">Boshlanishi</div><div class="v" style="font-size:15px;">{{ offer.starts_at|date:"d.m.Y H:i" }}</div></div>
+  <div class="kv"><div class="k">Tugashi</div><div class="v" style="font-size:15px;">{{ offer.ends_at|date:"d.m.Y H:i"|default:"muddatsiz" }}</div></div>
+</div>
+
+{% if offer.description %}<div class="card"><p style="margin:0;">{{ offer.description|linebreaksbr }}</p></div>{% endif %}
+
+<div class="section-head"><h2>Amal qiladigan stansiyalar</h2></div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Stansiya</th><th>Manzil</th></tr></thead>
+    <tbody>
+    {% for s in offer.stations.all %}
+      <tr><td><a href="{% url 'dashboard:station_detail' s.id %}">{{ s.name }}</a></td><td>{{ s.address }}</td></tr>
+    {% empty %}
+      <tr><td colspan="2"><p class="empty">Barcha stansiyalarda amal qiladi</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,273 @@
+{% extends 'dashboard/base.html' %}{% load money phone banking %}
+{% block title %}Korporativ mijozlar — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Korporativ mijozlar</h1>
+    <div class="page-sub">Bir nechta karta — bitta hamyon va bitta hisobot</div>
+  </div>
+  <div class="head-actions">
+    <a href="{% url 'dashboard:rfid_cards' %}" class="btn secondary">RFID kartalar</a>
+    <a href="{% url 'dashboard:company_new' %}" class="btn">+ Yangi mijoz</a>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Mijozlar</span></div>
+    <div class="kpi-value">{{ totals.count }}</div>
+    <div class="kpi-foot">{{ totals.active }} tasi faol</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Biriktirilgan kartalar</span></div>
+    <div class="kpi-value">{{ totals.cards }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Umumiy balans</span></div>
+    <div class="kpi-value">{{ totals.balance|som }}</div>
+    <div class="kpi-foot">barcha korporativ hamyonlar</div>
+  </div>
+  {% comment %}
+    Yozilgan, lekin hali kelmagan bank o'tkazmalari — "qancha pul yo'lda"
+    degan savolga javob. Mijozni ochib, "To'landi" tugmasi bilan qayd etiladi.
+  {% endcomment %}
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Kutilayotgan to'lov</span></div>
+    <div class="kpi-value">{{ totals.pending|som }}</div>
+    <div class="kpi-foot">{{ totals.pending_count }} ta hisob to'lanmagan</div>
+  </div>
+</div>
+
+{% comment %}
+  ── Filtr qatori ────────────────────────────────────────────────
+  Hammasi BITTA formada: holat tabi, qidiruv va «Filtr» oynasidagi
+  maydonlar. Shuning uchun ular bir-birini bekor qilmaydi — qidiruvdan
+  keyin tab bosilsa qidiruv saqlanib qoladi.
+
+  Kam ishlatiladigan mezonlar (STIR, hisob raqami, MFO, balans) oynaga
+  chiqarildi: ilgari hammasi qatorda turib, ekran torayganda ikki qatorga
+  tushib ketardi va sahifa boshi chalkash ko'rinardi.
+{% endcomment %}
+<form method="get" class="filter-row" data-live-search data-target="#company-results">
+  <div class="filter-tabs">
+    <a href="?" class="{% if not status %}active{% endif %}"
+       data-live-filter data-filter-value="">Barchasi</a>
+    <a href="?status=active" class="{% if status == 'active' %}active{% endif %}"
+       data-live-filter data-filter-value="active">Faol</a>
+    <a href="?status=inactive" class="{% if status == 'inactive' %}active{% endif %}"
+       data-live-filter data-filter-value="inactive">To'xtatilgan</a>
+    <a href="?status=debtor" class="{% if status == 'debtor' %}active{% endif %}"
+       data-live-filter data-filter-value="debtor">Balansi bo'sh</a>
+  </div>
+  <input type="hidden" name="status" value="{{ status }}">
+
+  <div class="filter-search">
+    <input type="search" name="q" value="{{ filters.q }}"
+           placeholder="Nomi, STIR, hisob raqami yoki mas'ul shaxs"
+           autocomplete="off" aria-label="Mijozlarni qidirish">
+
+    {% comment %}
+      Bu bo'lak AJAX'dan keyin qayta olinadi (`data-live-sync`): tugmadagi son,
+      qo'llanilgan filtr belgisi va topilganlar soni serverdan keladi. Qidiruv
+      maydonining O'ZI tashqarida qoladi — almashtirilsa fokus va kursor
+      yo'qolardi.
+
+      Qo'llanilgan filtr ko'zga tashlanib tursin: aks holda operator qisqargan
+      ro'yxatni ko'rib, "mijoz yo'q" deb o'ylashi mumkin.
+    {% endcomment %}
+    <span class="filter-actions" id="company-filter-actions" data-live-sync>
+      {% if filters.q or advanced_count %}
+        <span class="filter-found">{{ found }} ta</span>
+      {% endif %}
+      <button type="button"
+              class="btn secondary filter-btn{% if advanced_count %} is-filtered{% endif %}"
+              data-modal-open="#company-filter-modal"
+              aria-haspopup="dialog"
+              title="{% if advanced_count %}{{ advanced_count }} ta mezon qo'llanilgan{% else %}Kengaytirilgan filtr{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 5h18l-7 8.2V19l-4 2v-7.8z"/>
+        </svg>
+        Filtr
+        {% if advanced_count %}<span class="fb-count">{{ advanced_count }}</span>{% endif %}
+      </button>
+      {# JS o'chirilgan bo'lsa forma shu tugma bilan ishlaydi #}
+      <button type="submit" class="btn secondary">Qidirish</button>
+      {% if filters.q or advanced_count %}
+        <a href="?{% if status %}status={{ status }}{% endif %}" class="btn secondary"
+           title="Filtrlarni tozalash">&times;</a>
+      {% endif %}
+    </span>
+  </div>
+
+  {% comment %}
+    Oyna SHU forma ichida — maydonlari qidiruv bilan bitta so'rovga
+    tushadi. Alohida forma bo'lsa biri ikkinchisini o'chirib yuborardi.
+  {% endcomment %}
+  <div class="modal" id="company-filter-modal" hidden>
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title">Kengaytirilgan filtr</div>
+          <div class="modal-sub">Rekvizitlar va balans bo'yicha tanlash</div>
+        </div>
+        <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+      </div>
+
+      <div class="modal-body" id="company-filter-fields" data-live-sync>
+        {% comment %}
+          Mezonlar guruhlarga bo'lingan: bir tekis ro'yxatda sakkizta maydon
+          bir-biriga o'xshab ketardi va kerakligini topish uchun hammasini
+          o'qib chiqishga to'g'ri kelardi. To'ldirilgan maydon ajratib
+          ko'rsatiladi (`is-set`) — oyna ochilganda nima ishlab turgani
+          darrov ko'rinadi.
+        {% endcomment %}
+        <div class="filter-group">
+          <div class="filter-group-title">Rekvizitlar</div>
+          <div class="field-row">
+            <div class="field{% if filters.inn %} is-set{% endif %}">
+              <label for="f-inn">STIR</label>
+              <input type="text" id="f-inn" name="inn" value="{{ filters.inn }}"
+                     inputmode="numeric" maxlength="20" placeholder="305123456"
+                     autocomplete="off">
+            </div>
+            <div class="field{% if filters.mfo %} is-set{% endif %}">
+              <label for="f-mfo">MFO</label>
+              <input type="text" id="f-mfo" name="mfo" value="{{ filters.mfo }}"
+                     inputmode="numeric" maxlength="10" placeholder="00873"
+                     autocomplete="off">
+            </div>
+          </div>
+
+          <div class="field{% if filters.account %} is-set{% endif %}">
+            <label for="f-account">Hisob raqami</label>
+            <input type="text" id="f-account" name="account" value="{{ filters.account }}"
+                   inputmode="numeric" maxlength="30" placeholder="20208000900…"
+                   autocomplete="off">
+            <div class="help">Raqamning bir qismini yozish ham yetarli</div>
+          </div>
+
+          <div class="field{% if filters.bank %} is-set{% endif %}">
+            <label for="f-bank">Rekvizitlarning to'liqligi</label>
+            <select id="f-bank" name="bank">
+              <option value="">Farqi yo'q</option>
+              <option value="full"{% if filters.bank == 'full' %} selected{% endif %}>To'liq — hisob yozish mumkin</option>
+              <option value="missing"{% if filters.bank == 'missing' %} selected{% endif %}>To'liq emas</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-title">Balans</div>
+          <div class="range-row">
+            <div class="field{% if filters.min_balance %} is-set{% endif %}">
+              <label for="f-min">Dan</label>
+              <div class="input-suffix" data-suffix="so'm">
+                <input type="text" id="f-min" name="min_balance" class="money-input"
+                       inputmode="decimal" value="{{ filters.min_balance }}"
+                       placeholder="0" autocomplete="off">
+              </div>
+            </div>
+            <span class="range-dash" aria-hidden="true">—</span>
+            <div class="field{% if filters.max_balance %} is-set{% endif %}">
+              <label for="f-max">Gacha</label>
+              <div class="input-suffix" data-suffix="so'm">
+                <input type="text" id="f-max" name="max_balance" class="money-input"
+                       inputmode="decimal" value="{{ filters.max_balance }}"
+                       placeholder="1 000 000" autocomplete="off">
+              </div>
+            </div>
+          </div>
+          <div class="help">Bittasini to'ldirish ham yetarli</div>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-title">Ro'yxat</div>
+          <div class="field-row">
+            <div class="field{% if filters.cards %} is-set{% endif %}">
+              <label for="f-cards">Kartalar</label>
+              <select id="f-cards" name="cards">
+                <option value="">Farqi yo'q</option>
+                <option value="with"{% if filters.cards == 'with' %} selected{% endif %}>Kartasi bor</option>
+                <option value="without"{% if filters.cards == 'without' %} selected{% endif %}>Kartasi yo'q</option>
+              </select>
+            </div>
+            <div class="field{% if filters.sort %} is-set{% endif %}">
+              <label for="f-sort">Tartiblash</label>
+              <select id="f-sort" name="sort">
+                <option value="">Nomi bo'yicha</option>
+                <option value="balance"{% if filters.sort == 'balance' %} selected{% endif %}>Balansi ko'p</option>
+                <option value="cards"{% if filters.sort == 'cards' %} selected{% endif %}>Kartasi ko'p</option>
+                <option value="new"{% if filters.sort == 'new' %} selected{% endif %}>Yangi qo'shilgan</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <a href="?{% if status %}status={{ status }}{% endif %}{% if filters.q %}&amp;q={{ filters.q|urlencode }}{% endif %}"
+           class="btn secondary">Tozalash</a>
+        <button type="submit" class="btn">Qo'llash</button>
+      </div>
+    </div>
+  </div>
+</form>
+
+
+<div id="company-results" data-live-region>
+<div class="table-wrap" style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Mijoz</th><th>Mas'ul shaxs</th>
+        <th class="num">Kartalar</th><th class="num">Balans</th>
+        <th class="w-badge">Holat</th><th class="actions">Amallar</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for company in page_obj %}
+      <tr>
+        <td>
+          <a href="{% url 'dashboard:company_detail' company.id %}" style="font-weight:700;">{{ company.name }}</a>
+          {% if company.inn %}<div class="cell-sub">STIR {{ company.inn|inn }}</div>{% endif %}
+        </td>
+        <td>
+          {{ company.contact_name|default:"—" }}
+          {% if company.contact_phone %}<div class="cell-sub">{{ company.contact_phone|phone }}</div>{% endif %}
+        </td>
+        <td class="num">{{ company.card_count }}</td>
+        <td class="num">
+          {{ company.balance|som }}
+          {% if company.balance <= 0 %}<div class="cell-sub">to'ldirish kerak</div>{% endif %}
+        </td>
+        <td class="w-badge">
+          {% if company.is_active %}<span class="badge success">Faol</span>
+          {% else %}<span class="badge muted">To'xtatilgan</span>{% endif %}
+        </td>
+        <td class="actions">
+          <div class="row-actions">
+            <a href="{% url 'dashboard:wallet_detail' company.wallet.id %}" class="btn small secondary">Hamyon</a>
+            <a href="{% url 'dashboard:company_detail' company.id %}" class="btn small secondary">Batafsil</a>
+          </div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="empty">
+        {% if q or advanced_count %}
+          <b>Filtrga mos mijoz topilmadi</b>
+          <span>Qidiruv shartlarini yumshating yoki filtrlarni tozalang</span>
+        {% else %}
+          <b>Korporativ mijoz yo'q</b>
+          <span>Taksi park, dostavka xizmati yoki korxona avtoparki uchun mijoz oching</span>
+        {% endif %}
+      </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include 'dashboard/_pagination.html' %}
+</div>
+{% endblock %}

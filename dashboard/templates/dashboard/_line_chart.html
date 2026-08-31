@@ -1,0 +1,37 @@
+{% comment %}
+  Vaqt o'qidagi chiziqli grafik. Koordinatalar serverda hisoblanadi
+  (dashboard/charts.py) — shablonda arifmetika yo'q, JS kutubxona ham kerak emas.
+
+  Ishlatish:
+      {% include 'dashboard/_line_chart.html' with chart=voltage_chart series='voltage' %}
+
+  `series` — rang sinfi (voltage / current), CSS'da belgilangan.
+{% endcomment %}
+<div class="line-chart is-{{ series|default:'voltage' }}">
+  <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img"
+       aria-label="Vaqt bo'yicha o'zgarish grafigi">
+    <defs>
+      <linearGradient id="lc-fill-{{ series }}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" class="lc-stop-top"/>
+        <stop offset="100%" class="lc-stop-bottom"/>
+      </linearGradient>
+    </defs>
+
+    {# Gorizontal to'r va Y o'qi yozuvlari #}
+    {% for row in chart.grid %}
+      <line class="lc-grid" x1="{{ chart.plot_x }}" y1="{{ row.y }}"
+            x2="{{ chart.width }}" y2="{{ row.y }}"/>
+      <text class="lc-axis" x="{{ chart.plot_x }}" y="{{ row.y }}" dx="-8" dy="4"
+            text-anchor="end">{{ row.label }}</text>
+    {% endfor %}
+
+    <path class="lc-area" d="{{ chart.area }}" fill="url(#lc-fill-{{ series }})"/>
+    <polyline class="lc-line" points="{{ chart.polyline }}"/>
+
+    {# X o'qi — vaqt #}
+    {% for tick in chart.ticks %}
+      <text class="lc-axis" x="{{ tick.x }}" y="{{ chart.height }}" dy="-6"
+            text-anchor="middle">{{ tick.label }}</text>
+    {% endfor %}
+  </svg>
+</div>

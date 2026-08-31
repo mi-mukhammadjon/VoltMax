@@ -1,0 +1,5 @@
+<div class="filter-tabs" style="margin-bottom:18px;">
+  <a href="{% url 'dashboard:content_banners' %}" class="{% if active == 'banners' %}active{% endif %}">Bannerlar</a>
+  <a href="{% url 'dashboard:content_faq' %}" class="{% if active == 'faq' %}active{% endif %}">FAQ</a>
+  <a href="{% url 'dashboard:content_pages' %}" class="{% if active == 'pages' %}active{% endif %}">Sahifalar</a>
+</div>

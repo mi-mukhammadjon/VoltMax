@@ -1,0 +1,247 @@
+{% extends 'dashboard/base.html' %}{% load duration money phone %}
+{% block title %}Sessiya #{{ session.id }} — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:sessions' %}" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  Sessiyalar
+</a>
+
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{ session.station.name }} — {{ session.connector_label }}</h1>
+    <div class="page-sub">
+      Sessiya #{{ session.id }} ·
+      <a href="{% url 'dashboard:user_detail' session.user.id %}">{{ session.user.username |phone }}</a> ·
+      {{ session.started_at|date:"d.m.Y H:i:s" }}
+      {% if session.stopped_at %}&rarr; {{ session.stopped_at|date:"H:i:s" }}{% endif %}
+    </div>
+  </div>
+  <div class="head-actions">
+    {% if session.is_live %}<span class="badge success">Jonli (OCPP)</span>{% else %}<span class="badge muted">Mock</span>{% endif %}
+    {% if session.status == 'charging' %}<span class="badge warning">Zaryadlanmoqda</span>
+    {% elif session.status == 'completed' %}<span class="badge success">Tugallandi</span>
+    {% elif session.status == 'stopped' %}<span class="badge muted">To'xtatildi</span>
+    {% else %}<span class="badge danger">Xatolik</span>{% endif %}
+
+    {% if session.status == 'charging' %}
+      <form method="post" action="{% url 'dashboard:session_force_stop' session.id %}"
+            onsubmit="return confirm(&quot;Sessiya majburan to'xtatilsinmi? Qurilmaga uzish buyrug'i yuboriladi.&quot;);">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn danger">Majburan to'xtatish</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Asosiy ko'rsatkichlar ───────────────────────────────────── #}
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Batareya</span></div>
+    <div class="kpi-value">{{ session.current_percent }}%</div>
+    <div class="progress-bar"><div class="fill" style="width:{{ session.current_percent }}%;"></div></div>
+    <div class="kpi-foot">{{ session.start_percent }}% dan boshlangan</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Energiya</span></div>
+    <div class="kpi-value">{{ session.kwh_charged|num:2 }}<span class="kpi-unit">kVt·s</span></div>
+    <div class="kpi-foot">{{ session.price_per_kwh|som }} so'm / kVt·s</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Summa</span></div>
+    <div class="kpi-value">{{ session.cost_so_far|som }}</div>
+    <div class="kpi-foot">
+      Energiya {{ session.energy_cost|som }}
+      {% if session.parking_cost %} · Parkovka {{ session.parking_cost|som }}{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-top"><span class="kpi-label">Davomiyligi</span></div>
+    <div class="kpi-value">{{ session.elapsed_seconds|duration }}</div>
+    <div class="kpi-foot">
+      {% if session.status == 'charging' %}To'lishiga ~{{ session.remaining_seconds|duration }}{% else %}Yakunlangan{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="detail-cols">
+  {# ── Avtomobil ─────────────────────────────────────────────── #}
+  <div>
+    <div class="section-head"><h2>Avtomobil</h2></div>
+    <div class="card">
+      {% if session.vehicle_label or session.vehicle_vin %}
+        <div class="kv-list">
+          <div class="kv-row">
+            <span class="k">Mashina</span>
+            <span class="v">
+              {{ session.vehicle_label|default:"—" }}
+              {% if session.vehicle %}
+                {% if session.vehicle.year %}<span class="cell-sub">{{ session.vehicle.year }}-yil</span>{% endif %}
+              {% else %}
+                <span class="cell-sub">profildan o'chirilgan</span>
+              {% endif %}
+            </span>
+          </div>
+          <div class="kv-row">
+            <span class="k">VIN</span>
+            <span class="v mono">{{ session.vehicle_vin|default:"kiritilmagan" }}</span>
+          </div>
+          {% if session.vehicle.battery_capacity_kwh %}
+            <div class="kv-row">
+              <span class="k">Batareya sig'imi</span>
+              <span class="v">{{ session.vehicle.battery_capacity_kwh }} kVt·s</span>
+            </div>
+          {% endif %}
+        </div>
+      {% else %}
+        <p class="empty" style="padding:14px 0;">
+          Mashina biriktirilmagan — foydalanuvchi profilida transport vositasi yo'q edi
+        </p>
+      {% endif %}
+    </div>
+
+    {# ── Sessiya tafsilotlari ──────────────────────────────── #}
+    <div class="section-head"><h2>Tafsilotlar</h2></div>
+    <div class="card">
+      <div class="kv-list">
+        <div class="kv-row">
+          <span class="k">Stansiya</span>
+          <span class="v"><a href="{% url 'dashboard:station_detail' session.station.id %}">{{ session.station.name }}</a></span>
+        </div>
+        <div class="kv-row"><span class="k">Ulagich</span><span class="v">{{ session.connector_label }}</span></div>
+        <div class="kv-row"><span class="k">Quvvat</span><span class="v">{{ session.power_kw }} kVt</span></div>
+        <div class="kv-row">
+          <span class="k">Kuchlanish</span>
+          <span class="v">{% if last_reading.voltage_v %}{{ last_reading.voltage_v|num:0 }} V <span class="cell-sub">o'lchangan</span>{% else %}{{ session.voltage_v|num:0 }} V <span class="cell-sub">nominal</span>{% endif %}</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Tok</span>
+          <span class="v">{% if last_reading.current_a %}{{ last_reading.current_a|num:1 }} A{% else %}{{ session.current_amps|num:1 }} A <span class="cell-sub">hisoblangan</span>{% endif %}</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Parkovka</span>
+          <span class="v">
+            {% if session.parking_minutes %}
+              {{ session.parking_minutes }} daqiqa · {{ session.parking_cost|som }} so'm
+            {% else %}yo'q{% endif %}
+            <span class="cell-sub">{{ session.parking_fee_per_min|som }} so'm/daqiqa</span>
+          </span>
+        </div>
+        {% if session.stop_reason %}
+          <div class="kv-row">
+            <span class="k">Tugash sababi</span>
+            <span class="v">{{ stop_reason }} <span class="cell-sub mono">{{ session.stop_reason }}</span></span>
+          </div>
+        {% endif %}
+        {% if last_reading.temperature_c %}
+          <div class="kv-row">
+            <span class="k">Harorat</span>
+            <span class="v">{{ last_reading.temperature_c|num:1 }} °C</span>
+          </div>
+        {% endif %}
+        {% if last_reading.frequency_hz %}
+          <div class="kv-row">
+            <span class="k">Chastota</span>
+            <span class="v">{{ last_reading.frequency_hz|num:2 }} Hz</span>
+          </div>
+        {% endif %}
+        {% if last_reading.voltage_l1_v %}
+          <div class="kv-row">
+            <span class="k">Fazalar</span>
+            <span class="v mono">
+              L1 {{ last_reading.voltage_l1_v|num:0 }}
+              {% if last_reading.voltage_l2_v %} · L2 {{ last_reading.voltage_l2_v|num:0 }}{% endif %}
+              {% if last_reading.voltage_l3_v %} · L3 {{ last_reading.voltage_l3_v|num:0 }}{% endif %} V
+            </span>
+          </div>
+        {% endif %}
+        {% if last_reading.current_offered_a %}
+          <div class="kv-row">
+            <span class="k">Taklif qilingan tok</span>
+            <span class="v">
+              {{ last_reading.current_offered_a|num:1 }} A
+              <span class="cell-sub">chargerning chegarasi</span>
+            </span>
+          </div>
+        {% endif %}
+        {% if session.is_live %}
+          <div class="kv-row"><span class="k">idTag</span><span class="v mono">{{ session.id_tag|default:"—" }}</span></div>
+          <div class="kv-row">
+            <span class="k">Hisoblagich</span>
+            <span class="v mono">
+              {{ session.meter_start_wh|default:"—" }} &rarr;
+              {{ session.meter_stop_wh|default:session.live_meter_wh|default:"—" }} Wh
+            </span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Kuchlanish dinamikasi ─────────────────────────────────── #}
+  <div>
+    <div class="section-head">
+      <h2>Kuchlanish dinamikasi</h2>
+      {% if voltage_chart %}<span class="page-sub">{{ voltage_chart.count }} ta o'lchov</span>{% endif %}
+    </div>
+    <div class="card">
+      {% if voltage_chart %}
+        <div class="chart-stats">
+          <div><span class="k">Eng past</span><b>{{ voltage_chart.min }} V</b></div>
+          <div><span class="k">O'rtacha</span><b>{{ voltage_chart.avg }} V</b></div>
+          <div><span class="k">Eng yuqori</span><b>{{ voltage_chart.max }} V</b></div>
+          <div><span class="k">Oxirgi</span><b>{{ voltage_chart.last }} V</b></div>
+        </div>
+        {% include 'dashboard/_line_chart.html' with chart=voltage_chart series='voltage' %}
+      {% else %}
+        <div class="empty" style="padding:32px 0;">
+          <b>O'lchov ma'lumoti yo'q</b>
+          <span>
+            Grafik chargerdan kelgan MeterValues xabarlaridan chiziladi.
+            {% if not session.is_live %}Bu sessiya mock rejimida boshlangan.{% endif %}
+          </span>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if current_chart %}
+      <div class="section-head"><h2>Tok dinamikasi</h2></div>
+      <div class="card">
+        <div class="chart-stats">
+          <div><span class="k">Eng past</span><b>{{ current_chart.min }} A</b></div>
+          <div><span class="k">O'rtacha</span><b>{{ current_chart.avg }} A</b></div>
+          <div><span class="k">Eng yuqori</span><b>{{ current_chart.max }} A</b></div>
+          <div><span class="k">Oxirgi</span><b>{{ current_chart.last }} A</b></div>
+        </div>
+        {% include 'dashboard/_line_chart.html' with chart=current_chart series='current' %}
+      </div>
+    {% endif %}
+
+    {% if soc_chart %}
+      <div class="section-head">
+        <h2>Batareya to'lishi</h2>
+        <span class="page-sub">avtomobil hisoblagichidan (SoC)</span>
+      </div>
+      <div class="card">
+        <div class="chart-stats">
+          <div><span class="k">Boshlanish</span><b>{{ soc_chart.min }}%</b></div>
+          <div><span class="k">Oxirgi</span><b>{{ soc_chart.last }}%</b></div>
+        </div>
+        {% include 'dashboard/_line_chart.html' with chart=soc_chart series='soc' %}
+      </div>
+    {% endif %}
+
+    {% if temp_chart %}
+      <div class="section-head"><h2>Harorat</h2></div>
+      <div class="card">
+        <div class="chart-stats">
+          <div><span class="k">Eng past</span><b>{{ temp_chart.min }} °C</b></div>
+          <div><span class="k">O'rtacha</span><b>{{ temp_chart.avg }} °C</b></div>
+          <div><span class="k">Eng yuqori</span><b>{{ temp_chart.max }} °C</b></div>
+        </div>
+        {% include 'dashboard/_line_chart.html' with chart=temp_chart series='temp' %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

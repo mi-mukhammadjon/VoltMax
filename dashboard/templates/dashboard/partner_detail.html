@@ -1,0 +1,63 @@
+{% extends 'dashboard/base.html' %}{% load money phone %}
+{% block title %}{{ partner.name }} — VoltMax Panel{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:partners' %}" class="back-link">← Hamkorlar</a>
+<div class="detail-header">
+  <div>
+    <h1>{{ partner.name }}</h1>
+    <div class="sub">{{ partner.legal_name|default:"" }} {% if partner.is_active %}<span class="badge success">Faol</span>{% else %}<span class="badge muted">Nofaol</span>{% endif %}</div>
+  </div>
+  <a href="{% url 'dashboard:partner_edit' partner.id %}" class="btn">Tahrirlash</a>
+</div>
+
+<div class="kv-grid">
+  <div class="kv"><div class="k">Stansiyalar</div><div class="v">{{ partner.station_count }}</div></div>
+  <div class="kv"><div class="k">Jami tushum</div><div class="v">{{ revenue|som }}</div></div>
+  <div class="kv"><div class="k">Komissiya ({{ partner.commission_percent }}%)</div><div class="v" style="color:var(--success);">{{ commission|som }}</div></div>
+  <div class="kv"><div class="k">Telefon</div><div class="v" style="font-size:15px;">{{ partner.phone|phone }}</div></div>
+</div>
+
+{% if free_stations %}
+<div class="card assign-card">
+  <div class="assign-label">
+    <div>
+      <div class="k">Stansiya biriktirish</div>
+      <div class="v" style="font-size:13px;color:var(--text-secondary);">Hozircha egasi yo'q {{ free_stations|length }} ta stansiya bor</div>
+    </div>
+  </div>
+  <form method="post" action="{% url 'dashboard:partner_attach_stations' partner.id %}" class="inline-form">
+    {% csrf_token %}
+    <select name="stations" multiple size="4" style="min-width:280px;">
+      {% for s in free_stations %}<option value="{{ s.id }}">{{ s.name }} — {{ s.address }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn">Biriktirish</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="section-head"><h2>Stansiyalari</h2></div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Stansiya</th><th>Manzil</th><th>Holat</th><th></th></tr></thead>
+    <tbody>
+    {% for s in stations_page %}
+      <tr>
+        <td><a href="{% url 'dashboard:station_detail' s.id %}">{{ s.name }}</a></td>
+        <td>{{ s.address }}</td>
+        <td>{% if s.status == 'available' %}<span class="badge success">Bo'sh</span>{% elif s.status == 'busy' %}<span class="badge warning">Band</span>{% else %}<span class="badge muted">Ishlamayapti</span>{% endif %}</td>
+        <td>
+          <div class="row-actions">
+            <form method="post" action="{% url 'dashboard:partner_detach_station' partner.id s.id %}" onsubmit="return confirm(&quot;Stansiya bu hamkordan ajratilsinmi?&quot;);">
+              {% csrf_token %}<button type="submit" class="btn small danger">Ajratish</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4"><p class="empty">Bu hamkorga stansiya biriktirilmagan</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' with page_obj=stations_page %}
+{% endblock %}

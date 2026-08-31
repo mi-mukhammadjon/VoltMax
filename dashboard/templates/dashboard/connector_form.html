@@ -1,0 +1,134 @@
+{% extends 'dashboard/base.html' %}{% load money phone %}
+{% block title %}{{ station.name }} — {{ connector.label }} ulagichi{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:station_detail' station.id %}" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  {{ station.name }}
+</a>
+
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{ connector.label }} ulagichi</h1>
+    <div class="page-sub">
+      {{ connector.get_type_display }} · {{ connector.power_kw }} kVt ·
+      {% if connector.ocpp_connector_id %}
+        OCPP #{{ connector.ocpp_connector_id }}
+      {% else %}
+        OCPP bog'lanmagan
+      {% endif %}
+    </div>
+  </div>
+  <div class="head-actions">
+    <a href="{% url 'dashboard:maintenance' %}?station={{ station.id }}" class="btn secondary">Profilaktika</a>
+  </div>
+</div>
+
+{% if active_session %}
+  {# Ketayotgan zaryadlash — OCPP raqamini o'zgartirish taqiqlangan payt #}
+  <div class="danger-zone">
+    <div class="dz-text">
+      <div class="dz-title">Bu ulagichda zaryadlash ketmoqda</div>
+      <div class="dz-note">
+        {{ active_session.user.username |phone }} · {{ active_session.current_percent }}% ·
+        {{ active_session.cost_so_far|som }} so'm. Sessiya tugamaguncha OCPP raqamini
+        o'zgartirib bo'lmaydi — aks holda chargerdan keladigan xabarlar boshqa
+        yozuvga tushib, zaryadlash "yo'qolib" qolardi.
+      </div>
+    </div>
+    <form method="post" action="{% url 'dashboard:session_force_stop' active_session.id %}"
+          onsubmit="return confirm(&quot;Zaryadlash majburan uzilsinmi? Qurilmaga uzish buyrug'i yuboriladi.&quot;);">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button type="submit" class="btn danger">Majburan uzish</button>
+    </form>
+  </div>
+{% endif %}
+
+{% comment %}
+  Holat va ishlamaslik sababi formadan olib tashlandi: ular qurilmadan keladi
+  yoki Profilaktika bo'limida qo'yiladi — u yerda sabab, vaqt va kim
+  o'zgartirgani ham saqlanadi. Bu blok holatni faqat KO'RSATADI, o'zgartirish
+  esa tezkor tugma orqali (u qurilmaga ham buyruq yuboradi).
+{% endcomment %}
+<div class="device-state is-{{ state.health }}">
+  <span class="ds-dot" aria-hidden="true"></span>
+  <div class="ds-text">
+    <b>{{ state.label }}</b>
+    <small>{{ state.note }}</small>
+  </div>
+  {% if connector.status == 'offline' %}
+    {% if open_issue %}
+      <a href="{% url 'dashboard:maintenance' %}?station={{ station.id }}" class="btn small secondary">
+        Nosozlikni ko'rish
+      </a>
+    {% endif %}
+    <form method="post" action="{% url 'dashboard:connector_toggle_service' station.id connector.id %}"
+          onsubmit="return confirm(&quot;Ulagich xizmatga qaytarilsinmi? Qurilmaga ham buyruq yuboriladi.&quot;);">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button type="submit" class="btn small">Xizmatga qaytarish</button>
+    </form>
+  {% elif not active_session %}
+    <form method="post" action="{% url 'dashboard:connector_toggle_service' station.id connector.id %}"
+          onsubmit="return confirm(&quot;Ulagich ta'mirga qo'yilsinmi? Qurilmaga ham buyruq yuboriladi.&quot;);">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <input type="hidden" name="reason" value="Panel orqali xizmatdan chiqarildi">
+      <button type="submit" class="btn small secondary">Ta'mirga qo'yish</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="section-head"><h2>Ulagich xossalari</h2></div>
+<div class="card form-card">
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <div class="my-field-row">
+      <div class="field">
+        <label for="{{ form.label.id_for_label }}">{{ form.label.label }}</label>
+        {{ form.label }}
+        <div class="help">{{ form.label.help_text }}</div>
+        {{ form.label.errors }}
+      </div>
+      <div class="field">
+        <label for="{{ form.type.id_for_label }}">{{ form.type.label }}</label>
+        {{ form.type }}{{ form.type.errors }}
+      </div>
+    </div>
+
+    <div class="my-field-row">
+      <div class="field">
+        <label for="{{ form.power_kw.id_for_label }}">{{ form.power_kw.label }}</label>
+        {{ form.power_kw }}
+        <div class="help">Stansiya quvvati — {{ station.power_kw }} kVt</div>
+        {{ form.power_kw.errors }}
+      </div>
+      <div class="field">
+        <label for="{{ form.ocpp_connector_id.id_for_label }}">{{ form.ocpp_connector_id.label }}</label>
+        {{ form.ocpp_connector_id }}
+        <div class="help">{{ form.ocpp_connector_id.help_text }}</div>
+        {{ form.ocpp_connector_id.errors }}
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn">Saqlash</button>
+      <a href="{% url 'dashboard:station_detail' station.id %}" class="btn secondary">Bekor qilish</a>
+    </div>
+  </form>
+</div>
+
+<div class="danger-zone">
+  <div class="dz-text">
+    <div class="dz-title">Ulagichni o'chirish</div>
+    <div class="dz-note">Ulagich stansiyadan olib tashlanadi. Uning sessiyalari tarixda saqlanib qoladi.</div>
+  </div>
+  <form method="post" action="{% url 'dashboard:connector_delete' station.id connector.id %}"
+        onsubmit="return confirm(&quot;Ulagich o'chirilsinmi?&quot;);">
+    {% csrf_token %}
+    <button type="submit" class="btn danger">Ulagichni o'chirish</button>
+  </form>
+</div>
+{% endblock %}

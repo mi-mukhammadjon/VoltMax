@@ -1,0 +1,28 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Sahifalar — VoltMax Panel{% endblock %}
+{% block content %}
+{% include 'dashboard/_content_tabs.html' with active='pages' %}
+<div class="page-head">
+  <div><h1 class="page-title">Huquqiy sahifalar</h1><div class="page-sub">Ilovada ko'rsatiladigan statik matnlar</div></div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Sahifa</th><th>Hajmi</th><th>Yangilangan</th><th></th></tr></thead>
+    <tbody>
+    {% for p in pages %}
+      <tr>
+        <td><div class="cell-2"><span class="top">{{ p.title }}</span><span class="sub">/{{ p.slug }}</span></div></td>
+        <td>{% if p.body %}{{ p.body|length }} belgi{% else %}<span class="badge warning">Bo'sh</span>{% endif %}</td>
+        <td>{{ p.updated_at|date:"d.m.Y H:i" }}</td>
+        <td class="actions">
+          <div class="row-actions"><a href="{% url 'dashboard:page_edit' p.slug %}" class="btn small secondary">Tahrirlash</a></div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="empty"><b>Sahifa yo'q</b></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

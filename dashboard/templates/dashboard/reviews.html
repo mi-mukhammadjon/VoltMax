@@ -1,0 +1,59 @@
+{% extends 'dashboard/base.html' %}{% load money phone %}
+{% block title %}Sharhlar — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Sharhlar</h1>
+    <div class="page-sub">{{ total }} ta sharh · o'rtacha baho {{ average|num:1 }}</div>
+  </div>
+</div>
+
+<div class="chart-row">
+  <div class="chart-card">
+    <div class="chart-head"><div><div class="chart-title">Baholar taqsimoti</div></div>
+      <div class="chart-total"><div class="v">{{ average|num:1 }}</div><div class="k">o'rtacha</div></div>
+    </div>
+    {% for b in breakdown %}
+      <div class="mini-progress" style="margin-bottom:10px;">
+        <span style="width:38px;font-size:12px;font-weight:700;">{{ b.star }} ★</span>
+        <span class="track"><span class="fill" style="width: {{ b.pct }}%;"></span></span>
+        <span class="pct">{{ b.count }}</span>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="chart-card">
+    <div class="chart-head"><div><div class="chart-title">Filtr</div><div class="chart-sub">Baho bo'yicha</div></div></div>
+    <div class="filter-tabs">
+      <a href="?" class="{% if not rating %}active{% endif %}">Barchasi</a>
+      {% for n in "54321" %}
+        <a href="?rating={{ n }}" class="{% if rating == n %}active{% endif %}">{{ n }} ★</a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Foydalanuvchi</th><th>Stansiya</th><th>Baho</th><th>Sharh</th><th>Sana</th><th></th></tr></thead>
+    <tbody>
+    {% for r in page_obj %}
+      <tr>
+        <td><a href="{% url 'dashboard:user_detail' r.user.id %}">{{ r.user.username |phone }}</a></td>
+        <td><a href="{% url 'dashboard:station_detail' r.station.id %}">{{ r.station.name }}</a></td>
+        <td><span class="badge {% if r.rating >= 4 %}success{% elif r.rating == 3 %}warning{% else %}danger{% endif %}">{{ r.rating|num:0 }} ★</span></td>
+        <td style="max-width:340px;">{{ r.comment|default:"—"|truncatechars:120 }}</td>
+        <td>{{ r.created_at|date:"d.m.Y" }}</td>
+        <td class="actions">
+          <div class="row-actions"><form method="post" action="{% url 'dashboard:review_delete' r.id %}" onsubmit="return confirm(&quot;Sharh o'chirilsinmi?&quot;);">
+            {% csrf_token %}<button type="submit" class="btn small danger">O'chirish</button>
+          </form></div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6"><p class="empty">Sharh yo'q</p></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'dashboard/_pagination.html' %}
+{% endblock %}

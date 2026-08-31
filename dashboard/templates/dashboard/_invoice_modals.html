@@ -1,0 +1,134 @@
+{% load money %}{% comment %}
+  To'lov hisobi oynalari: yangi hisob va "to'landi" deb belgilash.
+
+  Har bir kutilayotgan hisob uchun alohida oyna — to'lov topshiriqnomasi
+  raqami va bank sanasi aynan shu hisobga yoziladi, umumiy formada esa
+  qaysi hisobga tegishli ekani chalkashib ketardi.
+{% endcomment %}
+
+<div class="modal" id="invoice-new-modal" hidden>
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Yangi hisob</div>
+        <div class="modal-sub">№{{ next_invoice_number }} · {{ company.invoice_name }}</div>
+      </div>
+      <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+    </div>
+    <form method="post" action="{% url 'dashboard:company_invoice_create' company.id %}">
+      {% csrf_token %}
+      <div class="modal-body">
+        {% if not company.has_bank_details %}
+          <div class="help" style="margin-bottom:12px;">
+            Mijozning STIR, hisob raqami yoki MFO to'ldirilmagan — hujjatda
+            ular bo'sh chiziq bo'lib chiqadi.
+          </div>
+        {% endif %}
+        <div class="field">
+          <label for="invoice-amount">Summa (so'm)</label>
+          <input type="text" id="invoice-amount" name="amount" class="money-input"
+                 inputmode="decimal" autocomplete="off" placeholder="10 000 000" required>
+        </div>
+        <div class="field">
+          <label for="invoice-purpose">To'lov maqsadi</label>
+          <input type="text" id="invoice-purpose" name="purpose" maxlength="255"
+                 placeholder="Elektromobillarni zaryadlash xizmati uchun avans to'lovi">
+          <div class="help">Bo'sh qoldirilsa standart matn yoziladi</div>
+        </div>
+        <div class="field">
+          <label for="invoice-note">Ichki izoh</label>
+          <input type="text" id="invoice-note" name="note" maxlength="255"
+                 placeholder="faqat panelda ko'rinadi">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn secondary" data-modal-close>Bekor qilish</button>
+        <button type="submit" class="btn">Hisob yozish</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% for invoice in invoices %}
+  {% if invoice.is_pending %}
+    {% comment %}
+      To'lovni qayd etish — bu amal PULNI hamyonga qo'shadi va uni ortga
+      qaytarib bo'lmaydi. Shuning uchun oyna avval nima bo'lishini ko'rsatadi:
+      qaysi hisob, qancha summa va balans qanday o'zgaradi. Operator "To'landi"
+      tugmasini adashib bosган bo'lsa, shu yerda to'xtaydi.
+    {% endcomment %}
+    <div class="modal" id="invoice-{{ invoice.id }}-paid-modal" hidden>
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-panel" role="dialog" aria-modal="true"
+           aria-labelledby="paid-title-{{ invoice.id }}">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title" id="paid-title-{{ invoice.id }}">To'lovni qayd etish</div>
+            <div class="modal-sub">Bank o'tkazmasi kelganini tasdiqlaysiz</div>
+          </div>
+          <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+        </div>
+
+        <form method="post" action="{% url 'dashboard:company_invoice_paid' invoice.id %}">
+          {% csrf_token %}
+          <div class="modal-body">
+
+            <div class="invoice-summary">
+              <div class="is-head">
+                <span class="is-number">№{{ invoice.number }}</span>
+                <span class="badge warning">Kutilmoqda</span>
+              </div>
+              <div class="is-amount">{{ invoice.amount|som }} <small>so'm</small></div>
+              <div class="is-meta">
+                {{ company.invoice_name }} · {{ invoice.issued_at|date:"d.m.Y" }} da yozilgan
+              </div>
+              {% if invoice.purpose %}
+                <div class="is-purpose">{{ invoice.purpose }}</div>
+              {% endif %}
+            </div>
+
+            {% comment %}
+              Balans o'zgarishi — tasdiqlashdan oldin ko'riladigan eng muhim
+              raqam. Mijozning kartalari balans bo'lgandagina ishlaydi.
+            {% endcomment %}
+            <div class="balance-flow">
+              <div class="bf-cell">
+                <span class="bf-label">Hozirgi balans</span>
+                <span class="bf-value">{{ company.balance|som }}</span>
+              </div>
+              <span class="bf-arrow" aria-hidden="true">→</span>
+              <div class="bf-cell is-next">
+                <span class="bf-label">Tasdiqlangach</span>
+                <span class="bf-value">{{ company.balance|add:invoice.amount|som }}</span>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="ref-{{ invoice.id }}">To'lov topshiriqnomasi №</label>
+                <input type="text" id="ref-{{ invoice.id }}" name="payment_ref"
+                       maxlength="50" placeholder="142" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="date-{{ invoice.id }}">O'tkazma sanasi</label>
+                <input type="date" id="date-{{ invoice.id }}" name="payment_date"
+                       value="{% now 'Y-m-d' %}">
+              </div>
+            </div>
+            <div class="help">
+              Topshiriqnoma raqami bank ko'chirmasi bilan solishtirish uchun
+              tranzaksiya izohiga yoziladi. Bo'sh qoldirilsa ham to'lov qabul
+              qilinadi, lekin keyin qaysi o'tkazma ekanini topish qiyin bo'ladi.
+            </div>
+          </div>
+
+          <div class="modal-foot">
+            <button type="button" class="btn secondary" data-modal-close>Bekor qilish</button>
+            <button type="submit" class="btn">Tasdiqlash va hamyonga qo'shish</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+{% endfor %}
