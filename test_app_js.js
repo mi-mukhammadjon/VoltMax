@@ -404,18 +404,21 @@ setTimeout(() => {
         };
         // Yashirin `status` maydoni — tab bosilganda shu yerga yoziladi
         const hidden = { name: 'status', value: '', type: 'hidden', disabled: false };
+        // Amallar jurnalida maydon boshqacha ataladi — `action`
+        const actionField = { name: 'action', value: '', type: 'hidden', disabled: false };
         const form = {
-          elements: [hidden, field],
+          elements: [hidden, actionField, field],
           classList: { add() {}, remove() {}, toggle() {} },
           getAttribute: (k) => (k === 'action' ? '/rfid/' : k === 'data-target' ? '#card-results' : null),
           hasAttribute: (k) => k === 'data-live-search',
           querySelector: (sel) => (sel === 'input[type=search]' ? field
-            : sel === 'input[name=status]' ? hidden : null),
+            : sel === 'input[name=status]' ? hidden
+            : sel === 'input[name=action]' ? actionField : null),
           // Kengaytirilgan filtr oynasi shu formaning ichida bo'lishi mumkin
           modals: [],
           querySelectorAll(sel) { return sel === '.modal' ? this.modals : []; },
         };
-        return { form, field, hidden };
+        return { form, field, hidden, actionField };
       }
 
       // Oldingi testlar `.layout` ni almashtirgan — toza holatdan boshlaymiz
@@ -508,6 +511,30 @@ setTimeout(() => {
                   tabB.classList.contains('active') && !tabA.classList.contains('active'));
             check('filtr qidiruv formasiga yozildi', statusInput.value === 'active',
                   statusInput.value);
+
+            // ── Maydon nomi sahifaga qarab o'zgaradi ──
+            // Amallar jurnali `action` bo'yicha filtrlaydi. Ilgari nom
+            // qattiq `status` deb yozilgan edi va u yerdagi tablar
+            // hech narsa qilmasdi: qiymat mavjud bo'lmagan maydonga
+            // ketardi, so'rov esa o'zgarishsiz qolardi.
+            const tabC = makeEl({ href: '/activity/?action=card' });
+            tabC.attributes['data-live-filter'] = '';
+            tabC.attributes['data-filter-field'] = 'action';
+            tabC.attributes['data-filter-value'] = 'card';
+            tabC.closest = (sel) => (sel === '[data-live-filter]' ? tabC
+              : sel === '.filter-tabs' ? tabs : null);
+
+            fetchCalls.length = 0;
+            fire('document', 'click', {
+              target: tabC, defaultPrevented: false, button: 0,
+              metaKey: false, ctrlKey: false, shiftKey: false, preventDefault() {},
+            });
+            check('boshqa nomli maydonga yozildi',
+                  search.actionField.value === 'card', search.actionField.value);
+            check('status tegilmadi', statusInput.value === 'active', statusInput.value);
+            check('so\'rovda yangi filtr bor',
+                  ((fetchCalls[0] || {}).url || '').includes('action=card'),
+                  (fetchCalls[0] || {}).url);
 
             setTimeout(() => {
               check('tabda ham faqat hudud almashdi',

@@ -947,10 +947,16 @@
     // Tanlangan filtr qidiruv formasiga yoziladi va so'rov SHU FORMA
     // bo'yicha quriladi — shunda qidiruv, korporativ tanlov va tab birga
     // ketadi. Tab havolasidan foydalanilsa boshqa filtrlar yo'qolardi.
-    var status = tab.getAttribute('data-filter-value') || '';
+    //
+    // Maydon nomi sahifaga qarab o'zgaradi: kartalarda `status`, amallar
+    // jurnalida `action`. Ilgari u qattiq yozilgan edi va jurnaldagi
+    // tablar hech narsa qilmasdi — qiymat mavjud bo'lmagan maydonga
+    // yozilardi.
+    var field = tab.getAttribute('data-filter-field') || 'status';
+    var value = tab.getAttribute('data-filter-value') || '';
     var form = document.querySelector('[data-live-search]');
-    var hidden = form && form.querySelector('input[name=status]');
-    if (hidden) hidden.value = status;
+    var hidden = form && form.querySelector('input[name=' + field + ']');
+    if (hidden) hidden.value = value;
 
     if (form) liveFetch(liveUrl(form), liveTarget(form), null);
     else liveFetch(tab.href, liveTarget(tab), null);

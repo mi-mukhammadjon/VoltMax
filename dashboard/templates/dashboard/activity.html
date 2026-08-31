@@ -18,15 +18,15 @@
 <div class="filter-row">
   <div class="filter-tabs">
     <a href="?" class="{% if not action %}active{% endif %}"
-       data-live-filter data-filter-value="">Barchasi</a>
+       data-live-filter data-filter-field="action" data-filter-value="">Barchasi</a>
     {% for value, label in actions %}
       <a href="?action={{ value }}" class="{% if action == value %}active{% endif %}"
-         data-live-filter data-filter-value="{{ value }}">{{ label }}</a>
+         data-live-filter data-filter-field="action"
+         data-filter-value="{{ value }}">{{ label }}</a>
     {% endfor %}
   </div>
 
   <form method="get" class="filter-search" data-live-search data-target="#activity-results">
-    <input type="hidden" name="status" value="">
     <input type="hidden" name="action" value="{{ action }}">
     <input type="search" name="q" value="{{ q }}"
            placeholder="Amal, tafsilot yoki xodim"

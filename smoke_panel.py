@@ -120,6 +120,38 @@ def check_template_syntax():
     return problems
 
 
+def check_filter_tabs(pages):
+    """Filtr tabining maydoni sahifada HAQIQATAN bormi.
+
+    Tab bosilganda uning qiymati qidiruv formasidagi yashirin maydonga
+    yoziladi. Maydon nomi sahifaga qarab boshqacha: kartalarda `status`,
+    amallar jurnalida `action`. Nom mos kelmasa tab jimgina ishlamaydi —
+    xato ham chiqmaydi, ro'yxat ham o'zgarmaydi. Amallar jurnalida
+    aynan shunday bo'lgan edi.
+    """
+    import re
+
+    problems = []
+    for label, body in pages:
+        fields = set(re.findall(r'name="([^"]+)"', body))
+        for tag in re.findall(r'<a\b[^>]*data-live-filter[^>]*>', body):
+            match = re.search(r'data-filter-field="([^"]*)"', tag)
+            field = match.group(1) if match else 'status'
+            if field not in fields:
+                problems.append(f'{label} — tab `{field}` maydoniga yozadi, '
+                                'lekin formada bunday maydon topilmadi')
+                break
+
+    print()
+    print('-- Filtr tablari --')
+    if problems:
+        for item in problems:
+            print('XATO ', item)
+    else:
+        print(f'OK    tekshirilgan sahifalar: {len(pages)} ta')
+    return problems
+
+
 def main():
     created = []
     admin, _ = User.objects.get_or_create(
@@ -164,14 +196,18 @@ def main():
         client.force_login(admin)
 
         failures = []
+        rendered = []
         for label, url in GET_PAGES + detail_pages:
             response = client.get(url)
             ok = response.status_code == 200
+            if ok and 'data-live-filter' in response.content.decode('utf-8'):
+                rendered.append((label, response.content.decode('utf-8')))
             print(f'{"OK " if ok else "XATO"}  {response.status_code}  {label:26s} {url}')
             if not ok:
                 failures.append((label, url, response.status_code))
 
         failures.extend(check_template_syntax())
+        failures.extend(check_filter_tabs(rendered))
 
         # Yozish amallari ham ishlashini tekshiramiz
         print('\n-- POST tekshiruvlari --')
