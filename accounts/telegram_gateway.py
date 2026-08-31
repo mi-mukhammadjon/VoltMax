@@ -19,10 +19,26 @@ class TelegramGatewayError(Exception):
     pass
 
 
+def get_token() -> str:
+    """Ishlatiladigan token: avval panel, keyin server sozlamasi.
+
+    Panel ustun turadi, chunki uni almashtirish uchun serverga kirish
+    kerak emas — to'lov kalitlari bilan bir xil qoida.
+    """
+    from management.models import SiteSettings
+
+    try:
+        panel_token = SiteSettings.load().otp_gateway_token
+    except Exception:       # noqa: BLE001 — migratsiyalardan oldin ham ishlasin
+        panel_token = ''
+    return panel_token or settings.TELEGRAM_GATEWAY_TOKEN
+
+
 def _call(method: str, **params) -> dict:
-    token = settings.TELEGRAM_GATEWAY_TOKEN
+    token = get_token()
     if not token:
-        raise TelegramGatewayError('TELEGRAM_GATEWAY_TOKEN sozlanmagan')
+        raise TelegramGatewayError(
+            "OTP shlyuzi kaliti sozlanmagan (Sozlamalar > Xavfsizlik)")
 
     try:
         resp = requests.post(

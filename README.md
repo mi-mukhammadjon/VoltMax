@@ -34,8 +34,13 @@ python manage.py runserver
 
 Namuna ma'lumot: `python manage.py seed_stations`
 
-> **Standart admin hisobi** — `admin` / `voltmax2026`. Serverga chiqishdan
-> oldin albatta almashtiring: `python manage.py changepassword admin`.
+> **Standart admin hisobi** — `admin` / `voltmax2026`. Bu parol shu yerda
+> ochiq yozilgan, ya'ni parol emas — taklifnoma. Serverga chiqishdan oldin
+> albatta almashtiring: `python manage.py changepassword admin`.
+> Almashtirilmagani **Tizim holati** sahifasida qizil bo'lib turadi.
+
+Panel logini parol tanlashdan himoyalangan: chegara tugagach kirish
+vaqtincha yopiladi (Sozlamalar > Xavfsizlik), har urinish esa yoziladi.
 
 ## Nima bor
 
@@ -88,6 +93,7 @@ python manage.py run_workers --only push  # faqat bittasi
 | `push` | 30 son | Bildirishnomalarni telefonlarga yuboradi |
 | `bookings` | 5 daq | Muddati o'tgan bronlarni yopadi |
 | `cleanup` | kuniga | Eskirgan telemetriya va jurnallarni tozalaydi |
+| `backup` | kuniga | Bazaning zaxira nusxasini oladi (R2 sozlangan bo'lsa unga yuklaydi) |
 
 Har vazifa oxirgi marta qachon ishlagani va nima qilgani bazaga
 yoziladi. Panelda **Tizim holati** sahifasi shuni ko'rsatadi: vazifa o'z
@@ -123,6 +129,7 @@ python test_mobile_api.py   # ilova ishlatadigan API
 python test_pricing.py      # tarif oynalari va aksiyalar
 python test_card_limits.py  # kartaning sarf chegarasi
 python test_health.py       # tizim holati to'g'ri aniqlanadimi
+python test_login_guard.py  # panel logini himoyasi
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`

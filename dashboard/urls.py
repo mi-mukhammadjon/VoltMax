@@ -144,6 +144,7 @@ urlpatterns = [
     path('settings/session/', m.settings_session, name='settings_session'),
     path('settings/search/', m.settings_search, name='settings_search'),
     # To'lov tizimlari — ro'yxat bazada, kodda emas
+    path('settings/otp-test/', m.otp_gateway_test, name='otp_gateway_test'),
     path('settings/tariffs/new/', m.tariff_form_view, name='tariff_new'),
     path('settings/tariffs/<int:pk>/', m.tariff_form_view, name='tariff_edit'),
     path('settings/tariffs/<int:pk>/toggle/', m.tariff_toggle, name='tariff_toggle'),

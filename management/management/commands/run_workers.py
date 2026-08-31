@@ -103,6 +103,25 @@ def _push():
     return ''
 
 
+def _backup():
+    """Kundalik zaxira nusxa.
+
+    Ilgari `backup_db` buyrug'i bor edi-yu, uni hech kim chaqirmasdi:
+    nusxa faqat kimdir esga olsa olinardi. Bazada esa pul harakati bor.
+    """
+    from management.backup import run
+
+    result = run()
+    parts = [f"zaxira: {result['size_mb']} MB"]
+    if result['remote']:
+        parts.append('R2 ga yuklandi')
+    else:
+        # Bu ogohlantirish MATNDA qoladi va Tizim holatida ko'rinadi:
+        # Railway'da disk har deploy'da tozalanadi
+        parts.append('faqat lokal (R2 sozlanmagan)')
+    return ', '.join(parts)
+
+
 # (nom, funksiya, oraliq soniyada)
 JOBS = [
     ('parking', _parking, 300),
@@ -111,6 +130,7 @@ JOBS = [
     ('push', _push, 30),
     ('bookings', _bookings, 300),
     ('cleanup', _cleanup, 24 * 3600),
+    ('backup', _backup, 24 * 3600),
 ]
 
 

@@ -38,6 +38,9 @@ POLICIES = [
     # eskisini tozalaydi, lekin faqat o'sha foydalanuvchi qayta urinsa —
     # umuman qaytmaganlari shu yerda yig'ishtiriladi.
     ('promo-kodlar', 'sessions_app.PendingPromo', 'created_at', 1, 10_000),
+    # Kirish urinishlari: 90 kun tergov uchun yetarli, undan keyin bu
+    # faqat shaxsiy ma'lumot (IP, brauzer) saqlab turish bo'lardi
+    ('kirish urinishlari', 'management.LoginAttempt', 'created_at', 90, 100_000),
 ]
 
 # O'qilgan xabar tezroq eskiradi: foydalanuvchi uni ko'rgan

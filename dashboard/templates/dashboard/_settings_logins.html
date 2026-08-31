@@ -1,0 +1,129 @@
+{% comment %}
+  Panelga kirish urinishlari — Xavfsizlik tabining bir qismi.
+
+  Ilgari xodimlar logini umuman himoyasiz edi: cheksiz parol sinab
+  ko'rish mumkin va urinish hech qayerga yozilmasdi, ya'ni hujumni
+  PAYQASHNING ham iloji yo'q edi.
+
+  Jadval qisqa (oxirgi 20 ta) va ataylab shunday: bu yerga "nima
+  bo'lyapti" degan savol bilan kiriladi, tergov uchun emas.
+{% endcomment %}
+{% load phone %}
+{% if active_tab == 'security' %}
+
+  {% if default_password_users %}
+    <div class="card" style="max-width:820px;border-left:4px solid var(--danger);">
+      <div style="font-weight:800;margin-bottom:6px;color:var(--danger);">
+        Standart parol hali almashtirilmagan
+      </div>
+      <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.55;">
+        Quyidagi hisoblarda o'rnatish paytidagi parol turibdi:
+        <b>{{ default_password_users|join:", " }}</b>.
+        U hujjatlarda ochiq yozilgan, ya'ni parol emas — taklifnoma.
+        <br><br>
+        Almashtirish: <b>Profil</b> sahifasida yoki
+        <code>python manage.py changepassword &lt;login&gt;</code>.
+      </div>
+    </div>
+  {% endif %}
+
+  {% comment %}
+    OTP shlyuzi. Token noto'g'ri yoki hisobda mablag' qolmagan bo'lsa,
+    HECH KIM ilovaga kira olmaydi va bu hech qayerda ko'rinmasdi —
+    faqat haqiqiy foydalanuvchi urinib ko'rganda ma'lum bo'lardi.
+  {% endcomment %}
+  <div class="page-head" style="margin-top:var(--s6);">
+    <div>
+      <h2 class="page-title" style="font-size:var(--t-lg);">OTP shlyuzi</h2>
+      <div class="page-sub">Mobil ilovaga kirish kodlari shu orqali ketadi</div>
+    </div>
+  </div>
+
+  <div class="card" style="max-width:820px;">
+    <div class="kv-list">
+      <div class="kv-row">
+        <span class="k">Kalit</span>
+        <span class="v mono">
+          {% if settings_obj.otp_token_source == 'panel' %}
+            {{ settings_obj.otp_token_masked }}
+            <span class="cell-sub">panelda saqlangan</span>
+          {% elif settings_obj.otp_token_source == 'server' %}
+            <span class="badge muted">server sozlamasida</span>
+            <span class="cell-sub">TELEGRAM_GATEWAY_TOKEN muhit o'zgaruvchisi</span>
+          {% else %}
+            <span class="badge danger">Sozlanmagan</span>
+            <span class="cell-sub">ilovaga kirib bo'lmaydi</span>
+          {% endif %}
+        </span>
+      </div>
+    </div>
+
+    <form method="post" action="{% url 'dashboard:otp_gateway_test' %}"
+          style="display:flex;gap:var(--s2);align-items:flex-end;margin-top:var(--s4);">
+      {% csrf_token %}
+      <div class="field" style="flex:1;margin:0;">
+        <label for="otp-test-phone">Sinov kodini yuborish</label>
+        <input type="text" id="otp-test-phone" name="phone" class="phone-input"
+               placeholder="+998 (90) 123-45-67" autocomplete="off">
+        <div class="help">Kod haqiqiy emas — u bilan tizimga kirib bo'lmaydi</div>
+      </div>
+      <button type="submit" class="btn secondary">Yuborish</button>
+    </form>
+  </div>
+
+  <div class="page-head" style="margin-top:var(--s6);">
+    <div>
+      <h2 class="page-title" style="font-size:var(--t-lg);">Kirish urinishlari</h2>
+      <div class="page-sub">
+        Oxirgi sutkada {{ failed_today }} ta muvaffaqiyatsiz urinish
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="w-date">Vaqti</th>
+          <th class="w-name">Login</th>
+          <th>IP</th>
+          <th class="w-badge">Natija</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for attempt in login_attempts %}
+        <tr>
+          <td class="w-date">{{ attempt.created_at|date:"d.m.Y H:i:s" }}</td>
+          <td class="w-name mono">{{ attempt.username|phone }}</td>
+          <td class="mono">{{ attempt.ip|default:"—" }}</td>
+          <td class="w-badge">
+            {% if attempt.successful %}
+              <span class="badge success">Kirdi</span>
+            {% else %}
+              <span class="badge danger">Rad etildi</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="empty">
+          <b>Urinish yozilmagan</b>
+          <span>Kirish urinishlari shu yerda ko'rinadi</span>
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="max-width:820px;margin-top:var(--s4);">
+    <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.55;">
+      Blok <b>login va IP juftligi</b> bo'yicha qo'yiladi. Faqat login
+      bo'yicha bloklansa, begona odam «admin» ni ataylab bloklab, haqiqiy
+      operatorni ishga qo'ymay qo'yishi mumkin edi. Faqat IP bo'yicha
+      bloklansa, bitta ofisdan ishlaydigan butun jamoa bir kishining
+      xatosi uchun javob berardi.
+      <br><br>
+      Blok muddati oxirgi xatodan boshlab hisoblanadi — tinmay urinish
+      uni faqat uzaytiradi.
+    </div>
+  </div>
+{% endif %}

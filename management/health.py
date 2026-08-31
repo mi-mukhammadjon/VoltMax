@@ -199,6 +199,159 @@ def check_chargers():
     }]
 
 
+def check_otp():
+    """OTP shlyuzi: kalit bormi.
+
+    Kalit yo'q yoki noto'g'ri bo'lsa HECH KIM ilovaga kira olmaydi.
+    Bu eng jim buziladigan joy: xato faqat haqiqiy foydalanuvchi
+    kirmoqchi bo'lganda chiqadi.
+    """
+    from management.models import SiteSettings
+
+    source = SiteSettings.load().otp_token_source
+    if source == 'yo‘q':
+        state = 'down'
+        hint = ('Kirish kodlari yuborilmaydi — ilovaga kirib bo‘lmaydi. '
+                'Sozlamalar > Xavfsizlik')
+    else:
+        state = 'ok'
+        hint = ('Panelda saqlangan' if source == 'panel'
+                else 'Server sozlamasida (TELEGRAM_GATEWAY_TOKEN)')
+
+    return [{
+        'key': 'otp',
+        'title': 'OTP shlyuzi',
+        'state': state,
+        'value': 'sozlangan' if state == 'ok' else 'sozlanmagan',
+        'hint': hint,
+    }]
+
+
+def check_security():
+    """Xavfsizlik: standart parol va parol tanlash urinishlari."""
+    from django.conf import settings as django_settings
+
+    from management.login_guard import LoginAttempt, uses_default_password
+    from management.models import SiteSettings
+
+    checks = []
+
+    risky = uses_default_password()
+    checks.append({
+        'key': 'default-password',
+        'title': 'Standart parol',
+        'state': 'down' if risky else 'ok',
+        'value': ', '.join(risky) if risky else 'almashtirilgan',
+        'hint': ('Bu parol hujjatlarda ochiq yozilgan — parol emas, taklifnoma'
+                 if risky else 'Standart parolli hisob yo‘q'),
+    })
+
+    settings_obj = SiteSettings.load()
+    if not settings_obj.panel_max_attempts:
+        checks.append({
+            'key': 'login-guard',
+            'title': 'Panel login himoyasi',
+            'state': 'down',
+            'value': "o'chirilgan",
+            'hint': 'Parolni cheksiz sinab ko‘rish mumkin',
+        })
+    else:
+        failed = LoginAttempt.objects.filter(
+            successful=False,
+            created_at__gte=timezone.now() - timedelta(hours=24)).count()
+        checks.append({
+            'key': 'login-guard',
+            'title': 'Panel login himoyasi',
+            'state': 'warn' if failed > 20 else 'ok',
+            'value': f'sutkada {failed} ta rad etilgan urinish',
+            'hint': ('Odatdagidan ko‘p — kimdir parol tanlayotgan bo‘lishi mumkin'
+                     if failed > 20
+                     else f'{settings_obj.panel_max_attempts} ta urinishdan keyin bloklanadi'),
+        })
+
+    # DEBUG productionda yoqiq qolsa, xato sahifalari butun kodni va
+    # sozlamalarni ko'rsatib turadi.
+    #
+    # Ishlab chiqish mashinasida DEBUG yoqiq bo'lishi NORMAL, shuning
+    # uchun u yerda «muammo» deb baqirmaydi: har doim qizil turadigan
+    # tekshiruvga hech kim e'tibor bermay qo'yadi. Farq `ALLOWED_HOSTS`
+    # dan bilinadi — unda tashqi domen bo'lsa, bu haqiqiy server.
+    if django_settings.DEBUG:
+        local = {'localhost', '127.0.0.1', '10.0.2.2', ''}
+        public = [h for h in django_settings.ALLOWED_HOSTS
+                  if h not in local and not h.startswith('192.168.')]
+        checks.append({
+            'key': 'debug',
+            'title': 'DEBUG rejimi',
+            'state': 'down' if public else 'warn',
+            'value': 'yoqilgan',
+            'hint': ('Xato sahifalari kod va sozlamalarni ko‘rsatadi — '
+                     'serverda DEBUG=False bo‘lishi SHART' if public
+                     else 'Ishlab chiqish mashinasida bu normal'),
+        })
+
+    return checks
+
+
+def check_backup():
+    """Zaxira nusxa: oxirgi marta qachon olingan va qayerda yotibdi."""
+    from django.conf import settings as django_settings
+
+    from management.jobs import JobStatus
+
+    row = JobStatus.objects.filter(name='backup').first()
+    if row is None or row.last_ok_at is None:
+        return [{
+            'key': 'backup',
+            'title': 'Zaxira nusxa',
+            'state': 'down',
+            'value': 'olinmagan',
+            'hint': 'Bazada pul harakati bor — nusxasiz ishlash xavfli',
+        }]
+
+    age = int((timezone.now() - row.last_ok_at).total_seconds())
+    # Kundalik vazifa; ikki kun o'tsa nimadir buzilgan
+    if age > 2 * 24 * 3600:
+        state, hint = 'down', 'Ikki kundan beri nusxa olinmagan'
+    elif not getattr(django_settings, 'USE_R2', False):
+        state = 'warn'
+        hint = ('Nusxa faqat shu serverning diskida — Railway‘da disk har '
+                'deploy‘da tozalanadi. R2 sozlansa nusxa saqlanib qoladi')
+    else:
+        state, hint = 'ok', row.last_summary
+
+    return [{
+        'key': 'backup',
+        'title': 'Zaxira nusxa',
+        'state': state,
+        'value': _human_age(age),
+        'hint': hint,
+    }]
+
+
+def check_media():
+    """Yuklangan fayllar qayerda saqlanadi."""
+    from django.conf import settings as django_settings
+
+    if getattr(django_settings, 'USE_R2', False):
+        return [{
+            'key': 'media',
+            'title': 'Rasm va fayllar',
+            'state': 'ok',
+            'value': 'R2',
+            'hint': 'Fayllar tashqi saqlashda — deploy ularga tegmaydi',
+        }]
+
+    return [{
+        'key': 'media',
+        'title': 'Rasm va fayllar',
+        'state': 'warn',
+        'value': 'serverning diski',
+        'hint': 'Railway‘da disk har deploy‘da tozalanadi — yuklangan '
+                'stansiya rasmlari yo‘qoladi. R2_BUCKET sozlang',
+    }]
+
+
 def check_settings():
     """Sozlamadagi eng xavfli bo'shliqlar."""
     from management.models import SiteSettings
@@ -226,6 +379,7 @@ def collect():
     """
     checks = []
     for func in (check_jobs, check_push, check_payments, check_chargers,
+                 check_otp, check_security, check_backup, check_media,
                  check_settings):
         try:
             checks.extend(func())

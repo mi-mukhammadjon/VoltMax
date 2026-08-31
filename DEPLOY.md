@@ -92,6 +92,17 @@ Bu ishchi servis ishga tushmaganini bildiradi (2-bo'limga qarang).
 Sayt bemalol ochilaveradi, shuning uchun buni faqat shu yerdan bilib
 olish mumkin.
 
+Productionga chiqishdan oldin **majburiy** uchtasi:
+
+1. **Standart parolni almashtiring** — `python manage.py changepassword admin`.
+   U hujjatlarda ochiq yozilgan.
+2. **`DEBUG=False`** — aks holda xato sahifalari kod va sozlamalarni
+   ko'rsatib turadi.
+3. **`R2_BUCKET`** — sozlanmasa yuklangan stansiya rasmlari va zaxira
+   nusxalar serverning diskida qoladi, u esa har deploy'da tozalanadi.
+
+Uchalasi ham `manage.py health` da alohida tekshiriladi.
+
 Qo'shimcha tekshiruvlar:
 
 ```bash

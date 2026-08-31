@@ -148,6 +148,76 @@ def main():
         finally:
             health.check_payments = original
 
+        # ── 6b. Yangi tekshiruvlar ──────────────────────────────
+        from django.test.utils import override_settings as override
+        from management.models import SiteSettings
+
+        settings_obj = SiteSettings.load()
+        saved_token = settings_obj.otp_gateway_token
+        saved_guard = settings_obj.panel_max_attempts
+
+        # OTP shlyuzi: kalitsiz HECH KIM ilovaga kira olmaydi
+        settings_obj.otp_gateway_token = ''
+        settings_obj.save()
+        with override(TELEGRAM_GATEWAY_TOKEN=''):
+            row = health.check_otp()[0]
+            check('kalitsiz OTP shlyuzi "ishlamayapti"', row['state'] == 'down',
+                  row['state'])
+        settings_obj.otp_gateway_token = 'sinov-token'
+        settings_obj.save()
+        row = health.check_otp()[0]
+        check('panel kaliti tan olindi', row['state'] == 'ok', row['hint'])
+        settings_obj.otp_gateway_token = saved_token
+        settings_obj.save()
+
+        # Login himoyasi o'chirilgan bo'lsa — bu muammo
+        settings_obj.panel_max_attempts = 0
+        settings_obj.save()
+        rows = {r['key']: r for r in health.check_security()}
+        check("o'chirilgan login himoyasi aniqlandi",
+              rows['login-guard']['state'] == 'down', rows['login-guard']['state'])
+        settings_obj.panel_max_attempts = saved_guard or 5
+        settings_obj.save()
+
+        # DEBUG: ishlab chiqishda ogohlantirish, tashqi domenda muammo
+        with override(DEBUG=True, ALLOWED_HOSTS=['localhost', '127.0.0.1']):
+            rows = {r['key']: r for r in health.check_security()}
+            check('lokal DEBUG faqat ogohlantirish',
+                  rows['debug']['state'] == 'warn', rows['debug']['state'])
+        with override(DEBUG=True, ALLOWED_HOSTS=['voltmax.uz']):
+            rows = {r['key']: r for r in health.check_security()}
+            check('tashqi domenda DEBUG — muammo',
+                  rows['debug']['state'] == 'down', rows['debug']['state'])
+        with override(DEBUG=False, ALLOWED_HOSTS=['voltmax.uz']):
+            rows = {r['key']: r for r in health.check_security()}
+            check('DEBUG o\'chiq bo\'lsa tekshiruv umuman chiqmaydi',
+                  'debug' not in rows, list(rows))
+
+        # Zaxira nusxa
+        JobStatus.objects.filter(name='backup').delete()
+        row = health.check_backup()[0]
+        check('nusxa olinmagani aniqlandi', row['state'] == 'down', row['state'])
+
+        JobStatus.record('backup', summary='zaxira: 1.2 MB')
+        row = health.check_backup()[0]
+        check('yangi nusxa hisobga olindi', row['state'] in ('ok', 'warn'),
+              row['state'])
+
+        JobStatus.objects.filter(name='backup').update(
+            last_ok_at=timezone.now() - timedelta(days=3))
+        row = health.check_backup()[0]
+        check('uch kunlik nusxa "ishlamayapti"', row['state'] == 'down',
+              row['value'])
+
+        # Fayllar qayerda saqlanadi
+        with override(USE_R2=False):
+            row = health.check_media()[0]
+            check('R2siz fayllar ogohlantiriladi', row['state'] == 'warn',
+                  row['state'])
+        with override(USE_R2=True):
+            row = health.check_media()[0]
+            check('R2 bilan fayllar joyida', row['state'] == 'ok', row['state'])
+
         # ── 7. Panel sahifalari ─────────────────────────────────
         staff = User.objects.create_user(username='__hl_manager__',
                                          password='sinov-parol', is_staff=True)

@@ -41,7 +41,19 @@ def check(label, condition, extra=''):
 def main():
     names = [name for name, _f, _i in run_workers.JOBS]
     check('barcha vazifalar ro\'yxatda',
-          set(names) == {'parking', 'devices', 'overdue', 'push', 'cleanup', 'bookings'}, names)
+          set(names) == {'parking', 'devices', 'overdue', 'push', 'cleanup',
+                         'bookings', 'backup'}, names)
+    # Har vazifa o'z izini qoldirishi kerak: ilgari ular faqat logga
+    # yozardi va panelda ishlayotgani umuman ko'rinmasdi
+    from management.jobs import JobStatus
+
+    JobStatus.objects.filter(name='__wk_sinov__').delete()
+    JobStatus.record('__wk_sinov__', summary='sinov')
+    row = JobStatus.objects.filter(name='__wk_sinov__').first()
+    check('vazifa holati yoziladi', row is not None and row.runs == 1,
+          row and row.runs)
+    JobStatus.objects.filter(name='__wk_sinov__').delete()
+
     check('har vazifaning oralig\'i belgilangan',
           all(interval > 0 for _n, _f, interval in run_workers.JOBS))
     check('push eng tez-tez ishlaydi',

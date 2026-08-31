@@ -420,7 +420,37 @@ class SettingsRfidForm(forms.ModelForm):
 class SettingsAccessForm(forms.ModelForm):
     class Meta:
         model = SiteSettings
-        fields = ['otp_ttl_minutes', 'otp_max_attempts', 'session_timeout_minutes']
+        fields = ['otp_ttl_minutes', 'otp_max_attempts', 'session_timeout_minutes',
+                  'panel_max_attempts', 'panel_lockout_minutes',
+                  'otp_gateway_token']
+        widgets = {
+            # Mavjud kalit formada ko'rsatilmaydi — to'lov kalitlari bilan
+            # bir xil qoida
+            'otp_gateway_token': forms.PasswordInput(render_value=False),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['otp_gateway_token'].required = False
+        if self.instance.pk and self.instance.otp_gateway_token:
+            self.fields['otp_gateway_token'].help_text = (
+                "To'ldirilmasa avvalgi kalit saqlanib qoladi")
+
+    def clean_otp_gateway_token(self):
+        # Bo'sh yuborilsa eskisi qoladi: aks holda har saqlashda kalit
+        # o'chib ketardi va OTP jimgina ishlamay qolardi
+        value = (self.cleaned_data.get('otp_gateway_token') or '').strip()
+        return value or self.instance.otp_gateway_token
+
+    def clean_panel_max_attempts(self):
+        value = self.cleaned_data['panel_max_attempts']
+        # Nolga qo'yish mumkin, lekin bu himoyani BUTUNLAY o'chiradi —
+        # operator buni bilib turib qilishi kerak, tasodifan emas
+        if value and value < 3:
+            raise forms.ValidationError(
+                'Kamida 3 ta bo\'lsin: 1-2 ta urinish adashib parol '
+                'kiritgan xodimni ham bloklab qo\'yadi')
+        return value
 
 
 class NotificationTemplateForm(forms.ModelForm):

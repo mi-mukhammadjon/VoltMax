@@ -291,7 +291,49 @@ class SiteSettings(models.Model):
         'Panel sessiyasi muddati (daq)', default=120, validators=[MinValueValidator(5)]
     )
 
+    # Panel logini. Mobil ilovaning OTP'si himoyalangan edi, xodimlar
+    # logini esa yo'q: cheksiz parol sinab ko'rish mumkin edi. Panel
+    # orqali butun tarmoq, hamma hamyon va to'lov kalitlari boshqariladi.
+    panel_max_attempts = models.PositiveSmallIntegerField(
+        'Panel parol urinishlari chegarasi', default=5,
+        help_text="0 — chegara yo'q (tavsiya etilmaydi)",
+    )
+    panel_lockout_minutes = models.PositiveSmallIntegerField(
+        'Bloklash muddati (daq)', default=15,
+        help_text='Chegara tugagach shu vaqt davomida kirish yopiladi',
+    )
+
+    # OTP shlyuzi. Kalit muhit o'zgaruvchisida ham bo'lishi mumkin, lekin
+    # panelda turgani afzal: to'lov kalitlari allaqachon shu yerda va
+    # tokenni almashtirish uchun serverga kirish talab qilinmasin.
+    # Bo'sh bo'lsa `TELEGRAM_GATEWAY_TOKEN` muhit o'zgaruvchisi ishlatiladi.
+    otp_gateway_token = models.CharField(
+        'OTP shlyuzi kaliti', max_length=200, blank=True,
+        help_text="Telegram Gateway tokeni. Bo'sh bo'lsa server "
+                  "sozlamasidagi qiymat ishlatiladi",
+    )
+
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def otp_token_masked(self) -> str:
+        """Kalitning faqat oxirgi to'rt belgisi — to'g'ri kalit turganini
+        tekshirish uchun yetarli, o'g'irlash uchun esa emas."""
+        token = self.otp_gateway_token
+        if not token:
+            return ''
+        return '•' * 8 + token[-4:]
+
+    @property
+    def otp_token_source(self) -> str:
+        """Kalit qayerdan olinayotgani — panelda ko'rsatiladi."""
+        from django.conf import settings as django_settings
+
+        if self.otp_gateway_token:
+            return 'panel'
+        if getattr(django_settings, 'TELEGRAM_GATEWAY_TOKEN', ''):
+            return 'server'
+        return 'yo‘q'
 
     class Meta:
         verbose_name = 'Tizim sozlamalari'
@@ -917,3 +959,7 @@ class PartnerPayout(models.Model):
 
 # Davriy vazifalar holati alohida faylda — bu yerda ro'yxatga olinadi
 from .jobs import JobStatus  # noqa: E402,F401
+
+
+# Panel loginini himoya qilish alohida faylda — bu yerda ro'yxatga olinadi
+from .login_guard import LoginAttempt  # noqa: E402,F401

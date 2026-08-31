@@ -17,7 +17,7 @@ from sessions_app.models import ChargingSession
 from stations.maintenance import open_issue, resolve_open_issues
 from stations.models import Station, Connector, MaintenanceIssue, StationAmenity
 from management.activity import log_action
-from management.models import ActivityLog
+from management.models import ActivityLog, SiteSettings
 from stations.services import sync_all, sync_connector_from_sessions, sync_station_status
 from sessions_app.services import force_stop_session
 from dashboard.templatetags.money import format_som
@@ -34,23 +34,44 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard:home')
 
+    from management import login_guard
+
     form = LoginForm(request.POST or None)
     error = None
     if request.method == 'POST' and form.is_valid():
+        username = form.cleaned_data['username']
+        ip = login_guard.client_ip(request)
+
+        # Parol TEKSHIRILISHIDAN oldin blok qaraladi: aks holda bloklangan
+        # hisobda ham parolni sinab ko'rish davom etaverardi
+        locked, minutes = login_guard.is_locked(username, ip)
+        if locked:
+            login_guard.record(request, username, successful=False)
+            error = (f"Urinishlar chegarasi tugadi. {minutes} daqiqadan keyin "
+                     f"qayta urinib ko'ring.")
+            return render(request, 'dashboard/login.html',
+                          {'form': form, 'error': error})
+
         user = authenticate(
             request,
-            username=form.cleaned_data['username'],
+            username=username,
             password=form.cleaned_data['password'],
         )
+        login_guard.record(request, username, successful=user is not None)
+
         if user is None:
+            # Nechta urinish qolganini aytamiz: haqiqiy operator adashib
+            # parol kiritganda bloklanish kutilmagan bo'lmasligi kerak
+            limit = SiteSettings.load().panel_max_attempts
+            left = limit - login_guard.recent_failures(username, ip) if limit else 0
             error = "Login yoki parol noto'g'ri"
+            if limit and 0 < left <= 3:
+                error += f'. Yana {left} ta urinish qoldi.'
         else:
             login(request, user)
             # Sessiya muddati sozlamadan olinadi (Sozlamalar > Xavfsizlik).
             # Ilgari u panelda turardi, lekin hech qayerda ishlatilmasdi —
             # sessiya Django standarti bo'yicha ikki hafta ochiq qolardi.
-            from management.models import SiteSettings
-
             minutes = SiteSettings.load().session_timeout_minutes
             if minutes:
                 request.session.set_expiry(minutes * 60)

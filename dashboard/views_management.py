@@ -981,6 +981,16 @@ def _settings_context(request, tab, forms_map=None):
         context['unknown_cards'] = RfidCard.objects.exclude(
             status=RfidCard.Status.ACTIVE).count()
 
+        # Kirish urinishlari. Ilgari hujumni payqashning iloji yo'q edi:
+        # muvaffaqiyatsiz urinish hech qayerga yozilmasdi.
+        from management.login_guard import LoginAttempt, uses_default_password
+
+        day_ago = timezone.now() - timedelta(hours=24)
+        context['login_attempts'] = (LoginAttempt.objects.all()[:20])
+        context['failed_today'] = LoginAttempt.objects.filter(
+            successful=False, created_at__gte=day_ago).count()
+        context['default_password_users'] = uses_default_password()
+
     if tab == 'general':
         context['app_users'] = User.objects.filter(is_staff=False).count()
 
@@ -1641,3 +1651,35 @@ def system_health(request):
     from management.health import collect
 
     return render(request, 'dashboard/system_health.html', collect())
+
+
+@admin_required
+def otp_gateway_test(request):
+    """OTP shlyuziga sinov kodi yuboradi.
+
+    Nima uchun kerak: token noto'g'ri yoki hisobda mablag' qolmagan
+    bo'lsa, buni FAQAT haqiqiy foydalanuvchi kirmoqchi bo'lganda bilib
+    qolinardi — ya'ni eng noqulay paytda. Bu tugma javobni darhol beradi.
+
+    Kod haqiqiy OTP emas: hech qanday hisobga bog'lanmaydi va u bilan
+    tizimga kirib bo'lmaydi.
+    """
+    if request.method != 'POST':
+        return redirect('dashboard:settings_security')
+
+    from accounts.telegram_gateway import TelegramGatewayError, send_verification_code
+    from dashboard.phones import normalize_phone
+
+    phone = normalize_phone(request.POST.get('phone', ''))
+    if len(phone) < 12:
+        messages.error(request, "Telefon raqamini to'liq kiriting")
+        return redirect('dashboard:settings_security')
+
+    try:
+        send_verification_code('+' + phone, '000000')
+    except TelegramGatewayError as error:
+        messages.error(request, f'Shlyuz javobi: {error}')
+    else:
+        messages.success(
+            request, f'Sinov kodi {phone} raqamiga yuborildi — telefonni tekshiring')
+    return redirect('dashboard:settings_security')
