@@ -83,6 +83,56 @@
     </div>
   </div>
 
+  {% comment %}
+    SMS — IKKINCHI kanal. Telegrami yo'q odam ilovaga umuman kira
+    olmasdi, va bitta kanal bitta nuqta demakdir: hisobda mablag'
+    tugasa hech kim kira olmasdi.
+  {% endcomment %}
+  <div class="page-head" style="margin-top:var(--s6);">
+    <div>
+      <h2 class="page-title" style="font-size:var(--t-lg);">SMS shlyuzi</h2>
+      <div class="page-sub">Telegram ishlamaganda kod SMS bilan ketadi</div>
+    </div>
+  </div>
+
+  <div class="card gateway-card">
+    <div class="gateway-row">
+      <div class="gateway-label">Holat</div>
+      <div class="gateway-value">
+        {% if settings_obj.sms_enabled and settings_obj.sms_login %}
+          <span class="badge success">Yoqilgan</span>
+          <span class="mono">{{ settings_obj.sms_login }}</span>
+          <div class="gateway-note">
+            Jo'natuvchi: {{ settings_obj.sms_sender|default:"4546 (sinov rejimi)" }}
+            {% if sms_balance is not None %} · balans: {{ sms_balance }}{% endif %}
+          </div>
+        {% elif settings_obj.sms_enabled %}
+          <span class="badge warning">Sozlanmagan</span>
+          <div class="gateway-note">Yoqilgan, lekin login va parol kiritilmagan</div>
+        {% else %}
+          <span class="badge muted">O'chirilgan</span>
+          <div class="gateway-note">
+            Kod faqat Telegram orqali ketadi — Telegrami yo'q odam kira olmaydi
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="gateway-test">
+      <label for="sms-test-phone">Sinov SMS yuborish</label>
+      <form method="post" action="{% url 'dashboard:sms_test' %}"
+            class="gateway-test-row">
+        {% csrf_token %}
+        <input type="text" id="sms-test-phone" name="phone" class="phone-input"
+               placeholder="+998 (90) 123-45-67" autocomplete="off">
+        <button type="submit" class="btn secondary">Yuborish</button>
+      </form>
+      <div class="help">
+        Haqiqiy SMS ketadi va hisobdan pul yechiladi
+      </div>
+    </div>
+  </div>
+
   <div class="page-head" style="margin-top:var(--s6);">
     <div>
       <h2 class="page-title" style="font-size:var(--t-lg);">Kirish urinishlari</h2>

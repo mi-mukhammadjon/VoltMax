@@ -37,19 +37,29 @@ class SendOTPView(APIView):
 
         otp = OTPCode.generate(phone)
 
-        telegram_error = None
-        try:
-            send_verification_code('+' + phone, otp.code)
-        except TelegramGatewayError as exc:
-            telegram_error = str(exc)
+        # Ikki kanal: avval Telegram (arzon), ishlamasa SMS. Bitta kanal
+        # bitta nuqta edi — hisobda mablag' tugasa hech kim kira olmasdi.
+        from .otp_delivery import DeliveryError, deliver
 
-        data = {'success': telegram_error is None}
+        problem = None
+        try:
+            channel, _skipped = deliver(phone, otp.code)
+            otp.sent_via = channel
+            otp.save(update_fields=['sent_via'])
+        except DeliveryError as exc:
+            problem = str(exc)
+
+        data = {'success': problem is None}
         if settings.DEBUG:
+            # Ishlab chiqishda kod javobda ham qaytariladi: shlyuz
+            # sozlanmagan mashinada ham ilovani sinab ko'rish kerak
             data['devCode'] = otp.code
-            if telegram_error:
-                data['telegramError'] = telegram_error
-        elif telegram_error:
-            return Response({'detail': "Kodni yuborib bo'lmadi, birozdan so'ng qayta urinib ko'ring"}, status=502)
+            if problem:
+                data['deliveryError'] = problem
+        elif problem:
+            return Response(
+                {'detail': "Kodni yuborib bo'lmadi, birozdan so'ng qayta urinib ko'ring"},
+                status=502)
         return Response(data)
 
 

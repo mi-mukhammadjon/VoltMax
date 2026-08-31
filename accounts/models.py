@@ -17,6 +17,13 @@ class OTPCode(models.Model):
     # chiqish mumkin: daqiqasiga 5 ta so'rov cheklovi bunga to'sqinlik
     # qilmaydi, chunki urinish uzoq davom etishi mumkin.
     attempts = models.PositiveSmallIntegerField(default=0)
+    # Kod QAYSI kanal bilan ketgani. "Kod kelmadi" degan shikoyat
+    # kelganda operator qayerga qarashni bilishi kerak: Telegram
+    # hisobigami yoki SMS balansiga.
+    sent_via = models.CharField(
+        "Qaysi kanal bilan", max_length=20, blank=True,
+        choices=[('telegram', 'Telegram'), ('sms', 'SMS')],
+    )
 
     class Meta:
         verbose_name = 'OTP kod'

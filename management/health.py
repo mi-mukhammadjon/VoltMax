@@ -250,13 +250,43 @@ def check_otp():
         hint = ('Panelda saqlangan' if source == 'panel'
                 else 'Server sozlamasida (TELEGRAM_GATEWAY_TOKEN)')
 
-    return [{
+    checks = [{
         'key': 'otp',
         'title': 'OTP shlyuzi',
         'state': state,
         'value': 'sozlangan' if state == 'ok' else 'sozlanmagan',
         'hint': hint,
     }]
+
+    # Zaxira kanal. Telegramning o'zi ishlab tursa ham, u BITTA nuqta:
+    # hisobda mablag' tugasa hech kim kira olmaydi. SMS shu holatni
+    # yopadi, shuning uchun uning yo'qligi ogohlantirish.
+    from management import sms
+
+    settings_obj = SiteSettings.load()
+    if not sms.is_configured(settings_obj):
+        checks.append({
+            'key': 'sms',
+            'title': 'SMS (zaxira kanal)',
+            'state': 'warn',
+            'value': "o'chirilgan",
+            'hint': 'Telegram ishlamay qolsa kirish to‘xtaydi. Telegrami '
+                    'yo‘q odam esa umuman kira olmaydi',
+        })
+    else:
+        left = sms.balance()
+        # Balans past bo'lsa SMS jimgina ketmay qo'yadi
+        low = left is not None and left < 50
+        checks.append({
+            'key': 'sms',
+            'title': 'SMS (zaxira kanal)',
+            'state': 'warn' if low else 'ok',
+            'value': ('balans noma‘lum' if left is None else f'balans: {left}'),
+            'hint': ('Hisobni to‘ldiring — SMS tugash arafasida' if low
+                     else f'{settings_obj.sms_login} orqali'),
+        })
+
+    return checks
 
 
 def check_security():

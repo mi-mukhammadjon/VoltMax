@@ -453,19 +453,55 @@ class SettingsAccessForm(forms.ModelForm):
         fields = ['otp_ttl_minutes', 'otp_max_attempts', 'session_timeout_minutes',
                   'panel_max_attempts', 'panel_lockout_minutes',
                   'require_ocpp_auth', 'require_2fa_for_admins',
-                  'otp_gateway_token']
+                  'otp_gateway_token',
+                  'sms_enabled', 'sms_login', 'sms_password', 'sms_sender',
+                  'sms_otp_text']
         widgets = {
             # Mavjud kalit formada ko'rsatilmaydi — to'lov kalitlari bilan
             # bir xil qoida
             'otp_gateway_token': forms.PasswordInput(render_value=False),
+            'sms_password': forms.PasswordInput(render_value=False),
+            'sms_sender': forms.TextInput(attrs={'placeholder': '4546'}),
+            'sms_otp_text': forms.TextInput(
+                attrs={'placeholder': 'VoltMax: kirish kodi {code}'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['otp_gateway_token'].required = False
+        for name in ('otp_gateway_token', 'sms_login', 'sms_password',
+                     'sms_sender', 'sms_otp_text'):
+            self.fields[name].required = False
+
         if self.instance.pk and self.instance.otp_gateway_token:
             self.fields['otp_gateway_token'].help_text = (
                 "To'ldirilmasa avvalgi kalit saqlanib qoladi")
+        if self.instance.pk and self.instance.sms_password:
+            self.fields['sms_password'].help_text = (
+                "To'ldirilmasa avvalgi parol saqlanib qoladi")
+
+    def clean_sms_password(self):
+        # Bo'sh yuborilsa eskisi qoladi: aks holda sahifani saqlash
+        # parolni o'chirib, SMS jimgina ketmay qo'yardi
+        value = (self.cleaned_data.get('sms_password') or '').strip()
+        return value or self.instance.sms_password
+
+    def clean_sms_otp_text(self):
+        text = (self.cleaned_data.get('sms_otp_text') or '').strip()
+        # Matnda kod o'rni bo'lmasa, abonent bo'sh xabar oladi
+        if text and '{code}' not in text:
+            raise forms.ValidationError(
+                "Matnda {code} bo'lishi shart — kod o'shanga qo'yiladi")
+        return text
+
+    def clean(self):
+        data = super().clean()
+        # Yoqilgan, lekin sozlanmagan shlyuz eng yomon holat: operator
+        # zaxira kanal bor deb o'ylaydi, aslida yo'q
+        if data.get('sms_enabled') and not (data.get('sms_login')
+                                            and data.get('sms_password')):
+            self.add_error('sms_login',
+                           'SMS yoqilgan — login va parolni ham kiriting')
+        return data
 
     def clean_otp_gateway_token(self):
         # Bo'sh yuborilsa eskisi qoladi: aks holda har saqlashda kalit

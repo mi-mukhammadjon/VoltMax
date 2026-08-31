@@ -325,6 +325,31 @@ class SiteSettings(models.Model):
         help_text="O'chirilsa parolsiz charger ham ulana oladi — tavsiya etilmaydi",
     )
 
+    # ── SMS shlyuzi ──────────────────────────────────────────
+    # Kirish kodlari uchun IKKINCHI kanal. Telegrami yo'q odam ilovaga
+    # umuman kira olmasdi, va bitta kanal bitta nuqta demakdir.
+    sms_enabled = models.BooleanField(
+        'SMS yuborish', default=False,
+        help_text="Telegram ishlamasa kod SMS bilan yuboriladi",
+    )
+    sms_login = models.CharField(
+        'SMS xizmati logini', max_length=150, blank=True,
+        help_text='Eskiz.uz hisobingiz elektron pochtasi',
+    )
+    sms_password = models.CharField('SMS xizmati paroli', max_length=200, blank=True)
+    sms_sender = models.CharField(
+        "Jo'natuvchi nomi", max_length=20, blank=True,
+        help_text="Eskiz tasdiqlagan nom. Bo'sh bo'lsa sinov rejimi (4546)",
+    )
+    sms_otp_text = models.CharField(
+        'Kod matni (SMS)', max_length=160, blank=True,
+        help_text="{code} — kod o'rni. Eskiz'da bu matn OLDINDAN "
+                  "tasdiqlangan bo'lishi kerak",
+    )
+    # Xizmat bergan JWT: har SMS uchun qaytadan kirish sekin va keraksiz
+    sms_token = models.TextField('SMS tokeni', blank=True)
+    sms_token_at = models.DateTimeField(null=True, blank=True)
+
     otp_gateway_token = models.CharField(
         'OTP shlyuzi kaliti', max_length=200, blank=True,
         help_text="Telegram Gateway tokeni. Bo'sh bo'lsa server "
@@ -341,6 +366,12 @@ class SiteSettings(models.Model):
         if not token:
             return ''
         return '•' * 8 + token[-4:]
+
+    @property
+    def sms_password_masked(self) -> str:
+        if not self.sms_password:
+            return ''
+        return '•' * 8 + self.sms_password[-2:]
 
     @property
     def otp_token_source(self) -> str:

@@ -70,6 +70,11 @@ va takroriy so'rovda ikki marta qo'shilmaydi. Kalitlar panelda saqlanadi
 **Bildirishnomalar** — matni panelda tahrirlanadigan shablonlar va
 telefonga yetkazish (Expo push).
 
+**Kirish kodlari** ikki kanal orqali: avval Telegram Gateway (arzon),
+ishlamasa SMS (Eskiz.uz). Bitta kanal bitta nuqta edi — Telegrami yo'q
+odam ilovaga umuman kira olmasdi. Ikkalasi ham Sozlamalar > Xavfsizlik
+da sozlanadi va u yerda sinov yuborish tugmasi bor.
+
 **Narx** — to'rt qatlamdan yig'iladi (`stations/pricing.py`): markaziy
 standart narx → stansiyaning o'z narxi → vaqtga bog'liq tarif oynasi
 (tungi tarif) → aksiya chegirmasi. Narx sessiya boshlanganda muzlatiladi,
@@ -141,6 +146,7 @@ python test_ocpp_auth.py    # OCPP paroli va to'lov kalitlari
 python test_api_hardening.py  # API ruxsatlari va so'rov chegaralari
 python test_two_factor.py   # ikki bosqichli kirish
 python test_injection.py    # soxta idTag, CSV formulasi, ochiq yo'naltirish
+python test_sms.py          # SMS shlyuzi va ikki kanalli yetkazish
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`

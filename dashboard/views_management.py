@@ -992,6 +992,14 @@ def _settings_context(request, tab, forms_map=None):
             successful=False, created_at__gte=day_ago).count()
         context['default_password_users'] = uses_default_password()
 
+        # SMS balansi: mablag' tugasa xabar jimgina ketmay qo'yadi va
+        # buni faqat foydalanuvchi kira olmaganda bilib qolardik.
+        # Xizmat javob bermasa `None` — sahifa baribir ochiladi.
+        from management import sms
+
+        context['sms_balance'] = (sms.balance()
+                                  if sms.is_configured(settings_obj) else None)
+
     if tab == 'general':
         context['app_users'] = User.objects.filter(is_staff=False).count()
 
@@ -1805,3 +1813,31 @@ def two_factor_backup_codes(request):
     second.save(update_fields=['backup_hashes'])
     return render(request, 'dashboard/two_factor_done.html',
                   {'codes': codes, 'renewed': True})
+
+
+@admin_required
+def sms_test(request):
+    """SMS shlyuziga sinov xabari yuboradi.
+
+    Haqiqiy SMS ketadi va hisobdan pul yechiladi — shuning uchun matn
+    ham haqiqiy ko'rinishda bo'ladi: sozlama ishlayotganini shu bilan
+    ishonch hosil qilinadi.
+    """
+    if request.method != 'POST':
+        return redirect('dashboard:settings_security')
+
+    from dashboard.phones import normalize_phone
+    from management import sms
+
+    phone = normalize_phone(request.POST.get('phone', ''))
+    if len(phone) < 12:
+        messages.error(request, "Telefon raqamini to'liq kiriting")
+        return redirect('dashboard:settings_security')
+
+    try:
+        sms.send(phone, 'VoltMax: SMS shlyuzi sinovi')
+    except sms.SmsError as error:
+        messages.error(request, f'SMS xizmati javobi: {error}')
+    else:
+        messages.success(request, f'Sinov SMS {phone} raqamiga yuborildi')
+    return redirect('dashboard:settings_security')
