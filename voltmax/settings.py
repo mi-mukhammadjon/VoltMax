@@ -193,6 +193,32 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+# ─── Xatolar haqida xabar (ixtiyoriy) ─────────────────────────
+# Ishlab chiqarishda istisno yuz bersa, u faqat server loglariga tushadi
+# va odatda hech kim ko'rmaydi — nosozlikni foydalanuvchi aytganda bilamiz.
+# To'lov va OCPP oqimida bu qimmatga tushadi.
+#
+# `SENTRY_DSN` berilmasa hech narsa yoqilmaydi: kutubxona ham, hisob ham
+# majburiy emas, loyiha usiz ham ishlayveradi.
+SENTRY_DSN = os.getenv('SENTRY_DSN', '').strip()
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.django import DjangoIntegration
+
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            integrations=[DjangoIntegration()],
+            environment=os.getenv('SENTRY_ENV', 'production'),
+            # Xatolar bilan birga foydalanuvchi ma'lumoti yuborilmaydi:
+            # telefon raqami va hamyon holati tashqi xizmatga chiqmasin
+            send_default_pii=False,
+            traces_sample_rate=float(os.getenv('SENTRY_TRACES', '0')),
+        )
+    except ImportError:
+        # Kutubxona o'rnatilmagan — bu xato emas, shunchaki xabar yo'q
+        pass
+
 # ─── Xavfsizlik (faqat ishlab chiqarishda) ────────────────────
 # Panelga xodimlar parol bilan kiradi. HTTPS'siz sessiya cookie'sini
 # tarmoqdan o'qib olish mumkin, shuning uchun `DEBUG=False` bo'lganda

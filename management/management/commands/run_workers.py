@@ -63,6 +63,21 @@ def _overdue():
     return out.getvalue().strip()
 
 
+def _bookings():
+    """Muddati o'tgan bronlarni yopadi.
+
+    Mijoz kelmasa ulagich qurilmada band bo'lib qolardi va boshqa hech
+    kim undan foydalana olmasdi.
+    """
+    from bookings.reservations import expire_stale
+
+    result = expire_stale()
+    if result['closed']:
+        return (f"bronlar: {result['closed']} ta yopildi, "
+                f"{result['released']} ta ulagich bo'shatildi")
+    return ''
+
+
 def _cleanup():
     """Eskirgan yozuvlarni tozalaydi.
 
@@ -94,6 +109,7 @@ JOBS = [
     ('devices', _devices, 120),
     ('overdue', _overdue, 300),
     ('push', _push, 30),
+    ('bookings', _bookings, 300),
     ('cleanup', _cleanup, 24 * 3600),
 ]
 

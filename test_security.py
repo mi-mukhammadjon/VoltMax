@@ -147,6 +147,49 @@ def main():
               panel2.session.get_expiry_age() > 7000, panel2.session.get_expiry_age())
         staff.delete()
 
+        # ── 6. Panel darajalari ────────────────────────────────
+        # Ilgari `is_staff` bo'lgan har kim sozlamalarni ham, hamkorga
+        # to'lovni ham o'zgartira olardi: «Rollar» bo'limi bor edi-yu,
+        # hech qayerda tekshirilmasdi
+        manager = User.objects.create_user(username='__sc_menejer__',
+                                           password='sinov-parol-2', is_staff=True)
+        admin = User.objects.create_user(username='__sc_admin2__',
+                                         password='sinov-parol-3',
+                                         is_staff=True, is_superuser=True)
+
+        as_manager, as_admin = Client(), Client()
+        as_manager.force_login(manager)
+        as_admin.force_login(admin)
+
+        closed = ['/settings/general/', '/settings/providers/', '/payouts/',
+                  '/managers/', '/roles/']
+        blocked = [url for url in closed if as_manager.get(url).status_code == 403]
+        check('menejerga sozlama va hisob-kitob yopiq',
+              len(blocked) == len(closed), set(closed) - set(blocked))
+
+        allowed = [url for url in closed if as_admin.get(url).status_code == 200]
+        check('administratorga ochiq', len(allowed) == len(closed),
+              set(closed) - set(allowed))
+
+        # Kundalik ish menejerga ochiq qolishi kerak
+        daily = ['/stations/', '/sessions/', '/rfid/', '/companies/', '/maintenance/']
+        open_pages = [url for url in daily if as_manager.get(url).status_code == 200]
+        check("kundalik bo'limlar menejerga ochiq",
+              len(open_pages) == len(daily), set(daily) - set(open_pages))
+
+        # Yozish amallari ham yopiq: ko'rinishni yashirish yetarli emas
+        write = as_manager.post('/settings/general/',
+                                {'section': 'app', 'app_name': 'menejer yozdi'})
+        check('menejer sozlamani saqlay olmadi', write.status_code == 403,
+              write.status_code)
+
+        menu = as_manager.get('/stations/').content.decode('utf-8')
+        check("yopiq bo'limlar menyuda ko'rinmadi",
+              '/settings/general/' not in menu and '/payouts/' not in menu)
+
+        manager.delete()
+        admin.delete()
+
     finally:
         for field, value in saved.items():
             setattr(settings_obj, field, value)

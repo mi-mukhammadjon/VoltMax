@@ -89,3 +89,42 @@ serverga yeta olmayapti (webhook manzili yoki kalit noto'g'ri).
 **Sozlamalar > Bildirishnoma** — «Ro'yxatdagi qurilmalar» 0 bo'lsa, push
 umuman ketmaydi: ilova hali hech kimda ishga tushmagan yoki `send_push`
 ishchisi ishlamayapti.
+
+## 6. Zaxira nusxa
+
+Bazada pul harakati bor — hamyon qoldiqlari, to'lovlar, hisob-kitoblar.
+Railway'ning o'z zaxirasi bor, lekin u **platformaga bog'liq**: hisob
+yopilsa yoki xizmat ko'chirilsa, nusxa ham yo'qoladi.
+
+```bash
+python manage.py backup_db                # backups/ papkasiga
+python manage.py backup_db --out /mnt/d   # boshqa diskka
+python manage.py backup_db --keep 14      # 14 kunlik nusxalar qoladi
+```
+
+Tavsiya: haftada bir marta nusxani **boshqa joyga** (masalan R2 bucket yoki
+lokal disk) ko'chiring.
+
+> Nusxa faqat olinsa yetarli emas — uni **tiklab ko'rish** kerak. Tiklash
+> sinab ko'rilmagan nusxa nusxa emas. Har chorakda bir marta bo'sh bazaga
+> tiklab, panelga kirib ko'ring.
+
+## 7. Xatolar haqida xabar (ixtiyoriy)
+
+`SENTRY_DSN` berilsa istisnolar Sentry'ga yuboriladi. Berilmasa hech
+narsa yoqilmaydi va loyiha odatdagidek ishlayveradi.
+
+Foydalanuvchi ma'lumoti (telefon raqami, hamyon holati) **yuborilmaydi** —
+`send_default_pii=False`.
+
+## 8. Panel darajalari
+
+Panelda ikki daraja bor:
+
+| Daraja | Nima qila oladi |
+|---|---|
+| **Menejer** (`is_staff`) | Stansiyalar, sessiyalar, kartalar, mijozlar, profilaktika, hisobotlar |
+| **Administrator** (`is_superuser`) | Yuqoridagilarning hammasi + sozlamalar, to'lov tizimlari kalitlari, hamkorlar bilan hisob-kitob, xodimlar va rollar |
+
+Menejerga yopiq bo'limlar menyuda ham ko'rinmaydi.
+

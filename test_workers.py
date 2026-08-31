@@ -41,7 +41,7 @@ def check(label, condition, extra=''):
 def main():
     names = [name for name, _f, _i in run_workers.JOBS]
     check('barcha vazifalar ro\'yxatda',
-          set(names) == {'parking', 'devices', 'overdue', 'push', 'cleanup'}, names)
+          set(names) == {'parking', 'devices', 'overdue', 'push', 'cleanup', 'bookings'}, names)
     check('har vazifaning oralig\'i belgilangan',
           all(interval > 0 for _n, _f, interval in run_workers.JOBS))
     check('push eng tez-tez ishlaydi',

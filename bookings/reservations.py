@@ -83,3 +83,55 @@ def release_connector(booking) -> bool:
     booking.ocpp_reservation_id = None
     booking.save(update_fields=['ocpp_reservation_id'])
     return True
+
+
+def expire_stale(now=None, grace_minutes=15):
+    """Muddati o'tgan bronlarni yopadi va ulagichni bo'shatadi.
+
+    Mijoz kelmasa bron abadiy ochiq qolardi: ulagich qurilmada band
+    bo'lib turardi va boshqa hech kim undan foydalana olmasdi. Charger
+    o'zi ham bronni bekor qiladi, lekin faqat `expiryDate` kelganda —
+    biz esa bazadagi holatni ham tozalashimiz kerak, aks holda
+    foydalanuvchi "bronim bor" deb kutib qolardi.
+
+    `grace_minutes` — kechikish uchun beriladigan vaqt: mijoz bir necha
+    daqiqa kechikishi odatiy hol.
+
+    Qaytaradi: {'closed': n, 'released': n}
+    """
+    from django.utils import timezone
+
+    from .models import Booking
+
+    now = now or timezone.now()
+    result = {'closed': 0, 'released': 0}
+
+    rows = Booking.objects.filter(
+        status=Booking.Status.CONFIRMED
+    ).select_related('station', 'connector')
+
+    for booking in rows:
+        deadline = (booking.scheduled_at
+                    + timedelta(minutes=booking.duration_minutes + grace_minutes))
+        if deadline > now:
+            continue
+
+        # Bron vaqtida sessiya boshlangan bo'lsa — bu bajarilgan bron,
+        # muddati o'tgani uchun bekor qilinmaydi
+        from sessions_app.models import ChargingSession
+
+        used = ChargingSession.objects.filter(
+            user_id=booking.user_id, station_id=booking.station_id,
+            started_at__gte=booking.scheduled_at,
+            started_at__lte=deadline,
+        ).exists()
+
+        if release_connector(booking):
+            result['released'] += 1
+
+        booking.status = (Booking.Status.COMPLETED if used
+                          else Booking.Status.CANCELLED)
+        booking.save(update_fields=['status'])
+        result['closed'] += 1
+
+    return result

@@ -32,7 +32,7 @@ from sessions_app.models import ChargingSession
 from stations.models import Connector, Review, Station
 from wallet.models import Transaction, WalletBalance
 
-from .decorators import staff_required
+from .decorators import admin_required, staff_required
 from .forms import (
     BannerForm,
     FaqItemForm,
@@ -421,7 +421,7 @@ def _staff_queryset(is_admin: bool):
     return User.objects.filter(is_staff=True, is_superuser=is_admin).order_by('username')
 
 
-@staff_required
+@admin_required
 def managers_list(request):
     return render(request, 'dashboard/staff_list.html', {
         'page_obj': Paginator(_staff_queryset(is_admin=False), PAGE_SIZE).get_page(request.GET.get('page')),
@@ -433,7 +433,7 @@ def managers_list(request):
     })
 
 
-@staff_required
+@admin_required
 def admins_list(request):
     return render(request, 'dashboard/staff_list.html', {
         'page_obj': Paginator(_staff_queryset(is_admin=True), PAGE_SIZE).get_page(request.GET.get('page')),
@@ -461,17 +461,17 @@ def _staff_form_view(request, pk, is_admin):
     })
 
 
-@staff_required
+@admin_required
 def manager_form_view(request, pk=None):
     return _staff_form_view(request, pk, is_admin=False)
 
 
-@staff_required
+@admin_required
 def admin_form_view(request, pk=None):
     return _staff_form_view(request, pk, is_admin=True)
 
 
-@staff_required
+@admin_required
 def staff_detail(request, pk):
     member = get_object_or_404(User.objects.prefetch_related('groups'), pk=pk, is_staff=True)
     return render(request, 'dashboard/staff_detail.html', {
@@ -497,7 +497,7 @@ def staff_delete(request, pk):
 # ═══════════════════════════════════════════════════════════════
 #  Rollar va huquqlar
 # ═══════════════════════════════════════════════════════════════
-@staff_required
+@admin_required
 def roles_list(request):
     roles = Group.objects.prefetch_related('permissions', 'user_set').order_by('name')
     return render(request, 'dashboard/roles.html', {
@@ -505,7 +505,7 @@ def roles_list(request):
     })
 
 
-@staff_required
+@admin_required
 def role_form_view(request, pk=None):
     instance = get_object_or_404(Group, pk=pk) if pk else None
     form = RoleForm(request.POST or None, instance=instance)
@@ -516,7 +516,7 @@ def role_form_view(request, pk=None):
     return render(request, 'dashboard/role_form.html', {'form': form, 'instance': instance})
 
 
-@staff_required
+@admin_required
 def role_delete(request, pk):
     role = get_object_or_404(Group, pk=pk)
     if request.method == 'POST':
@@ -610,7 +610,7 @@ def page_form_view(request, slug):
 # ═══════════════════════════════════════════════════════════════
 #  Hamkorlar bilan hisob-kitob
 # ═══════════════════════════════════════════════════════════════
-@staff_required
+@admin_required
 def payouts(request):
     """Oylik hisob-kitob: qaysi hamkorga qancha o'tkazish kerak.
 
@@ -663,7 +663,7 @@ def _recent_periods(count=6):
     return rows
 
 
-@staff_required
+@admin_required
 def payout_freeze(request, pk, year, month):
     """Hisobni muzlatadi — shundan keyin foiz o'zgarsa ham davr o'zgarmaydi."""
     from dashboard.payouts import freeze
@@ -683,7 +683,7 @@ def payout_freeze(request, pk, year, month):
     return redirect(f'{reverse("dashboard:payouts")}?year={year}&month={month}')
 
 
-@staff_required
+@admin_required
 def payout_paid(request, pk):
     """To'lov qilinganini qayd etadi."""
     from management.models import PartnerPayout
@@ -709,7 +709,7 @@ def payout_paid(request, pk):
                     f'?year={record.year}&month={record.month}')
 
 
-@staff_required
+@admin_required
 def payouts_export(request):
     """Davr hisobini CSV faylida beradi — buxgalteriya u bilan ishlaydi."""
     from dashboard.exports import csv_response
@@ -989,42 +989,42 @@ def _settings_view(request, tab):
     return redirect(f'dashboard:settings_{tab}')
 
 
-@staff_required
+@admin_required
 def settings_general(request):
     return _settings_view(request, 'general')
 
 
-@staff_required
+@admin_required
 def settings_org(request):
     return _settings_view(request, 'org')
 
 
-@staff_required
+@admin_required
 def settings_session(request):
     return _settings_view(request, 'session')
 
 
-@staff_required
+@admin_required
 def settings_providers(request):
     return _settings_view(request, 'providers')
 
 
-@staff_required
+@admin_required
 def settings_payment(request):
     return _settings_view(request, 'payment')
 
 
-@staff_required
+@admin_required
 def settings_notification(request):
     return _settings_view(request, 'notification')
 
 
-@staff_required
+@admin_required
 def settings_security(request):
     return _settings_view(request, 'security')
 
 
-@staff_required
+@admin_required
 def settings_contract(request):
     return _settings_view(request, 'contract')
 
@@ -1049,7 +1049,7 @@ def _numbered_sections():
     return sections
 
 
-@staff_required
+@admin_required
 def contract_section_form_view(request, pk=None):
     """Bo'lim qo'shish yoki tahrirlash (sozlamalar sahifasidagi modal orqali)."""
     section = get_object_or_404(ContractSection, pk=pk) if pk else None
@@ -1074,7 +1074,7 @@ def contract_section_form_view(request, pk=None):
     return _contract_back()
 
 
-@staff_required
+@admin_required
 def contract_section_delete(request, pk):
     section = get_object_or_404(ContractSection, pk=pk)
     if request.method == 'POST':
@@ -1083,7 +1083,7 @@ def contract_section_delete(request, pk):
     return _contract_back()
 
 
-@staff_required
+@admin_required
 def contract_section_move(request, pk):
     """Bo'limni bir pog'ona yuqoriga yoki pastga suradi.
 
@@ -1112,7 +1112,7 @@ def contract_section_move(request, pk):
 
 
 # ── Bildirishnoma shablonlari ───────────────────────────────────
-@staff_required
+@admin_required
 def notification_template_edit(request, pk):
     """Bildirishnoma matnini saqlaydi.
 
@@ -1138,7 +1138,7 @@ def notification_template_edit(request, pk):
     return redirect('dashboard:settings_notification')
 
 
-@staff_required
+@admin_required
 def notification_templates_reset(request):
     """Barcha matnlarni standart holatiga qaytaradi."""
     if request.method == 'POST':
@@ -1149,7 +1149,7 @@ def notification_templates_reset(request):
 
 
 # ── To'lov tizimlari ────────────────────────────────────────────
-@staff_required
+@admin_required
 def provider_form_view(request, pk=None):
     """To'lov tashkilotini qo'shish yoki tahrirlash.
 
@@ -1184,7 +1184,7 @@ def provider_form_view(request, pk=None):
     return redirect('dashboard:settings_providers')
 
 
-@staff_required
+@admin_required
 def provider_toggle(request, pk):
     """Tashkilotni yoqadi/o'chiradi. O'chirilgani mobil ilovada ko'rinmaydi."""
     provider = get_object_or_404(PaymentProvider, pk=pk)
@@ -1205,7 +1205,7 @@ def provider_toggle(request, pk):
     return redirect('dashboard:settings_providers')
 
 
-@staff_required
+@admin_required
 def provider_delete(request, pk):
     provider = get_object_or_404(PaymentProvider, pk=pk)
     if request.method == 'POST':
@@ -1220,7 +1220,7 @@ def provider_delete(request, pk):
 
 
 # ── Sozlamalar bo'yicha qidiruv ─────────────────────────────────
-@staff_required
+@admin_required
 def settings_search(request):
     """Sozlama nomi bo'yicha qidiradi va qaysi tabda ekanini ko'rsatadi.
 
@@ -1259,12 +1259,12 @@ def _holiday_back():
     return redirect('dashboard:settings_holiday')
 
 
-@staff_required
+@admin_required
 def settings_holiday(request):
     return _settings_view(request, 'holiday')
 
 
-@staff_required
+@admin_required
 def holidays_sync(request):
     """Bayramlarni Google Calendar'dan yangilaydi.
 
@@ -1289,7 +1289,7 @@ def holidays_sync(request):
     return _holiday_back()
 
 
-@staff_required
+@admin_required
 def holiday_add(request):
     """Bayram kunini qo'lda qo'shadi (yoki mavjudini yangilaydi)."""
     if request.method != 'POST':
@@ -1309,7 +1309,7 @@ def holiday_add(request):
     return _holiday_back()
 
 
-@staff_required
+@admin_required
 def holiday_delete(request, pk):
     holiday = get_object_or_404(Holiday, pk=pk)
     if request.method == 'POST':
@@ -1340,7 +1340,7 @@ def holidays_json(request):
     })
 
 
-@staff_required
+@admin_required
 def contract_preview(request):
     """Shablonni namuna ma'lumotlar bilan yuklab beradi.
 
@@ -1380,7 +1380,7 @@ def contract_preview(request):
     return response
 
 
-@staff_required
+@admin_required
 def contract_sections_reset(request):
     """Barcha bo'limlarni standart matnga qaytaradi."""
     if request.method == 'POST':

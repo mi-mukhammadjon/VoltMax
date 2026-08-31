@@ -10,3 +10,6 @@ media/
 .claude/
 .agents/
 skills-lock.json
+
+# Zaxira nusxalar — repozitoriyga tushmasin
+backups/
