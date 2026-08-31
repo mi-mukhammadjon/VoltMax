@@ -221,6 +221,7 @@ def main():
         ('Sahifalar', '/content/pages/'),
         ('OTP kodlar', '/otp/'),
         ('Amallar jurnali', '/activity/'),
+        ('Hamkorlar hisob-kitobi', '/payouts/'),
         ('Sozlamalar: shartnoma', '/settings/contract/'),
         ("Sozlamalar: to'lov tizimlari", '/settings/providers/'),
         ('Sozlamalar: bildirishnoma', '/settings/notification/'),

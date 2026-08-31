@@ -75,6 +75,12 @@ urlpatterns = [
     path('reports/usage/', m.reports_usage, name='reports_usage'),
     # Hisobotni faylga yuklash: revenue | stations | sessions
     path('reports/export/<slug:kind>/', m.report_export, name='report_export'),
+    # Hamkorlar bilan oylik hisob-kitob
+    path('payouts/', m.payouts, name='payouts'),
+    path('payouts/export/', m.payouts_export, name='payouts_export'),
+    path('payouts/<int:pk>/freeze/<int:year>/<int:month>/', m.payout_freeze,
+         name='payout_freeze'),
+    path('payouts/<int:pk>/paid/', m.payout_paid, name='payout_paid'),
 
     # ── Aksiyalar ───────────────────────────────────────────
     path('offers/', m.offers_list, name='offers'),

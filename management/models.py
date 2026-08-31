@@ -821,3 +821,63 @@ class ActivityLog(models.Model):
 
     def __str__(self):
         return f'{self.title} — {self.actor or "tizim"}'
+
+
+class PartnerPayout(models.Model):
+    """Hamkorga oylik hisob-kitob.
+
+    Stansiya hamkorga tegishli, tushum esa bizga keladi: haydovchi
+    hamyonidan pul yechiladi. Oy oxirida hamkorga uning ulushini
+    o'tkazish kerak — `Partner.commission_percent` biz ushlab qoladigan
+    foiz, qolgani hamkorniki.
+
+    Nima uchun alohida yozuv, har safar hisoblab chiqarish emas: to'lov
+    qilingandan keyin komissiya foizi o'zgarsa, eski davr ham qayta
+    hisoblanib ketardi va hisobot o'zgarib qolardi. Yozuv esa o'sha
+    paytdagi holatni muzlatib qo'yadi.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', "To'lanmagan"
+        PAID = 'paid', "To'langan"
+
+    partner = models.ForeignKey(Partner, on_delete=models.CASCADE,
+                                related_name='payouts', verbose_name='Hamkor')
+    year = models.PositiveSmallIntegerField('Yil')
+    month = models.PositiveSmallIntegerField('Oy')
+
+    # Hisob o'sha paytdagi holat bilan muzlatiladi
+    gross = models.PositiveIntegerField("Umumiy tushum (so'm)", default=0)
+    commission_percent = models.PositiveSmallIntegerField('Komissiya (%)', default=0)
+    commission = models.PositiveIntegerField("Bizning ulush (so'm)", default=0)
+    amount = models.PositiveIntegerField("Hamkorga (so'm)", default=0)
+    sessions = models.PositiveIntegerField('Sessiyalar', default=0)
+    kwh = models.FloatField('Energiya (kVt·s)', default=0)
+
+    status = models.CharField(max_length=10, choices=Status.choices,
+                              default=Status.PENDING)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    payment_ref = models.CharField("To'lov topshiriqnomasi №", max_length=50, blank=True)
+    note = models.CharField('Izoh', max_length=255, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Hamkor hisob-kitobi'
+        verbose_name_plural = 'Hamkorlar hisob-kitobi'
+        ordering = ['-year', '-month', 'partner__name']
+        constraints = [
+            # Bir hamkorga bir oy uchun bitta yozuv: aks holda ikki marta
+            # to'lab yuborish mumkin bo'lardi
+            models.UniqueConstraint(fields=['partner', 'year', 'month'],
+                                    name='unique_partner_period'),
+        ]
+
+    def __str__(self):
+        return f'{self.partner.name} — {self.year}.{self.month:02d}'
+
+    @property
+    def is_paid(self) -> bool:
+        return self.status == self.Status.PAID

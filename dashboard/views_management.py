@@ -15,6 +15,7 @@ from django.db.models import Avg, Count, Q, Sum
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.dateparse import parse_date
 from django.utils import timezone
 
@@ -604,6 +605,132 @@ def page_form_view(request, slug):
         messages.success(request, 'Saqlandi')
         return redirect('dashboard:content_pages')
     return render(request, 'dashboard/page_form.html', {'form': form, 'page': page})
+
+
+# ═══════════════════════════════════════════════════════════════
+#  Hamkorlar bilan hisob-kitob
+# ═══════════════════════════════════════════════════════════════
+@staff_required
+def payouts(request):
+    """Oylik hisob-kitob: qaysi hamkorga qancha o'tkazish kerak.
+
+    Stansiya hamkorga tegishli, tushum esa bizga keladi — oy oxirida
+    uning ulushini o'tkazish kerak. Ilgari bu hisob umuman yo'q edi:
+    komissiya foizi saqlanardi, lekin u bilan hech narsa qilinmasdi.
+    """
+    from dashboard.payouts import build_period, month_range
+
+    today = timezone.localdate()
+    try:
+        year = int(request.GET.get('year') or today.year)
+        month = int(request.GET.get('month') or today.month)
+    except ValueError:
+        year, month = today.year, today.month
+    if not 1 <= month <= 12:
+        year, month = today.year, today.month
+
+    rows = build_period(year, month)
+    start, end = month_range(year, month)
+
+    return render(request, 'dashboard/payouts.html', {
+        'rows': rows,
+        'year': year,
+        'month': month,
+        'period': f'{start:%d.%m.%Y} — {end:%d.%m.%Y}',
+        'months': _recent_periods(),
+        'totals': {
+            'gross': sum(r['gross'] for r in rows),
+            'commission': sum(r['commission'] for r in rows),
+            'amount': sum(r['amount'] for r in rows),
+            'unpaid': sum(r['amount'] for r in rows
+                          if r['payout'] is None or not r['payout'].is_paid),
+        },
+    })
+
+
+def _recent_periods(count=6):
+    """Oxirgi oylar — buxgalteriya odatda o'tgan oyni so'raydi."""
+    from dashboard.acts import month_label
+
+    today = timezone.localdate()
+    year, month = today.year, today.month
+    rows = []
+    for _ in range(count):
+        rows.append({'year': year, 'month': month, 'label': month_label(year, month)})
+        month -= 1
+        if month == 0:
+            year, month = year - 1, 12
+    return rows
+
+
+@staff_required
+def payout_freeze(request, pk, year, month):
+    """Hisobni muzlatadi — shundan keyin foiz o'zgarsa ham davr o'zgarmaydi."""
+    from dashboard.payouts import freeze
+
+    partner = get_object_or_404(Partner, pk=pk)
+    if request.method != 'POST':
+        return redirect('dashboard:payouts')
+
+    record, created = freeze(partner, year, month, user=request.user)
+    if created:
+        log_action(request, ActivityLog.Action.OTHER,
+                   f'{partner.name} — {year}.{month:02d} hisobi tayyorlandi',
+                   detail=f"hamkorga {record.amount} so'm")
+        messages.success(request, f'{partner.name}: hisob tayyorlandi')
+    else:
+        messages.error(request, 'Bu davr uchun hisob allaqachon bor')
+    return redirect(f'{reverse("dashboard:payouts")}?year={year}&month={month}')
+
+
+@staff_required
+def payout_paid(request, pk):
+    """To'lov qilinganini qayd etadi."""
+    from management.models import PartnerPayout
+
+    record = get_object_or_404(PartnerPayout.objects.select_related('partner'), pk=pk)
+    if request.method != 'POST':
+        return redirect('dashboard:payouts')
+
+    if record.is_paid:
+        messages.error(request, 'Bu hisob allaqachon to‘langan')
+    else:
+        record.status = PartnerPayout.Status.PAID
+        record.paid_at = timezone.now()
+        record.payment_ref = (request.POST.get('payment_ref') or '').strip()[:50]
+        record.save(update_fields=['status', 'paid_at', 'payment_ref'])
+
+        log_action(request, ActivityLog.Action.WALLET,
+                   f"{record.partner.name} — {record.amount} so'm to'landi",
+                   detail=f"t/t №{record.payment_ref or '—'}")
+        messages.success(request, f"{record.partner.name}: to'langan deb belgilandi")
+
+    return redirect(f'{reverse("dashboard:payouts")}'
+                    f'?year={record.year}&month={record.month}')
+
+
+@staff_required
+def payouts_export(request):
+    """Davr hisobini CSV faylida beradi — buxgalteriya u bilan ishlaydi."""
+    from dashboard.exports import csv_response
+    from dashboard.payouts import build_period
+
+    today = timezone.localdate()
+    year = int(request.GET.get('year') or today.year)
+    month = int(request.GET.get('month') or today.month)
+
+    rows = [
+        [r['partner'].name, r['sessions'], r['kwh'], r['gross'],
+         r['commission_percent'], r['commission'], r['amount'],
+         'to‘langan' if r['payout'] and r['payout'].is_paid else 'to‘lanmagan']
+        for r in build_period(year, month)
+    ]
+    return csv_response(
+        f'hamkorlar-{year}-{month:02d}',
+        ['Hamkor', 'Sessiyalar', 'Energiya (kVt·s)', "Umumiy tushum (so'm)",
+         'Komissiya (%)', "Bizning ulush (so'm)", "Hamkorga (so'm)", 'Holat'],
+        rows,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════

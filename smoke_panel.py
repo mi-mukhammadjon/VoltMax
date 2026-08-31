@@ -68,6 +68,7 @@ GET_PAGES = [
     ('Profil', '/profile/'),
     ('OTP kodlar', '/otp/'),
     ('Amallar jurnali', '/activity/'),
+    ('Hamkorlar hisob-kitobi', '/payouts/'),
 ]
 
 
