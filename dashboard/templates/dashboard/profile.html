@@ -1,125 +1,247 @@
-{% extends 'dashboard/base.html' %}
+{% extends 'dashboard/base.html' %}{% load phone %}
 {% block title %}Profil — VoltMax Panel{% endblock %}
 {% block content %}
+
 <div class="page-head">
-  <div><h1 class="page-title">Profil</h1><div class="page-sub">O'z hisobingiz sozlamalari</div></div>
-</div>
-
-<div class="kv-grid">
-  <div class="kv"><div class="k">Login</div><div class="v" style="font-size:16px;">{{ member.username }}</div></div>
-  <div class="kv"><div class="k">Roli</div><div class="v" style="font-size:16px;">{% if member.is_superuser %}Administrator{% else %}Menejer{% endif %}</div></div>
-  <div class="kv"><div class="k">Oxirgi kirish</div><div class="v" style="font-size:15px;">{{ member.last_login|date:"d.m.Y H:i"|default:"—" }}</div></div>
-</div>
-
-<div class="card form-card">
-  <form method="post">
-    {% csrf_token %}
-    <div class="my-field-row">
-      <div class="field"><label>Ism</label><input type="text" name="first_name" value="{{ member.first_name }}"></div>
-      <div class="field"><label>Familiya</label><input type="text" name="last_name" value="{{ member.last_name }}"></div>
-    </div>
-    <div class="field"><label>Email</label><input type="text" name="email" value="{{ member.email }}"></div>
-
-    <div class="section-title" style="margin-top:22px;">Parolni o'zgartirish</div>
-    <div class="my-field-row">
-      <div class="field"><label>Yangi parol</label><input type="password" name="new_password" autocomplete="new-password"></div>
-      <div class="field"><label>Tasdiqlash</label><input type="password" name="confirm_password" autocomplete="new-password"></div>
-    </div>
-    <div class="help">Parol o'zgartirilsa, qaytadan kirish talab qilinadi.</div>
-
-    <div class="form-actions"><button type="submit" class="btn">Saqlash</button></div>
-  </form>
+  <div>
+    <h1 class="page-title">Profil</h1>
+    <div class="page-sub">O'z hisobingiz va xavfsizlik sozlamalari</div>
+  </div>
 </div>
 
 {% comment %}
-  Ikki bosqichli kirish. Parol qanchalik kuchli bo'lmasin, u BITTA
-  to'siq: oshkor bo'lsa boshqa hech narsa qolmaydi. Panel esa butun
-  tarmoqni, hamma hamyonni va to'lov kalitlarini boshqaradi.
+  Yuqoridagi kartochka — «men kimman» degan savolga bir qarashda javob.
+  Ilgari bu ma'lumot uchta alohida katakda tarqoq turardi va ular
+  orasida bog'liqlik ko'rinmasdi.
+
+  Bosh harflar avatar o'rnida: rasm yuklash imkoni yo'q, bo'sh doira esa
+  ma'nosiz bo'lardi.
 {% endcomment %}
-<div class="section-head" style="margin-top:var(--s6);">
-  <h2>Ikki bosqichli kirish</h2>
-  {% if two_factor.is_active %}
-    <span class="badge success">Yoqilgan</span>
-  {% else %}
-    <span class="badge muted">O'chirilgan</span>
-  {% endif %}
-</div>
+<div class="card profile-hero">
+  <div class="profile-avatar" aria-hidden="true">{{ initials }}</div>
 
-<div class="card form-card">
-  {% if two_factor.is_active %}
-    <div class="kv-list">
-      <div class="kv-row">
-        <span class="k">Holat</span>
-        <span class="v">
-          Yoqilgan{% if two_factor.confirmed_at %} — {{ two_factor.confirmed_at|date:"d.m.Y" }}{% endif %}
-          {% if two_factor.last_used_at %}
-            <span class="cell-sub">oxirgi marta {{ two_factor.last_used_at|date:"d.m.Y H:i" }}</span>
-          {% endif %}
-        </span>
-      </div>
-      <div class="kv-row">
-        <span class="k">Zaxira kodlari</span>
-        <span class="v">
-          {{ two_factor.backup_left }} ta qoldi
-          {% if two_factor.backup_left <= 2 %}
-            <span class="cell-sub" style="color:var(--warning);">
-              tugab qolyapti — yangilang
-            </span>
-          {% endif %}
-        </span>
-      </div>
+  <div class="profile-identity">
+    <div class="profile-name">
+      {{ member.get_full_name|default:member.username|phone }}
     </div>
-
-    <div class="field-row" style="margin-top:var(--s4);">
-      {% comment %}
-        Ikkala amal ham joriy kod bilan: o'g'irlangan sessiya ikkinchi
-        to'siqni shunchaki olib tashlab qo'ya olmasin.
-      {% endcomment %}
-      <form method="post" action="{% url 'dashboard:two_factor_backup' %}"
-            style="display:flex;gap:var(--s2);align-items:flex-end;flex:1;">
-        {% csrf_token %}
-        <div class="field" style="margin:0;flex:1;">
-          <label for="backup-code">Zaxira kodlarini yangilash</label>
-          <input type="text" id="backup-code" name="code" class="mono"
-                 maxlength="9" inputmode="numeric" placeholder="000000">
-          <div class="help">Eskilari darhol yaroqsiz bo'ladi</div>
-        </div>
-        <button type="submit" class="btn secondary">Yangilash</button>
-      </form>
-    </div>
-
-    {% if not two_factor_required %}
-      <form method="post" action="{% url 'dashboard:two_factor_disable' %}"
-            style="display:flex;gap:var(--s2);align-items:flex-end;margin-top:var(--s4);">
-        {% csrf_token %}
-        <div class="field" style="margin:0;flex:1;">
-          <label for="off-code">O'chirish uchun joriy kod</label>
-          <input type="text" id="off-code" name="code" class="mono"
-                 maxlength="9" inputmode="numeric" placeholder="000000">
-        </div>
-        <button type="submit" class="btn danger">O'chirish</button>
-      </form>
-    {% else %}
-      <div class="help" style="margin-top:var(--s4);">
-        Administratorlar uchun majburiy qilingan — o'chirib bo'lmaydi
-        (Sozlamalar &gt; Xavfsizlik).
-      </div>
-    {% endif %}
-
-  {% else %}
-    <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.6;">
-      Yoqilgach kirishda telefondagi ilova bergan olti xonali kod
-      so'raladi. Parolingiz oshkor bo'lsa ham, telefonsiz kirib
-      bo'lmaydi.
-      {% if two_factor_required %}
-        <br><br><b style="color:var(--danger);">
-          Sizning hisobingiz uchun bu majburiy — hozir yoqing.
-        </b>
+    <div class="profile-meta">
+      <span class="mono">{{ member.username|phone }}</span>
+      {% if member.is_superuser %}
+        <span class="badge success">Administrator</span>
+      {% else %}
+        <span class="badge muted">Menejer</span>
       {% endif %}
     </div>
-    <div class="form-actions">
-      <a href="{% url 'dashboard:two_factor_setup' %}" class="btn">Yoqish</a>
+  </div>
+
+  {% comment %}
+    O'ng tomonda — holat. Ikki bosqichli kirish yoqilmagani shu yerda
+    ko'rinadi: pastdagi bo'limga tushmasdan ham bilinsin.
+  {% endcomment %}
+  <div class="profile-stats">
+    <div class="profile-stat">
+      <div class="k">Oxirgi kirish</div>
+      <div class="v">{{ member.last_login|date:"d.m.Y H:i"|default:"—" }}</div>
     </div>
-  {% endif %}
+    <div class="profile-stat">
+      <div class="k">Ikki bosqichli kirish</div>
+      <div class="v">
+        {% if two_factor.is_active %}
+          <span class="badge success">Yoqilgan</span>
+        {% else %}
+          <span class="badge {% if two_factor_required %}danger{% else %}warning{% endif %}">
+            O'chirilgan
+          </span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="detail-cols profile-cols">
+  <div>
+    {% comment %}
+      Shaxsiy ma'lumot va parol — ALOHIDA formalar. Ilgari ikkalasi
+      bitta formada edi: ismni o'zgartirish uchun ham parol maydonlari
+      yonida turardi va bitta «Saqlash» tugmasi ikkala ishni bajarardi.
+      Parol o'zgarsa esa tizimdan chiqariladi — ya'ni ism saqlanganini
+      ko'rishning ham iloji yo'q edi.
+    {% endcomment %}
+    <div class="section-head"><h2>Shaxsiy ma'lumot</h2></div>
+    <div class="card form-card">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="profile">
+        <div class="my-field-row">
+          <div class="field">
+            <label for="first_name">Ism</label>
+            <input type="text" id="first_name" name="first_name"
+                   value="{{ member.first_name }}" autocomplete="given-name">
+          </div>
+          <div class="field">
+            <label for="last_name">Familiya</label>
+            <input type="text" id="last_name" name="last_name"
+                   value="{{ member.last_name }}" autocomplete="family-name">
+          </div>
+        </div>
+        <div class="field">
+          <label for="email">Elektron pochta</label>
+          <input type="email" id="email" name="email" value="{{ member.email }}"
+                 autocomplete="email">
+          <div class="help">
+            Parolni tiklash havolasi shu manzilga yuboriladi{% if not member.email %} —
+            <b>hozircha bo'sh, parolni o'zingiz tiklay olmaysiz</b>{% endif %}
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn">Saqlash</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="section-head"><h2>Parol</h2></div>
+    <div class="card form-card">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="password">
+        <div class="my-field-row">
+          <div class="field">
+            <label for="new_password">Yangi parol</label>
+            <input type="password" id="new_password" name="new_password"
+                   autocomplete="new-password">
+          </div>
+          <div class="field">
+            <label for="confirm_password">Tasdiqlash</label>
+            <input type="password" id="confirm_password" name="confirm_password"
+                   autocomplete="new-password">
+          </div>
+        </div>
+        <div class="help">
+          Kamida 10 belgi. Ichida loyiha nomi bo'lmasin — hujjatda
+          yozilgan parol birinchi bo'lib sinab ko'riladi.
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn secondary">O'zgartirish</button>
+          <span class="help">O'zgartirilgach qaytadan kirish so'raladi</span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div>
+    {% comment %}
+      Ikki bosqichli kirish. Parol qanchalik kuchli bo'lmasin, u BITTA
+      to'siq: oshkor bo'lsa boshqa hech narsa qolmaydi. Panel esa butun
+      tarmoqni, hamma hamyonni va to'lov kalitlarini boshqaradi.
+    {% endcomment %}
+    <div class="section-head">
+      <h2>Ikki bosqichli kirish</h2>
+      {% if two_factor.is_active %}<span class="badge success">Yoqilgan</span>{% endif %}
+    </div>
+
+    <div class="card">
+      {% if two_factor.is_active %}
+        <div class="kv-list">
+          <div class="kv-row">
+            <span class="k">Yoqilgan</span>
+            <span class="v">
+              {{ two_factor.confirmed_at|date:"d.m.Y" }}
+              {% if two_factor.last_used_at %}
+                <span class="cell-sub">
+                  oxirgi marta {{ two_factor.last_used_at|date:"d.m.Y H:i" }}
+                </span>
+              {% endif %}
+            </span>
+          </div>
+          <div class="kv-row">
+            <span class="k">Zaxira kodlari</span>
+            <span class="v">
+              {{ two_factor.backup_left }} ta qoldi
+              {% if two_factor.backup_left <= 2 %}
+                <span class="cell-sub" style="color:var(--warning);">
+                  tugab qolyapti — yangilang
+                </span>
+              {% endif %}
+            </span>
+          </div>
+        </div>
+
+        {% comment %}
+          Ikkala amal ham joriy kod bilan: o'g'irlangan sessiya ikkinchi
+          to'siqni shunchaki olib tashlab qo'ya olmasin.
+        {% endcomment %}
+        <form method="post" action="{% url 'dashboard:two_factor_backup' %}"
+              class="code-action">
+          {% csrf_token %}
+          <div class="field">
+            <label for="backup-code">Zaxira kodlarini yangilash</label>
+            <input type="text" id="backup-code" name="code" class="mono"
+                   maxlength="9" inputmode="numeric" placeholder="000000">
+          </div>
+          <button type="submit" class="btn secondary">Yangilash</button>
+        </form>
+        <div class="help">Eskilari darhol yaroqsiz bo'ladi</div>
+
+        {% if not two_factor_required %}
+          <form method="post" action="{% url 'dashboard:two_factor_disable' %}"
+                class="code-action">
+            {% csrf_token %}
+            <div class="field">
+              <label for="off-code">O'chirish uchun joriy kod</label>
+              <input type="text" id="off-code" name="code" class="mono"
+                     maxlength="9" inputmode="numeric" placeholder="000000">
+            </div>
+            <button type="submit" class="btn danger">O'chirish</button>
+          </form>
+        {% else %}
+          <div class="help" style="margin-top:var(--s4);">
+            Administratorlar uchun majburiy qilingan — o'chirib bo'lmaydi
+            (Sozlamalar &gt; Xavfsizlik).
+          </div>
+        {% endif %}
+
+      {% else %}
+        <div class="soft-text">
+          Yoqilgach kirishda telefondagi ilova bergan olti xonali kod
+          so'raladi. Parolingiz oshkor bo'lsa ham, telefonsiz kirib
+          bo'lmaydi.
+          {% if two_factor_required %}
+            <br><br><b style="color:var(--danger);">
+              Sizning hisobingiz uchun bu majburiy — hozir yoqing.
+            </b>
+          {% endif %}
+        </div>
+        <div class="form-actions">
+          <a href="{% url 'dashboard:two_factor_setup' %}" class="btn">Yoqish</a>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="section-head"><h2>Hisob</h2></div>
+    <div class="card">
+      <div class="kv-list">
+        <div class="kv-row">
+          <span class="k">Login</span>
+          <span class="v mono">{{ member.username|phone }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Huquqlar</span>
+          <span class="v">
+            {% if member.is_superuser %}
+              Administrator
+              <span class="cell-sub">sozlamalar, to'lov kalitlari, hisob-kitob</span>
+            {% else %}
+              Menejer
+              <span class="cell-sub">kundalik ish — sozlamalar yopiq</span>
+            {% endif %}
+          </span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Qo'shilgan</span>
+          <span class="v">{{ member.date_joined|date:"d.m.Y" }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

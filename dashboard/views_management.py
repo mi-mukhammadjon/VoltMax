@@ -1440,49 +1440,79 @@ def contract_sections_reset(request):
 # ═══════════════════════════════════════════════════════════════
 @staff_required
 def profile(request):
+    """Profil: shaxsiy ma'lumot, parol va ikki bosqichli kirish.
+
+    Ma'lumot va parol ALOHIDA formalar (`section`). Ilgari ikkalasi
+    bitta formada edi: ismni o'zgartirish uchun ham parol maydonlari
+    yonida turardi, parol o'zgarsa esa tizimdan chiqarilardi — ya'ni
+    ism saqlanganini ko'rishning iloji yo'q edi.
+    """
     user = request.user
-    if request.method == 'POST':
+    section = request.POST.get('section', 'profile')
+
+    if request.method == 'POST' and section == 'profile':
         user.first_name = request.POST.get('first_name', '').strip()[:150]
         user.last_name = request.POST.get('last_name', '').strip()[:150]
         user.email = request.POST.get('email', '').strip()[:254]
         user.save(update_fields=['first_name', 'last_name', 'email'])
-
-        new_password = request.POST.get('new_password', '')
-        if new_password:
-            if new_password != request.POST.get('confirm_password', ''):
-                messages.error(request, 'Parollar mos kelmadi')
-                return redirect('dashboard:profile')
-            # Parol qoidalari SHU YERDA ham tekshiriladi. Ilgari
-            # tekshirilmasdi: sozlamalarda qoidalar turardi, panelda esa
-            # istalgan parol qabul qilinardi — ya'ni qoida faqat qog'ozda
-            # bor edi.
-            from django.contrib.auth.password_validation import validate_password
-            from django.core.exceptions import ValidationError
-
-            try:
-                validate_password(new_password, user=user)
-            except ValidationError as error:
-                for message in error.messages:
-                    messages.error(request, message)
-                return redirect('dashboard:profile')
-
-            user.set_password(new_password)
-            user.save()
-            messages.success(request, "Parol yangilandi — qaytadan kiring")
-            return redirect('dashboard:login')
-
         messages.success(request, 'Profil saqlandi')
         return redirect('dashboard:profile')
+
+    if request.method == 'POST' and section == 'password':
+        new_password = request.POST.get('new_password', '')
+        if not new_password:
+            messages.error(request, 'Yangi parolni kiriting')
+            return redirect('dashboard:profile')
+        if new_password != request.POST.get('confirm_password', ''):
+            messages.error(request, 'Parollar mos kelmadi')
+            return redirect('dashboard:profile')
+
+        # Parol qoidalari SHU YERDA ham tekshiriladi. Ilgari
+        # tekshirilmasdi: sozlamalarda qoidalar turardi, panelda esa
+        # istalgan parol qabul qilinardi — ya'ni qoida faqat qog'ozda
+        # bor edi.
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError
+
+        try:
+            validate_password(new_password, user=user)
+        except ValidationError as error:
+            for message in error.messages:
+                messages.error(request, message)
+            return redirect('dashboard:profile')
+
+        user.set_password(new_password)
+        user.save()
+        messages.success(request, "Parol yangilandi — qaytadan kiring")
+        return redirect('dashboard:login')
 
     from management.totp import TwoFactor, required_for
 
     second = TwoFactor.objects.filter(user=user).first()
     return render(request, 'dashboard/profile.html', {
         'member': user,
-        'session_count': ChargingSession.objects.count(),
+        'initials': _initials(user),
         'two_factor': second,
         'two_factor_required': required_for(user),
     })
+
+
+def _initials(user):
+    """Avatar o'rnidagi bosh harflar.
+
+    Ism-familiya bo'lsa ulardan, aks holda logindan. Login telefon
+    raqami bo'lishi mumkin — u holda harf yo'q, shuning uchun oxirgi
+    ikki raqam olinadi: ular hech bo'lmasa hisobni ajratib turadi.
+    """
+    parts = [part for part in (user.first_name, user.last_name) if part.strip()]
+    if parts:
+        return ''.join(part.strip()[0] for part in parts[:2]).upper()
+
+    login = (user.username or '').strip()
+    letters = [ch for ch in login if ch.isalpha()]
+    if letters:
+        return ''.join(letters[:2]).upper()
+    return login[-2:] or '—'
 
 
 # ═══════════════════════════════════════════════════════════════

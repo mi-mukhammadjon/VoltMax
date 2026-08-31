@@ -2278,3 +2278,58 @@ th.check input[type=checkbox] {
   .gateway-test-row { flex-wrap: wrap; }
   .gateway-test-row .btn { width: 100%; }
 }
+
+/* ── Profil sahifasi ─────────────────────────────────────────
+   Yuqoridagi kartochka «men kimman» degan savolga bir qarashda javob
+   beradi: ilgari bu ma'lumot uchta alohida katakda tarqoq turardi. */
+.profile-hero {
+  display: flex; align-items: center; gap: var(--s5); flex-wrap: wrap;
+}
+
+/* Bosh harflar avatar o'rnida: rasm yuklash imkoni yo'q, bo'sh doira
+   esa ma'nosiz bo'lardi */
+.profile-avatar {
+  flex: 0 0 auto;
+  width: 64px; height: 64px; border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primary-soft); color: var(--primary);
+  font-size: var(--t-2xl); font-weight: 800; letter-spacing: -.5px;
+}
+
+.profile-identity { flex: 1 1 200px; min-width: 0; }
+.profile-name {
+  font-size: var(--t-xl); font-weight: 800; letter-spacing: -.3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.profile-meta {
+  display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap;
+  margin-top: 4px; color: var(--text-secondary); font-size: var(--t-sm);
+}
+
+.profile-stats { display: flex; gap: var(--s6); flex-wrap: wrap; }
+.profile-stat .k {
+  color: var(--text-muted); font-size: var(--t-sm); margin-bottom: 4px;
+}
+.profile-stat .v { font-weight: 700; }
+
+.profile-cols { margin-top: var(--s5); }
+
+/* Kod so'raydigan amallar: input va tugma bir chiziqda. Yordam matni
+   qatordan TASHQARIDA — ichida turganda tugmani pastga surardi. */
+.code-action {
+  display: flex; gap: var(--s2); align-items: flex-end;
+  margin-top: var(--s4);
+}
+.code-action .field { flex: 1; margin-bottom: 0; }
+.code-action .btn { flex: 0 0 auto; }
+
+.soft-text {
+  color: var(--text-secondary); font-size: var(--t-sm); line-height: 1.6;
+}
+
+@media (max-width: 560px) {
+  .profile-hero { gap: var(--s4); }
+  .profile-stats { width: 100%; }
+  .code-action { flex-wrap: wrap; }
+  .code-action .btn { width: 100%; }
+}
