@@ -47,6 +47,7 @@ from .forms import (
     SettingsContractForm,
     SettingsGeneralForm,
     SettingsHolidayForm,
+    SettingsMailForm,
     SettingsModeForm,
     SettingsNotificationForm,
     SettingsOrgForm,
@@ -834,6 +835,7 @@ SETTINGS_TABS = [
     ]),
     ('notification', 'Bildirishnoma', [
         ('notification', 'Bildirishnomalar', SettingsNotificationForm),
+        ('mail', 'Elektron pochta', SettingsMailForm),
     ]),
     ('security', 'Xavfsizlik', [
         ('rfid', 'RFID kartalar', SettingsRfidForm),

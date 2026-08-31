@@ -23,6 +23,19 @@
     <a href="{% url 'dashboard:company_contract' company.id %}" class="btn secondary" data-no-ajax>
       Shartnoma (Word)
     </a>
+    {% comment %}
+      Pochtaga yuborish — yuklab olish YONIDA turadi: operator hujjatni
+      ko'rib chiqib, keyin yuborishi mumkin. Manzil kiritilmagan bo'lsa
+      tugma umuman ko'rsatilmaydi, aks holda bosilib, xato chiqardi.
+    {% endcomment %}
+    {% if company.contact_email %}
+      <form method="post" action="{% url 'dashboard:company_document_email' company.id %}"
+            onsubmit="return confirm('Shartnoma {{ company.contact_email }} manziliga yuborilsinmi?')">
+        {% csrf_token %}
+        <input type="hidden" name="kind" value="contract">
+        <button type="submit" class="btn secondary">Pochtaga yuborish</button>
+      </form>
+    {% endif %}
     <a href="{% url 'dashboard:wallet_detail' company.wallet.id %}" class="btn secondary">Hamyon tarixi</a>
     {% comment %}
       Hamyonni to'ldirish shu sahifada, "To'lovlar" bo'limida bo'ladi —
@@ -246,6 +259,16 @@
         <div class="kv-row">
           <span class="k">Telefon</span>
           <span class="v">{{ company.contact_phone|phone }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="k">Elektron pochta</span>
+          <span class="v">
+            {% if company.contact_email %}
+              {{ company.contact_email }}
+            {% else %}
+              <span class="cell-sub">kiritilmagan — hujjat yuborib bo'lmaydi</span>
+            {% endif %}
+          </span>
         </div>
         <div class="kv-row">
           <span class="k">Holati</span>

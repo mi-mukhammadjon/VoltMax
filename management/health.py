@@ -127,6 +127,37 @@ def check_push():
     }]
 
 
+def check_mail():
+    """Pochta: sozlanganmi va ogohlantirish kimga ketadi."""
+    from management.mail import is_configured
+    from management.models import SiteSettings
+
+    settings_obj = SiteSettings.load()
+
+    if not is_configured(settings_obj):
+        return [{
+            'key': 'mail',
+            'title': 'Elektron pochta',
+            'state': 'warn',
+            'value': 'sozlanmagan',
+            'hint': 'Hujjatlar qo‘lda yuboriladi, parolni tiklash ishlamaydi '
+                    'va muammo haqida xabar kelmaydi',
+        }]
+
+    recipients = settings_obj.alert_recipients
+    return [{
+        'key': 'mail',
+        'title': 'Elektron pochta',
+        # Sozlangan-u, ogohlantirish manzili yo'q bo'lsa — tizim
+        # muammosi haqida hech kim bilmaydi
+        'state': 'warn' if not recipients else 'ok',
+        'value': settings_obj.mail_host,
+        'hint': (f"Ogohlantirish: {', '.join(recipients)}" if recipients
+                 else 'Ogohlantirish manzili kiritilmagan — muammo haqida '
+                      'xabar hech kimga bormaydi'),
+    }]
+
+
 def check_payments():
     """To'lov tizimlari: sozlanganmi va oxirgi to'lov qachon o'tgan."""
     from management.models import PaymentProvider
@@ -474,8 +505,8 @@ def collect():
     """
     checks = []
     for func in (check_jobs, check_push, check_payments, check_chargers,
-                 check_otp, check_security, check_backup, check_media,
-                 check_settings):
+                 check_otp, check_mail, check_security, check_backup,
+                 check_media, check_settings):
         try:
             checks.extend(func())
         except Exception as error:      # noqa: BLE001

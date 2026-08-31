@@ -961,3 +961,67 @@ def company_invoice_document(request, pk):
 
     document = build_invoice_document(invoice)
     return _docx_response(document, f'hisob-{invoice.number}.docx')
+
+
+@staff_required
+def company_document_email(request, pk):
+    """Hujjatni mijozning pochtasiga yuboradi.
+
+    Yuklab olish tugmasi yonida turadi: operator hujjatni ko'rib
+    chiqib, keyin yuborishi mumkin. Hujjat shu yerda qaytadan
+    yig'iladi — yuborilgan fayl ekranda ko'ringani bilan bir xil
+    bo'lishi kerak.
+    """
+    if request.method != 'POST':
+        return redirect('dashboard:company_detail', pk=pk)
+
+    company = get_object_or_404(Company, pk=pk)
+    kind = request.POST.get('kind', 'contract')
+
+    try:
+        from . import documents
+    except ModuleNotFoundError:
+        messages.error(request, "Word hujjatlari uchun `python-docx` o'rnatilmagan")
+        return redirect('dashboard:company_detail', pk=pk)
+
+    try:
+        if kind == 'invoice':
+            invoice = get_object_or_404(
+                CompanyInvoice, pk=request.POST.get('invoice'), company=company)
+            filename, content = documents.build_invoice(invoice)
+            subject = f"To'lov hisobi № {invoice.number}"
+            body = (f"Assalomu alaykum!\n\n"
+                    f"{company.name} uchun to'lov hisobi ilova qilinmoqda.\n"
+                    f"Summa: {invoice.amount} so'm.\n\n"
+                    f"Hurmat bilan, VoltMax")
+        elif kind in ('act', 'reconciliation'):
+            year = int(request.POST.get('year') or timezone.localdate().year)
+            month = int(request.POST.get('month') or timezone.localdate().month)
+            filename, content = documents.build_monthly(company, year, month, kind)
+            label = 'Solishtirma dalolatnoma' if kind == 'reconciliation' else 'Dalolatnoma'
+            subject = f'{label} — {month:02d}.{year}'
+            body = (f"Assalomu alaykum!\n\n"
+                    f"{company.name} uchun {month:02d}.{year} davri hujjati "
+                    f"ilova qilinmoqda.\n\nHurmat bilan, VoltMax")
+        else:
+            filename, content = documents.build_contract(company)
+            subject = 'Shartnoma loyihasi'
+            body = (f"Assalomu alaykum!\n\n"
+                    f"{company.name} bilan shartnoma loyihasi ilova "
+                    f"qilinmoqda.\n\nHurmat bilan, VoltMax")
+    except ModuleNotFoundError:
+        messages.error(request, "Word hujjatlari uchun `python-docx` o'rnatilmagan")
+        return redirect('dashboard:company_detail', pk=pk)
+
+    sent, reason = documents.email_document(
+        company, subject, body, filename, content)
+
+    if sent:
+        messages.success(request, f'{company.contact_email} manziliga yuborildi')
+        log_action(request.user, ActivityLog.Action.COMPANY,
+                   f'{company.name}: hujjat pochtaga yuborildi ({filename})',
+                   url=f'/companies/{company.pk}/')
+    else:
+        messages.error(request, f"Yuborilmadi — {reason}")
+
+    return redirect('dashboard:company_detail', pk=pk)

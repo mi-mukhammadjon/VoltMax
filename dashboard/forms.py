@@ -433,6 +433,54 @@ class SettingsNotificationForm(forms.ModelForm):
         ]
 
 
+class SettingsMailForm(forms.ModelForm):
+    """Pochta sozlamasi.
+
+    Panelda turadi, chunki u vaqti-vaqti bilan o'zgaradi (parol
+    almashadi, provayder ko'chadi) va buning uchun serverga kirish
+    talab qilinmasligi kerak.
+    """
+
+    class Meta:
+        model = SiteSettings
+        fields = ['mail_enabled', 'mail_host', 'mail_port', 'mail_user',
+                  'mail_password', 'mail_use_tls', 'mail_from', 'mail_alerts_to']
+        widgets = {
+            'mail_password': forms.PasswordInput(render_value=False),
+            'mail_host': forms.TextInput(attrs={'placeholder': 'smtp.gmail.com'}),
+            'mail_from': forms.TextInput(
+                attrs={'placeholder': 'VoltMax <billing@voltmax.uz>'}),
+            'mail_alerts_to': forms.TextInput(
+                attrs={'placeholder': 'admin@voltmax.uz, texnik@voltmax.uz'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in ('mail_host', 'mail_user', 'mail_password', 'mail_from',
+                     'mail_alerts_to'):
+            self.fields[name].required = False
+        if self.instance.pk and self.instance.mail_password:
+            self.fields['mail_password'].help_text = (
+                "To'ldirilmasa avvalgi parol saqlanib qoladi")
+
+    def clean_mail_password(self):
+        # Bo'sh yuborilsa eskisi qoladi: aks holda sahifani saqlash
+        # parolni o'chirib, pochta jimgina ketmay qo'yardi
+        value = (self.cleaned_data.get('mail_password') or '').strip()
+        return value or self.instance.mail_password
+
+    def clean(self):
+        data = super().clean()
+        # Yoqilgan, lekin sozlanmagan pochta eng yomon holat: operator
+        # hujjat yuborildi deb o'ylaydi, aslida yo'q
+        if data.get('mail_enabled') and not (data.get('mail_host')
+                                             and data.get('mail_from')):
+            self.add_error('mail_host',
+                           "Pochta yoqilgan — server va jo'natuvchi manzilini "
+                           "ham kiriting")
+        return data
+
+
 class SettingsRfidForm(forms.ModelForm):
     """Qat'iy rejim — yoqilishi bilan ro'yxatda yo'q kartalar ishlamay qoladi."""
 
@@ -834,7 +882,7 @@ class CompanyFieldsMixin:
     """
 
     OPTIONAL = (
-        'contact_name', 'contact_phone', 'legal_name', 'inn', 'oked',
+        'contact_name', 'contact_phone', 'contact_email', 'legal_name', 'inn', 'oked',
         'vat_code', 'legal_address', 'director',
         'bank_name', 'bank_account', 'bank_mfo',
     )
@@ -842,6 +890,8 @@ class CompanyFieldsMixin:
     WIDGETS = {
         'name': forms.TextInput(attrs={'placeholder': 'masalan: Yandex Taksi Toshkent'}),
         'contact_phone': PhoneInput(),
+        # Hujjatlar shu manzilga yuboriladi
+        'contact_email': forms.EmailInput(attrs={'placeholder': 'buxgalteriya@mijoz.uz'}),
         'inn': InnInput(),
         'oked': forms.TextInput(attrs={'placeholder': '5 xonali kod', 'inputmode': 'numeric'}),
         'legal_address': forms.TextInput(attrs={'placeholder': 'Toshkent sh., ...'}),
@@ -884,7 +934,7 @@ class CompanyForm(CompanyFieldsMixin, forms.ModelForm):
     class Meta:
         model = Company
         fields = [
-            'name', 'contact_name', 'contact_phone', 'is_active',
+            'name', 'contact_name', 'contact_phone', 'contact_email', 'is_active',
             # Yuridik va bank rekvizitlari — hisob-faktura uchun
             'legal_name', 'inn', 'oked', 'vat_code', 'legal_address', 'director',
             'bank_name', 'bank_account', 'bank_mfo',
@@ -903,7 +953,8 @@ class CompanyBasicsForm(CompanyFieldsMixin, forms.ModelForm):
 
     class Meta:
         model = Company
-        fields = ['name', 'contact_name', 'contact_phone', 'is_active']
+        fields = ['name', 'contact_name', 'contact_phone', 'contact_email',
+                  'is_active']
         widgets = CompanyFieldsMixin.WIDGETS
 
 

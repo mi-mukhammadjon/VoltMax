@@ -325,6 +325,30 @@ class SiteSettings(models.Model):
         help_text="O'chirilsa parolsiz charger ham ulana oladi — tavsiya etilmaydi",
     )
 
+    # ── Elektron pochta ──────────────────────────────────────
+    # Sozlama panelda: pochta parolini almashtirish uchun serverga
+    # kirish talab qilinmasin. Uch joyda ishlatiladi — korporativ
+    # hujjatlar, administratorga ogohlantirish, parolni tiklash.
+    mail_enabled = models.BooleanField('Pochta yuborish', default=False)
+    mail_host = models.CharField('SMTP server', max_length=150, blank=True,
+                                 help_text='masalan: smtp.gmail.com')
+    mail_port = models.PositiveSmallIntegerField('Port', default=587)
+    mail_user = models.CharField('Foydalanuvchi', max_length=150, blank=True)
+    mail_password = models.CharField('Parol', max_length=200, blank=True)
+    mail_use_tls = models.BooleanField(
+        'TLS', default=True,
+        help_text="587-portda odatda yoqiladi, 465-portda o'chiriladi",
+    )
+    mail_from = models.CharField(
+        "Jo'natuvchi manzili", max_length=200, blank=True,
+        help_text='VoltMax <billing@voltmax.uz>',
+    )
+    # Muammo haqida xabar shu manzillarga ketadi (vergul bilan)
+    mail_alerts_to = models.CharField(
+        'Ogohlantirish manzillari', max_length=400, blank=True,
+        help_text="Bo'sh bo'lsa ogohlantirish yuborilmaydi",
+    )
+
     # ── SMS shlyuzi ──────────────────────────────────────────
     # Kirish kodlari uchun IKKINCHI kanal. Telegrami yo'q odam ilovaga
     # umuman kira olmasdi, va bitta kanal bitta nuqta demakdir.
@@ -366,6 +390,18 @@ class SiteSettings(models.Model):
         if not token:
             return ''
         return '•' * 8 + token[-4:]
+
+    @property
+    def mail_password_masked(self) -> str:
+        if not self.mail_password:
+            return ''
+        return '•' * 8 + self.mail_password[-2:]
+
+    @property
+    def alert_recipients(self):
+        """Ogohlantirish yuboriladigan manzillar ro'yxati."""
+        raw = (self.mail_alerts_to or '').replace(';', ',')
+        return [item.strip() for item in raw.split(',') if item.strip()]
 
     @property
     def sms_password_masked(self) -> str:

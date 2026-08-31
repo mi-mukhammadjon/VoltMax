@@ -39,6 +39,10 @@
         <div class="field"><label>Parol</label>{{ form.password }}</div>
         <button type="submit" class="btn block large">Kirish</button>
       </form>
+      {# Parolni tiklash: ilgari buni faqat serverdan qilish mumkin edi #}
+      <p class="sub" style="margin-top:var(--s4);">
+        <a href="{% url 'dashboard:password_reset' %}">Parolni unutdingizmi?</a>
+      </p>
       {% endblock %}
     </div>
   </div>

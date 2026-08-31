@@ -70,6 +70,11 @@ va takroriy so'rovda ikki marta qo'shilmaydi. Kalitlar panelda saqlanadi
 **Bildirishnomalar** — matni panelda tahrirlanadigan shablonlar va
 telefonga yetkazish (Expo push).
 
+**Elektron pochta** — korporativ hujjatlar (shartnoma, hisob-faktura,
+dalolatnoma) mijozga to'g'ridan-to'g'ri yuboriladi, tizimdagi muammo
+haqida administratorga xabar ketadi va xodim parolini o'zi tiklay
+oladi. SMTP sozlamalari panelda (Sozlamalar > Bildirishnoma).
+
 **Kirish kodlari** ikki kanal orqali: avval Telegram Gateway (arzon),
 ishlamasa SMS (Eskiz.uz). Bitta kanal bitta nuqta edi — Telegrami yo'q
 odam ilovaga umuman kira olmasdi. Ikkalasi ham Sozlamalar > Xavfsizlik
@@ -106,6 +111,7 @@ python manage.py run_workers --only push  # faqat bittasi
 | `bookings` | 5 daq | Muddati o'tgan bronlarni yopadi |
 | `cleanup` | kuniga | Eskirgan telemetriya va jurnallarni tozalaydi |
 | `backup` | kuniga | Bazaning zaxira nusxasini oladi (R2 sozlangan bo'lsa unga yuklaydi) |
+| `alerts` | 5 daq | Tizimdagi muammo O'ZGARSA pochtaga xabar yuboradi |
 
 Har vazifa oxirgi marta qachon ishlagani va nima qilgani bazaga
 yoziladi. Panelda **Tizim holati** sahifasi shuni ko'rsatadi: vazifa o'z
@@ -147,6 +153,7 @@ python test_api_hardening.py  # API ruxsatlari va so'rov chegaralari
 python test_two_factor.py   # ikki bosqichli kirish
 python test_injection.py    # soxta idTag, CSV formulasi, ochiq yo'naltirish
 python test_sms.py          # SMS shlyuzi va ikki kanalli yetkazish
+python test_mail.py         # pochta, ogohlantirish, parolni tiklash
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`

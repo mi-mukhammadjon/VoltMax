@@ -109,7 +109,11 @@ Productionga chiqishdan oldin **majburiy** uchtasi:
    yoqing, keyin Sozlamalar > Xavfsizlik da majburiy qiling. Zaxira
    kodlarini saqlab qo'ying: telefon yo'qolsa panelga faqat ular bilan
    kirasiz.
-7. **Har bir chargerga OCPP paroli** — stansiya sahifasida belgilanadi va
+7. **Pochta va SMS** — Sozlamalar > Bildirishnoma (SMTP) va
+   Sozlamalar > Xavfsizlik (SMS). Ikkalasida ham sinov yuborish tugmasi
+   bor. SMS'siz Telegrami yo'q odam ilovaga kira olmaydi; pochtasiz
+   xodim parolini tiklay olmaydi va muammo haqida xabar kelmaydi.
+8. **Har bir chargerga OCPP paroli** — stansiya sahifasida belgilanadi va
    xuddi shu parol charger sozlamasiga kiritiladi. Parolsiz manzilga uni
    bilgan har kim ulana oladi, `ocpp_id` esa maxfiy emas.
 

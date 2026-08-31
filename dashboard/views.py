@@ -9,6 +9,7 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Sum
 from django.db.models.functions import TruncDate
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import OTPCode
@@ -927,3 +928,99 @@ def login_2fa_view(request):
         'username': user.username,
         'backup_left': second.backup_left,
     })
+
+
+# ─── Parolni tiklash ────────────────────────────────────────────
+# Ilgari parolni faqat SERVERDAN tiklash mumkin edi
+# (`manage.py changepassword`). Ya'ni operator parolini unutsa,
+# dasturchini kutib o'tirardi.
+#
+# Havola Django ning o'z token generatori bilan imzolanadi: u
+# foydalanuvchining parol hash'i va oxirgi kirish vaqtiga bog'langan,
+# shuning uchun parol o'zgargach yoki bir marta ishlatilgach eskiradi.
+PASSWORD_RESET_HOURS = 2
+
+
+def password_reset_request(request):
+    """Pochta so'raydi va tiklash havolasini yuboradi."""
+    from django.contrib.auth.tokens import default_token_generator
+    from django.utils.encoding import force_bytes
+    from django.utils.http import urlsafe_base64_encode
+
+    from management import login_guard
+    from management.mail import is_configured, try_send
+
+    sent = False
+    error = None
+
+    if request.method == 'POST':
+        email = (request.POST.get('email') or '').strip()
+
+        if not is_configured():
+            error = ('Pochta sozlanmagan — administratorga murojaat qiling '
+                     'yoki serverda `manage.py changepassword` ni bajaring')
+        else:
+            # Javob HAR DOIM bir xil: "yuborildi". Aks holda bu sahifa
+            # qaysi pochta ro'yxatda borligini aniqlash vositasiga
+            # aylanardi.
+            sent = True
+            user = User.objects.filter(email__iexact=email, is_staff=True,
+                                       is_active=True).first()
+            if user is not None:
+                token = default_token_generator.make_token(user)
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                link = request.build_absolute_uri(
+                    reverse('dashboard:password_reset_confirm',
+                            args=[uid, token]))
+                try_send(
+                    email,
+                    'VoltMax paneli — parolni tiklash',
+                    f'Assalomu alaykum!\n\n'
+                    f'Parolni tiklash uchun quyidagi havolaga o\'ting:\n\n'
+                    f'{link}\n\n'
+                    f'Havola {PASSWORD_RESET_HOURS} soat amal qiladi va bir '
+                    f'marta ishlatiladi.\n\n'
+                    f'Agar bu so\'rovni siz yubormagan bo\'lsangiz, xatni '
+                    f'e\'tiborsiz qoldiring — parol o\'zgarmaydi.',
+                )
+                login_guard.record(request, user.username, successful=False)
+
+    return render(request, 'dashboard/password_reset.html',
+                  {'sent': sent, 'error': error})
+
+
+def password_reset_confirm(request, uidb64, token):
+    """Havoladagi token to'g'ri bo'lsa yangi parol qo'yishga ruxsat beradi."""
+    from django.contrib.auth.password_validation import validate_password
+    from django.contrib.auth.tokens import default_token_generator
+    from django.core.exceptions import ValidationError
+    from django.utils.encoding import force_str
+    from django.utils.http import urlsafe_base64_decode
+
+    try:
+        user = User.objects.get(pk=force_str(urlsafe_base64_decode(uidb64)))
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is None or not default_token_generator.check_token(user, token):
+        return render(request, 'dashboard/password_reset.html',
+                      {'invalid': True})
+
+    error = None
+    if request.method == 'POST':
+        password = request.POST.get('new_password', '')
+        if password != request.POST.get('confirm_password', ''):
+            error = 'Parollar mos kelmadi'
+        else:
+            try:
+                validate_password(password, user=user)
+            except ValidationError as problem:
+                error = ' '.join(problem.messages)
+            else:
+                user.set_password(password)
+                user.save()
+                messages.success(request, 'Parol yangilandi — endi kiring')
+                return redirect('dashboard:login')
+
+    return render(request, 'dashboard/password_reset.html',
+                  {'confirm': True, 'error': error})

@@ -122,6 +122,18 @@ def _backup():
     return ', '.join(parts)
 
 
+def _alerts():
+    """Tizimdagi muammo haqida pochtaga xabar.
+
+    Tizim holati sahifasi bor, lekin unga QARASH kerak: kechqurun
+    charger uzilsa, buni ertalab bilib qolinardi.
+    """
+    from management.alerts import check_and_notify
+
+    _sent, note = check_and_notify()
+    return note
+
+
 # (nom, funksiya, oraliq soniyada)
 JOBS = [
     ('parking', _parking, 300),
@@ -131,6 +143,9 @@ JOBS = [
     ('bookings', _bookings, 300),
     ('cleanup', _cleanup, 24 * 3600),
     ('backup', _backup, 24 * 3600),
+    # Besh daqiqa — xabar tez kelishi va spam bo'lmasligi orasidagi
+    # muvozanat. Xabar faqat holat O'ZGARGANDA ketadi.
+    ('alerts', _alerts, 300),
 ]
 
 

@@ -123,6 +123,10 @@ class Company(models.Model):
     name = models.CharField('Nomi', max_length=150, unique=True)
     contact_name = models.CharField("Mas'ul shaxs", max_length=150, blank=True)
     contact_phone = models.CharField('Telefon', max_length=20, blank=True)
+    # Hujjatlar (hisob-faktura, dalolatnoma, shartnoma) shu manzilga
+    # yuboriladi. Ilgari operator ularni qo'lda yuklab olib, qo'lda
+    # jo'natardi — oyning oxirida bu bir necha soatlik ish edi.
+    contact_email = models.EmailField('Elektron pochta', max_length=200, blank=True)
     # ── Yuridik va bank rekvizitlari ──────────────────────────────
     # Korporativ mijozga hisob-faktura va shartnoma yozish uchun kerak.
     # O'zbekistonda to'lov topshiriqnomasida shu ma'lumotlar talab qilinadi.

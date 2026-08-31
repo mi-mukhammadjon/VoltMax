@@ -11,6 +11,9 @@ urlpatterns = [
     # ── Auth ────────────────────────────────────────────────
     path('login/', views.login_view, name='login'),
     path('login/2fa/', views.login_2fa_view, name='login_2fa'),
+    path('parol/tiklash/', views.password_reset_request, name='password_reset'),
+    path('parol/tiklash/<uidb64>/<token>/', views.password_reset_confirm,
+         name='password_reset_confirm'),
     path('logout/', views.logout_view, name='logout'),
 
     # ── Bosh sahifa ─────────────────────────────────────────
@@ -201,6 +204,7 @@ urlpatterns = [
          name='company_section_edit'),
     path('companies/<int:pk>/topup/', rf.company_topup, name='company_topup'),
     path('companies/<int:pk>/contract/', rf.company_contract, name='company_contract'),
+    path('companies/<int:pk>/email/', rf.company_document_email, name='company_document_email'),
     # Oylik hujjatlar: ?kind=act (standart) yoki ?kind=reconciliation
     path('companies/<int:pk>/documents/<int:year>/<int:month>/', rf.company_documents,
          name='company_documents'),
