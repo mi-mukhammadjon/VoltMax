@@ -1,0 +1,66 @@
+# Har push va PR'da butun sinov to'plamini o'tkazadi.
+#
+# Nima uchun kerak: 30 dan ortiq sinov skripti bor edi, lekin ular
+# QO'LDA ishga tushirilardi. Kimdir commit qilsa hech narsa
+# tekshirilmasdi va buzilgan kod jimgina `main` ga tushib ketardi.
+#
+# Sinovlar tarmoqqa chiqmaydi (to'lov tizimlari, Google kalendari va
+# push xizmati almashtiriladi), shuning uchun CI'da hech qanday maxfiy
+# kalit kerak emas.
+
+name: Sinovlar
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      # Sinovlar uchun alohida sozlamalar: DEBUG yoqilgan (statik fayllar
+      # manifesti talab qilinmasin) va baza — vaqtinchalik SQLite
+      DEBUG: 'True'
+      SECRET_KEY: ci-uchun-vaqtinchalik-kalit-0123456789
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Bog'liqliklarni o'rnatish
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Tekshiruv va migratsiyalar
+        run: |
+          python manage.py check
+          python manage.py migrate --noinput
+
+      - name: Sinovlar
+        run: |
+          # Har skript o'zi natija chiqaradi va xato bo'lsa 1 qaytaradi.
+          # `set -e` yo'q: hammasi o'tkazilib, oxirida umumiy hisob beriladi.
+          failed=0
+          for file in smoke_panel.py test_*.py; do
+            echo "── $file ─────────────────────────────────"
+            python "$file" || failed=$((failed + 1))
+          done
+          echo
+          if [ "$failed" -gt 0 ]; then
+            echo "$failed ta skript xato berdi"
+            exit 1
+          fi
+          echo "Barcha skriptlar o'tdi"
+
+      - name: Panel JS sinovlari
+        run: node test_app_js.js

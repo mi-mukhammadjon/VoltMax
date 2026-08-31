@@ -1,27 +1,29 @@
-﻿# VoltMax Backend
+# VoltMax Backend
 
-EV zaryadlash stansiyalarini boshqarish uchun Django backend — xodimlar uchun boshqaruv paneli (dashboard) va mobil ilova uchun REST API.
+Elektromobil zaryadlash tarmog'ini boshqarish tizimi: xodimlar uchun web
+panel, mobil ilova uchun REST API va haqiqiy chargerlar bilan ishlaydigan
+OCPP 1.6J shlyuzi.
 
 ## Loyiha strukturasi
 
 ```
 voltmax-backend/
-├── voltmax/            # loyiha konfiguratsiyasi (settings, urls, asgi)
-├── accounts/           # OTP+JWT autentifikatsiya (Telegram Gateway orqali)
-├── stations/           # Station/Connector/StationAmenity modellari + REST API (/api/stations/)
-├── sessions_app/       # ChargingSession — mock (simulyatsiya) va real (OCPP) sessiyalar
-├── wallet/             # WalletBalance/Transaction
-├── ocpp_gateway/       # Real charger'lar uchun OCPP 1.6J WebSocket server (Django Channels)
-├── dashboard/          # xodimlar uchun web panel
-├── manage.py
-└── requirements.txt
+├── voltmax/            # sozlamalar, urls, asgi
+├── accounts/           # OTP+JWT kirish, mashinalar, RFID kartalar, korporativ mijozlar
+├── stations/           # stansiyalar, ulagichlar, profilaktika, zaryadlash qoidalari
+├── sessions_app/       # zaryadlash sessiyalari, telemetriya, parkovka hisobi
+├── wallet/             # hamyon, tranzaksiyalar, onlayn to'lov (Payme, Click)
+├── bookings/           # bronlar va qurilmadagi rezervatsiya
+├── ocpp_gateway/       # OCPP 1.6J WebSocket serveri (Django Channels)
+├── management/         # sozlamalar, bildirishnomalar, jurnal, davriy vazifalar
+└── dashboard/          # xodimlar paneli (shu yerda hujjat generatsiyasi ham)
 ```
 
 ## Ishga tushirish
 
 ```bash
 cd voltmax-backend
-venv\Scripts\activate          # Windows
+python -m venv venv && venv\Scripts\activate     # Windows
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
@@ -30,63 +32,118 @@ python manage.py runserver
 - Panel: http://127.0.0.1:8000/login/
 - API: http://127.0.0.1:8000/api/stations/
 
-**Standart admin hisob:** `admin` / `voltmax2026` — **productionga chiqishdan oldin albatta o'zgartiring**
-(`python manage.py changepassword admin`).
+Namuna ma'lumot: `python manage.py seed_stations`
 
-Namuna stansiyalar (mobil ilovadagi mock data bilan bir xil) qo'shish uchun:
+> **Standart admin hisobi** — `admin` / `voltmax2026`. Serverga chiqishdan
+> oldin albatta almashtiring: `python manage.py changepassword admin`.
+
+## Nima bor
+
+**Panel** — stansiyalar va ulagichlar, sessiyalar va telemetriya, hamyonlar,
+RFID kartalar, korporativ mijozlar, profilaktika, hisobotlar, sozlamalar.
+
+Panelda ikki daraja bor: **menejer** kundalik ish bilan, **administrator**
+tizimni sozlash bilan shug'ullanadi (sozlamalar, to'lov kalitlari,
+hamkorlar bilan hisob-kitob, xodimlar). Menejerga yopiq bo'limlar menyuda
+ham ko'rinmaydi.
+
+**Hujjatlar (Word)** — korporativ mijoz bilan shartnoma (matni panelda
+tahrirlanadi), to'lov uchun hisob, oylik bajarilgan ishlar dalolatnomasi
+va solishtirma dalolatnoma.
+
+**To'lov** — Payme va Click. Balans faqat to'lov tizimi tasdiqlagach oshadi
+va takroriy so'rovda ikki marta qo'shilmaydi. Kalitlar panelda saqlanadi
+(Sozlamalar > To'lov tizimlari), muhit o'zgaruvchisida emas.
+
+**Bildirishnomalar** — matni panelda tahrirlanadigan shablonlar va
+telefonga yetkazish (Expo push).
+
+**Zaryadlash qoidalari** — minimal balans, ish vaqti, bayram kunlari,
+sessiya vaqti chegarasi, parkovka imtiyozi. Ular sozlamada turadi va uch
+joyda bir xil qo'llanadi: RFID karta, mobil ilova, panel.
+
+## Davriy vazifalar
+
+Vaqt bo'yicha ishlaydigan hamma narsa bitta jarayonda:
+
 ```bash
-python manage.py seed_stations
+python manage.py run_workers              # hammasi
+python manage.py run_workers --once       # bir marta (tekshirish uchun)
+python manage.py run_workers --only push  # faqat bittasi
 ```
 
-## API
-
-| Endpoint | Metod | Tavsif |
+| Vazifa | Oraliq | Nima qiladi |
 |---|---|---|
-| `/api/stations/` | GET | Barcha stansiyalar ro'yxati (mobil ilovadagi `StationsAPI.list()`) |
-| `/api/stations/<id>/` | GET | Bitta stansiya (mobil ilovadagi `StationsAPI.getById()`) |
+| `parking` | 5 daq | Parkovka daqiqalari uchun pul yechadi |
+| `devices` | 2 daq | Charger holatini yangilaydi, nosozlik yozuvlarini yuritadi |
+| `overdue` | 5 daq | Vaqt chegarasidan oshgan sessiyani to'xtatadi |
+| `push` | 30 son | Bildirishnomalarni telefonlarga yuboradi |
+| `bookings` | 5 daq | Muddati o'tgan bronlarni yopadi |
+| `cleanup` | kuniga | Eskirgan telemetriya va jurnallarni tozalaydi |
 
-Javob formati mobil ilovadagi `src/types/index.ts`'dagi `Station`/`Connector`/`StationAmenity` tiplariga aynan mos (camelCase maydonlar).
+**Bir vaqtda faqat bitta nusxada ishlashi kerak** (replica = 1). Veb-server
+ichiga qo'shib bo'lmaydi: har bir worker mustaqil hisoblab, foydalanuvchidan
+ortiqcha pul yechilardi.
 
-## Real EV charger'larni ulash (OCPP 1.6J)
+Boshqa foydali buyruqlar:
 
-Backend Django Channels orqali OCPP 1.6J (JSON/WebSocket) serverini o'z ichiga oladi —
-`python manage.py runserver` shu bilan birga HTTP (REST/dashboard) va WebSocket
-(charger ulanishlari) so'rovlarini bitta portda xizmat qiladi (Daphne/ASGI).
-
-**1. Stansiyani charger'ga bog'lash** — dashboard'da stansiyani tahrirlab, `OCPP Charge
-Point ID` maydoniga charger'ning o'ziga tanishtiradigan ID'sini kiriting (masalan
-`CP-001`), so'ng har bir ulagichga charger tomonidagi raqamli `OCPP connectorId`ni
-(masalan `1`, `2`) yozing.
-
-**2. Charger'ni ulash** — jismoniy charger quyidagi manzilga `ocpp1.6` subprotokol bilan
-ulanishi kerak:
+```bash
+python manage.py backup_db          # bazaning zaxira nusxasi
+python manage.py normalize_phones   # telefon/STIR/hisob raqamlarini tartibga solish
+python manage.py simulate_charger CP-001 --connectors 1 --auto-start 1
 ```
-ws://<server-ip>:8000/ws/ocpp/<OCPP_ID>/          # lokal/HTTP
-wss://<domen>/ws/ocpp/<OCPP_ID>/                   # productionda (TLS)
-```
-Charger ulangach BootNotification/Heartbeat/StatusNotification avtomatik qabul
-qilinadi; foydalanuvchi zaryadlashni boshlaganda (RFID yoki mobil ilova orqali
-dashboard'dagi "Masofadan boshlash" tugmasi) StartTransaction/MeterValues/
-StopTransaction orqali `ChargingSession` (`is_live=True`) real vaqtda yoziladi.
 
-**3. Hardware bo'lmasa ham sinash** — o'rnatilgan simulyator to'liq oqimni taqlid qiladi:
+## Sinovlar
+
+Sinovlar oddiy skriptlar — Django test runner'i emas. Har biri o'zi natija
+chiqaradi va nima uchun shunday yozilganini izohlaydi:
+
+```bash
+python smoke_panel.py       # barcha panel sahifalari ochiladimi
+python test_ocpp_flow.py    # ulanishdan pul yechilishigacha to'liq oqim
+python test_payments.py     # Payme va Click webhook'lari
+python test_mobile_api.py   # ilova ishlatadigan API
+```
+
+Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`
+
+Sinovlar **tarmoqqa chiqmaydi**: to'lov tizimlari, Google kalendari va push
+xizmati almashtiriladi. Shuning uchun ular tashqi xizmat ishlamay qolganda
+ham o'tadi va CI'da maxfiy kalit talab qilmaydi.
+
+Har push'da GitHub Actions ularni avtomatik o'tkazadi
+(`.github/workflows/tests.yml`).
+
+## OCPP 1.6J
+
+`runserver` HTTP va WebSocket'ni bitta portda xizmat qiladi (ASGI/Daphne).
+
+**1. Bog'lash** — panelda stansiyaga `OCPP Charge Point ID` (masalan `CP-001`),
+har ulagichga esa `OCPP connectorId` (`1`, `2`) beriladi.
+
+**2. Ulanish** — charger `ocpp1.6` subprotokoli bilan quyidagi manzilga ulanadi:
+
+```
+ws://<server>:8000/ws/ocpp/<OCPP_ID>/     # lokal
+wss://<domen>/ws/ocpp/<OCPP_ID>/          # serverda (TLS)
+```
+
+**3. Hardware'siz sinash** — simulyator to'liq oqimni taqlid qiladi:
+
 ```bash
 python manage.py simulate_charger CP-001 --connectors 1 --auto-start 1
 ```
-`--url ws://<ip>:8000` bilan boshqa manzilga, `--connectors 1,2` bilan bir nechta
-ulagichga ulanish mumkin. `--auto-start` bermasangiz, charger faqat kutib turadi va
-dashboard'dagi "Masofadan boshlash" tugmasi orqali (RemoteStartTransaction) ishga tushiriladi.
 
-**Productionda** (bir nechta worker/process bilan scale qilinsa): `settings.py`dagi
-`CHANNEL_LAYERS`ni `InMemoryChannelLayer`dan `channels_redis.core.RedisChannelLayer`ga
-almashtiring — aks holda "Masofadan boshlash" buyrug'i faqat charger ulangan xuddi shu
-worker jarayonida ishlaydi.
+> **Bir nechta jarayonda ishlatilsa** `CHANNEL_LAYERS` ni `InMemoryChannelLayer`
+> dan Redis'ga almashtiring — aks holda «Masofadan boshlash» buyrug'i faqat
+> charger ulangan xuddi shu jarayonda ishlaydi.
 
-## Keyingi qadamlar
+## Serverga joylashtirish
 
-- Mobil ilovaning "Zaryadlashni boshlash" oqimini real charger mavjud stansiyalar uchun
-  `RemoteStartTransaction`ga ulash (hozircha faqat dashboard'dan qo'lda ishga tushiriladi)
-- Productionda `channels_redis` (Redis) bilan ko'p-worker qo'llab-quvvatlashni yoqish
-- Production uchun: `.env` fayl yaratish (`.env.example`dan nusxa), `SECRET_KEY`
-  almashtirish, Postgres (`DATABASE_URL`) ulash, Railway'ga deploy
-  (`Procfile`/`railway.json` — Daphne bilan yangilangan)
+Batafsil: **[DEPLOY.md](DEPLOY.md)** — ikkala servis sozlamasi, to'lov
+tizimlarining webhook manzillari, zaxira nusxa va tekshiruv ro'yxati.
+
+Qisqacha: `.env.example` dan nusxa oling, `SECRET_KEY` ni almashtiring,
+`DEBUG=False` qo'ying va `DATABASE_URL` (PostgreSQL) ulang. `DEBUG=False`
+bo'lganda HTTPS majburiy bo'ladi va cookie'lar `Secure` bayrog'i bilan
+yuboriladi.
