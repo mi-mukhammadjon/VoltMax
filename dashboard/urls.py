@@ -73,6 +73,8 @@ urlpatterns = [
     # ── Hisobotlar ──────────────────────────────────────────
     path('reports/revenue/', m.reports_revenue, name='reports_revenue'),
     path('reports/usage/', m.reports_usage, name='reports_usage'),
+    # Hisobotni faylga yuklash: revenue | stations | sessions
+    path('reports/export/<slug:kind>/', m.report_export, name='report_export'),
 
     # ── Aksiyalar ───────────────────────────────────────────
     path('offers/', m.offers_list, name='offers'),

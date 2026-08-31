@@ -6,6 +6,20 @@
     <h1 class="page-title">Tushum hisoboti</h1>
     <div class="page-sub">Oxirgi {{ days }} kun</div>
   </div>
+  <div class="head-actions">
+    {% comment %}
+      Buxgalteriya raqamlar bilan ISHLAYDI — o'z jadvalida guruhlaydi,
+      boshqa manbalar bilan solishtiradi. Ekrandan ko'chirib olish
+      xatoga olib keladi. `data-no-ajax`: fayl yuklab olish AJAX
+      qatlamidan o'tmasligi kerak.
+    {% endcomment %}
+    <a class="btn secondary" data-no-ajax
+       href="{% url 'dashboard:report_export' 'revenue' %}?days={{ days }}">Kunlik (CSV)</a>
+    <a class="btn secondary" data-no-ajax
+       href="{% url 'dashboard:report_export' 'stations' %}?days={{ days }}">Stansiyalar (CSV)</a>
+    <a class="btn secondary" data-no-ajax
+       href="{% url 'dashboard:report_export' 'sessions' %}?days={{ days }}">Sessiyalar (CSV)</a>
+  </div>
   <div class="filter-tabs" style="margin:0;">
     <a href="?days=7" class="{% if days == 7 %}active{% endif %}">7 kun</a>
     <a href="?days=30" class="{% if days == 30 %}active{% endif %}">30 kun</a>

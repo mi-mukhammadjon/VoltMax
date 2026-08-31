@@ -20,6 +20,7 @@ from django.utils import timezone
 
 from accounts.models import Company
 from accounts.models import RfidCard
+from management.activity import log_action
 from management.holidays import HolidaySyncError, sync_holidays
 from management.models import (
     CONTRACT_PLACEHOLDERS, Banner, ContractSection, FaqItem, Holiday, LegalPage,
@@ -142,6 +143,29 @@ def _clamp_days(request):
     except (TypeError, ValueError):
         days = 30
     return max(7, min(days, 90))
+
+
+@staff_required
+def report_export(request, kind):
+    """Hisobotni CSV faylida beradi.
+
+    Panel raqamlarni ekranda ko'rsatadi, buxgalteriya esa ular bilan
+    ishlaydi — o'z jadvalida guruhlaydi, boshqa manbalar bilan
+    solishtiradi. Ekrandan ko'chirib olish xatoga olib keladi.
+    """
+    from .exports import REPORTS, csv_response
+
+    report = REPORTS.get(kind)
+    if report is None:
+        messages.error(request, "Bunday hisobot yo'q")
+        return redirect('dashboard:reports_revenue')
+
+    days = _clamp_days(request)
+    rows = report['rows'](days)
+    log_action(request, ActivityLog.Action.OTHER,
+               f"Hisobot yuklab olindi — {report['filename']} ({days} kun)",
+               detail=f'{len(rows)} ta qator')
+    return csv_response(f"{report['filename']}-{days}kun", report['header'], rows)
 
 
 @staff_required
