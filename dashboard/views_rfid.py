@@ -662,6 +662,21 @@ def company_section_edit(request, pk, section):
     return redirect('dashboard:company_detail', pk=pk)
 
 
+def _recent_months(count=6):
+    """(yil, oy, yozuv) ro'yxati — joriy oydan orqaga."""
+    from dashboard.acts import month_label
+
+    today = timezone.localdate()
+    rows = []
+    year, month = today.year, today.month
+    for _ in range(count):
+        rows.append({'year': year, 'month': month, 'label': month_label(year, month)})
+        month -= 1
+        if month == 0:
+            year, month = year - 1, 12
+    return rows
+
+
 @staff_required
 def company_detail(request, pk):
     company = get_object_or_404(
@@ -685,6 +700,9 @@ def company_detail(request, pk):
             if invoice.is_pending
         ),
         'next_invoice_number': CompanyInvoice.next_number(),
+        # Oylik hujjatlar uchun oxirgi 6 oy: buxgalteriya odatda o'tgan
+        # oyni so'raydi, undan uzoqroq davr esa kamdan-kam kerak bo'ladi
+        'document_months': _recent_months(),
         # Bo'limlar sahifaning O'ZIDA tahrirlanadi: alohida sahifaga o'tib,
         # keyin qaytish uchun ikki qadam ketardi va kontekst yo'qolardi
         'section_forms': {name: form(instance=company)
@@ -794,6 +812,41 @@ def _invoice_amount(request):
     if amount <= 0:
         return None, "Summa noldan katta bo'lishi kerak"
     return amount, None
+
+
+@staff_required
+def company_documents(request, pk, year, month):
+    """Oylik hujjat: bajarilgan ishlar yoki solishtirma dalolatnoma.
+
+    Bir oyda yuzlab sessiya bo'ladi — ularni qo'lda yig'ish xatoga olib
+    keladi, xato esa nizoga aylanadi va odatda biz zarar ko'ramiz.
+    """
+    company = get_object_or_404(Company, pk=pk)
+    kind = request.GET.get('kind', 'act')
+
+    if not 1 <= month <= 12:
+        messages.error(request, "Oy noto'g'ri")
+        return redirect('dashboard:company_detail', pk=pk)
+
+    try:
+        from .acts import build_act, build_reconciliation, month_label
+    except ModuleNotFoundError:
+        messages.error(
+            request,
+            "Word hujjatlari uchun `python-docx` o'rnatilmagan — "
+            "`pip install -r requirements.txt` ni bajaring",
+        )
+        return redirect('dashboard:company_detail', pk=pk)
+
+    builder = build_reconciliation if kind == 'reconciliation' else build_act
+    document = builder(company, year, month)
+
+    slug = re.sub(r'[^A-Za-z0-9]+', '-', company.name).strip('-').lower() or 'mijoz'
+    prefix = 'solishtirma' if kind == 'reconciliation' else 'dalolatnoma'
+    filename = f'{prefix}-{slug}-{year}-{month:02d}.docx'
+
+    messages.success(request, f'{month_label(year, month)} — hujjat tayyorlandi')
+    return _docx_response(document, filename)
 
 
 @staff_required

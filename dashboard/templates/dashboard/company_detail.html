@@ -158,6 +158,50 @@
   (mijoz eski shartnoma bo'yicha to'lagan, yoki summa boshqacha kelgan).
   Odatdagi yo'l emas, shuning uchun yopiq turadi.
 {% endcomment %}
+{% comment %}
+  Oylik hujjatlar. Bir oyda yuzlab sessiya bo'ladi — ularni qo'lda yig'ish
+  xatoga olib keladi, xato esa nizoga aylanadi.
+
+  `data-no-ajax`: fayl yuklab olish AJAX qatlamidan o'tmasligi kerak.
+{% endcomment %}
+<div class="section-head"><h2>Oylik hujjatlar</h2></div>
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="w-name">Davr</th>
+          <th class="actions">Hujjatlar</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for period in document_months %}
+        <tr>
+          <td class="w-name">{{ period.label }}</td>
+          <td class="actions">
+            <div class="row-actions">
+              <a class="btn small secondary" data-no-ajax
+                 href="{% url 'dashboard:company_documents' company.id period.year period.month %}">
+                Bajarilgan ishlar
+              </a>
+              <a class="btn small secondary" data-no-ajax
+                 href="{% url 'dashboard:company_documents' company.id period.year period.month %}?kind=reconciliation">
+                Solishtirma
+              </a>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="2" class="empty">
+          <b>Davr yo'q</b>
+          <span>Hujjatlar oylik davrlar bo'yicha tayyorlanadi</span>
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <details class="card soft-details">
   <summary>Hamyonni qo'lda to'ldirish (hisobsiz)</summary>
   <form method="post" action="{% url 'dashboard:company_topup' company.id %}" class="inline-form">

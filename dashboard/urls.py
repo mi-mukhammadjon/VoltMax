@@ -183,6 +183,9 @@ urlpatterns = [
          name='company_section_edit'),
     path('companies/<int:pk>/topup/', rf.company_topup, name='company_topup'),
     path('companies/<int:pk>/contract/', rf.company_contract, name='company_contract'),
+    # Oylik hujjatlar: ?kind=act (standart) yoki ?kind=reconciliation
+    path('companies/<int:pk>/documents/<int:year>/<int:month>/', rf.company_documents,
+         name='company_documents'),
     # To'lov hisoblari — korporativ mijoz bank orqali to'laydi
     path('companies/<int:pk>/invoices/new/', rf.company_invoice_create,
          name='company_invoice_create'),
