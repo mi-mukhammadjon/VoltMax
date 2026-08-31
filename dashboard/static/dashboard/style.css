@@ -2252,12 +2252,13 @@ th.check input[type=checkbox] {
   flex: 0 0 auto; min-width: 90px;
   color: var(--text-secondary); font-size: var(--t-sm); font-weight: 600;
 }
-/* Nishon va kalit yonma-yon, izoh esa ular ostida */
-.gateway-value { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
-.gateway-note {
-  flex: 1 0 100%;
-  color: var(--text-muted); font-size: var(--t-sm); margin-top: 2px;
+/* Nishon, kalit va izoh — hammasi BIR QATORDA. Izoh pastda turganda
+   kartochka bo'sh joy bilan cho'zilib ketardi. Joy yetmasa (tor ekran)
+   `flex-wrap` uni o'zi pastga tushiradi. */
+.gateway-value {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
 }
+.gateway-note { color: var(--text-muted); font-size: var(--t-sm); }
 
 .gateway-test { margin-top: var(--s4); }
 .gateway-test > label {

@@ -50,17 +50,14 @@
         {% if settings_obj.otp_token_source == 'panel' %}
           <span class="badge success">Sozlangan</span>
           <span class="mono">{{ settings_obj.otp_token_masked }}</span>
-          <div class="gateway-note">Panelda saqlangan</div>
+          <div class="gateway-note">panelda saqlangan</div>
         {% elif settings_obj.otp_token_source == 'server' %}
           <span class="badge success">Sozlangan</span>
-          <div class="gateway-note">
-            Server sozlamasida — <code>TELEGRAM_GATEWAY_TOKEN</code>
-          </div>
+          <div class="gateway-note">server sozlamasida —
+            <code>TELEGRAM_GATEWAY_TOKEN</code></div>
         {% else %}
           <span class="badge danger">Sozlanmagan</span>
-          <div class="gateway-note">
-            Kirish kodlari yuborilmaydi — ilovaga kirib bo'lmaydi
-          </div>
+          <div class="gateway-note">ilovaga kirib bo'lmaydi</div>
         {% endif %}
       </div>
     </div>
@@ -102,18 +99,15 @@
         {% if settings_obj.sms_enabled and settings_obj.sms_login %}
           <span class="badge success">Yoqilgan</span>
           <span class="mono">{{ settings_obj.sms_login }}</span>
-          <div class="gateway-note">
-            Jo'natuvchi: {{ settings_obj.sms_sender|default:"4546 (sinov rejimi)" }}
-            {% if sms_balance is not None %} · balans: {{ sms_balance }}{% endif %}
-          </div>
+          <div class="gateway-note">jo'natuvchi:
+            {{ settings_obj.sms_sender|default:"4546 (sinov)" }}
+            {% if sms_balance is not None %} · balans: {{ sms_balance }}{% endif %}</div>
         {% elif settings_obj.sms_enabled %}
           <span class="badge warning">Sozlanmagan</span>
-          <div class="gateway-note">Yoqilgan, lekin login va parol kiritilmagan</div>
+          <div class="gateway-note">login va parol kiritilmagan</div>
         {% else %}
           <span class="badge muted">O'chirilgan</span>
-          <div class="gateway-note">
-            Kod faqat Telegram orqali ketadi — Telegrami yo'q odam kira olmaydi
-          </div>
+          <div class="gateway-note">kod faqat Telegram orqali ketadi</div>
         {% endif %}
       </div>
     </div>
