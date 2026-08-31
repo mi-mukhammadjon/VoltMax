@@ -166,7 +166,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--primary); outli
 .brand-text small { font-size: 10.5px; color: var(--text-muted); font-weight: 600; }
 
 .sidebar nav {
-  display: flex; flex-direction: column; gap: 2px;
+  /* 2px juda zich edi — havolalar bir-biriga yopishib ko'rinardi.
+     5px ularni ajratadi, lekin ro'yxatni ortiqcha cho'zib yubormaydi:
+     menyu uzun, o'nlab piksel qo'shilsa aylantirish kerak bo'ladi. */
+  display: flex; flex-direction: column; gap: 5px;
   flex: 1; padding: var(--s3) var(--s3) var(--s4);
   overflow-y: auto; overflow-x: hidden;
 }
@@ -191,7 +194,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--primary); outli
 .nav-group {
   color: var(--text-muted); font-size: 10px; font-weight: 800;
   text-transform: uppercase; letter-spacing: .8px;
-  padding: var(--s4) var(--s3) var(--s2);
+  /* Pastki bo'shliqni `gap` beradi — ilgarigi 8px shu yerda takrorlanardi */
+  padding: var(--s4) var(--s3) var(--s1);
 }
 
 .sidebar .footer { padding: var(--s3); border-top: 1px solid var(--border-soft); }
