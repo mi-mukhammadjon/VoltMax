@@ -32,6 +32,21 @@ class ChargingSession(models.Model):
     start_percent = models.PositiveIntegerField()
     power_kw = models.PositiveIntegerField()
     price_per_kwh = models.PositiveIntegerField()
+
+    # Narx qanday chiqqani — sessiya tarixida saqlanadi. Aksiya keyin
+    # o'chirilsa yoki tarif o'zgarsa ham eski chek o'zgarmasligi kerak:
+    # "nima uchun 900 so'm edi" degan savolga javob shu yerdan chiqadi.
+    base_price_per_kwh = models.PositiveIntegerField(
+        "Chegirmasiz narx", null=True, blank=True,
+    )
+    offer = models.ForeignKey(
+        'management.Offer', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='sessions', verbose_name='Aksiya',
+    )
+    price_label = models.CharField(
+        'Narx izohi', max_length=200, blank=True,
+        help_text="Masalan: Tungi tarif · Bahorgi aksiya",
+    )
     voltage_v = models.FloatField(default=400.0)
     parking_fee_per_min = models.PositiveIntegerField(default=DEFAULT_PARKING_FEE_PER_MIN)
     connector_label = models.CharField(max_length=10, default='A')
@@ -108,6 +123,17 @@ class ChargingSession(models.Model):
             return self.final_percent
         added = (self.kwh_charged / BATTERY_CAPACITY_KWH) * 100
         return min(100, round(self.start_percent + added))
+
+    @property
+    def saved_amount(self) -> int:
+        """Aksiya va tarif tufayli tejalgan summa (so'm).
+
+        Chegirma faqat narxda ko'rinsa, foydalanuvchi qancha yutganini
+        bilmaydi — tejash aynan raqam bilan ko'rsatilgani ishonch beradi.
+        """
+        if not self.base_price_per_kwh:
+            return 0
+        return max(0, round(self.kwh_charged * (self.base_price_per_kwh - self.price_per_kwh)))
 
     @property
     def energy_cost(self) -> int:
@@ -286,3 +312,54 @@ class SessionMeterReading(models.Model):
 
     def __str__(self):
         return f'#{self.session_id} @ {self.recorded_at:%H:%M:%S}'
+
+
+class PendingPromo(models.Model):
+    """Masofadan boshlashda kiritilgan promo-kodni vaqtincha saqlaydi.
+
+    Nima uchun kerak: haqiqiy charger'da sessiyani ILOVA yaratmaydi.
+    Ilova RemoteStartTransaction yuboradi va 202 qaytadi, sessiyani esa
+    charger StartTransaction bilan javob berganda OCPP shlyuzi yaratadi.
+    Oradagi bu sakrashda promo-kod yo'qolardi — foydalanuvchi kodni
+    kiritardi, chegirma esa qo'llanmasdi.
+
+    Kod bazada saqlanadi (xotirada emas): veb va OCPP alohida jarayonlar,
+    hatto alohida serverda ishlashi mumkin.
+    """
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pending_promos')
+    station = models.ForeignKey(Station, on_delete=models.CASCADE, related_name='+')
+    code = models.CharField(max_length=40)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Charger javob bermasa yozuv osilib qolmasligi kerak: eskisi
+    # keyingi urinishda ishlatilsa, foydalanuvchi kiritmagan chegirma
+    # qo'llanib ketardi.
+    TTL_MINUTES = 15
+
+    class Meta:
+        verbose_name = 'Kutilayotgan promo-kod'
+        verbose_name_plural = 'Kutilayotgan promo-kodlar'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user.username} — {self.code}'
+
+    @classmethod
+    def remember(cls, user, station, code):
+        cls.objects.filter(user=user, station=station).delete()
+        return cls.objects.create(user=user, station=station, code=code)
+
+    @classmethod
+    def take(cls, user, station):
+        """Kodni oladi va o'chiradi — bir marta ishlatiladi."""
+        cutoff = timezone.now() - timedelta(minutes=cls.TTL_MINUTES)
+        cls.objects.filter(created_at__lt=cutoff).delete()
+
+        row = cls.objects.filter(user=user, station=station,
+                                 created_at__gte=cutoff).first()
+        if row is None:
+            return ''
+        code = row.code
+        row.delete()
+        return code

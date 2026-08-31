@@ -158,6 +158,44 @@
     </div>
 
     {% comment %}
+      ── Sarf chegarasi ──────────────────────────────────────────
+      Chegara kartaning o'zida turadi: kompaniyada kartalar ko'p va
+      har biriga boshqa ishonch darajasi beriladi.
+
+      Sarf hozirgi holatda ko'rsatiladi, chunki asosiy savol "chegara
+      qo'yilganmi" emas, "unga qancha qoldi" — operator qo'ng'iroq
+      kelganda aynan shuni izlaydi.
+    {% endcomment %}
+    <div class="section-head">
+      <h2>Sarf chegarasi</h2>
+      <button type="button" class="link" data-modal-open="#card-edit-modal">Tahrirlash</button>
+    </div>
+    <div class="card">
+      {% if card.limit_state %}
+        <div class="kv-list">
+          {% for label, spent, limit in card.limit_state %}
+            <div class="kv-row">
+              <span class="k">{{ label }}</span>
+              <span class="v">
+                {{ spent|som }} / {{ limit|som }} so'm
+                {% if spent >= limit %}
+                  <span class="cell-sub" style="color:var(--danger);">
+                    chegara tugagan — karta bilan zaryadlash boshlanmaydi
+                  </span>
+                {% endif %}
+              </span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty" style="padding:var(--s5) var(--s4);">
+          <b>Chegara yo'q</b>
+          <span>Karta hamyonda pul borligicha ishlaydi</span>
+        </div>
+      {% endif %}
+    </div>
+
+    {% comment %}
       Muddat oynadagi formada ham bor, lekin u yerda sana kiritish kerak.
       Bu yerda tez tanlov: sanoq kartaning JORIY muddatidan boshlanadi,
       shuning uchun hali tugamagan kartani uzaytirish uni qisqartirmaydi.
@@ -326,6 +364,25 @@
           <div class="field">
             <label for="{{ form.expires_at.id_for_label }}">{{ form.expires_at.label }}</label>
             {{ form.expires_at }}{{ form.expires_at.errors }}
+          </div>
+        </div>
+
+        {% comment %}
+          Sarf chegarasi. Bo'sh qoldirilsa chegara yo'q — bu eng ko'p
+          uchraydigan holat, shuning uchun standart qiymat ham bo'sh.
+        {% endcomment %}
+        <div class="my-field-row">
+          <div class="field">
+            <label for="{{ form.daily_limit.id_for_label }}">{{ form.daily_limit.label }}</label>
+            {{ form.daily_limit }}
+            <div class="help">{{ form.daily_limit.help_text }}</div>
+            {{ form.daily_limit.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.monthly_limit.id_for_label }}">{{ form.monthly_limit.label }}</label>
+            {{ form.monthly_limit }}
+            <div class="help">{{ form.monthly_limit.help_text }}</div>
+            {{ form.monthly_limit.errors }}
           </div>
         </div>
       </div>

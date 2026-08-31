@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from ocpp_gateway import commands as ocpp_commands
 from stations.models import Station, Connector
-from .models import ChargingSession
+from .models import ChargingSession, PendingPromo
 from .services import vehicle_snapshot
 from .serializers import ChargingSessionSerializer, StartSessionSerializer, SessionHistorySerializer
 
@@ -42,13 +42,26 @@ class StartSessionView(APIView):
         # Karta bilan ham, ilova bilan ham bir xil qoida amal qiladi
         # (`stations.rules`), sabab esa foydalanuvchiga aynan aytiladi —
         # "boshlanmadi" degan quruq xabar hech narsani tushuntirmaydi.
+        from stations import pricing
         from stations.rules import can_start
 
         reason = can_start(request.user)
         if reason:
             return Response({'detail': reason}, status=400)
 
+        # Kod kiritilgan bo'lsa u DARHOL tekshiriladi. Aks holda noto'g'ri
+        # kod jimgina e'tiborsiz qolardi va foydalanuvchi chegirmani
+        # zaryadlash tugagach kutib o'tirardi.
+        promo_code = (serializer.validated_data.get('promoCode') or '').strip()
+        if promo_code:
+            offer, error = pricing.check_promo(station, promo_code)
+            if error:
+                return Response({'detail': error}, status=400)
+
         if station.ocpp_id and connector.ocpp_connector_id:
+            # Sessiyani charger yaratadi — kod shu paytgacha saqlanib turadi
+            if promo_code:
+                PendingPromo.remember(request.user, station, promo_code)
             if not station.is_online:
                 return Response({'detail': 'Charger hozir oflayn — birozdan so\'ng qayta urinib ko\'ring'}, status=503)
             ocpp_commands.remote_start_transaction(
@@ -61,10 +74,17 @@ class StartSessionView(APIView):
         # o'chirilsa ham tarix to'liq qoladi.
         vehicle, vehicle_label, vehicle_vin = vehicle_snapshot(request.user)
 
+        # Narx sessiya boshlanganda MUZLATILADI: tarif oynasi yarim
+        # yo'lda o'zgarsa ham foydalanuvchi boshlaganda ko'rgan narxda
+        # to'laydi. Aksiya ham shu yerda tanlanadi va sessiyaga yoziladi.
+        quote = pricing.resolve(station, promo_code=promo_code)
+
         session = ChargingSession.objects.create(
             user=request.user, station=station, connector=connector,
             start_percent=random.randint(15, 40),
-            power_kw=connector.power_kw, price_per_kwh=station.price_per_kwh,
+            power_kw=connector.power_kw, price_per_kwh=quote.price,
+            base_price_per_kwh=quote.base, offer=quote.offer,
+            price_label=quote.label[:200],
             connector_label=connector.label,
             vehicle=vehicle, vehicle_label=vehicle_label, vehicle_vin=vehicle_vin,
         )

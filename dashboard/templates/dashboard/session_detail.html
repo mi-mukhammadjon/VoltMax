@@ -45,7 +45,22 @@
   <div class="kpi">
     <div class="kpi-top"><span class="kpi-label">Energiya</span></div>
     <div class="kpi-value">{{ session.kwh_charged|num:2 }}<span class="kpi-unit">kVt·s</span></div>
-    <div class="kpi-foot">{{ session.price_per_kwh|som }} so'm / kVt·s</div>
+    {% comment %}
+      Narx sessiya boshlanganda muzlatilgan. Chegirma bo'lgan bo'lsa
+      chegirmasiz narx ham ko'rsatiladi — "nega bu sessiyada boshqacha"
+      degan savol operatorga tez-tez keladi.
+    {% endcomment %}
+    <div class="kpi-foot">
+      {{ session.price_per_kwh|som }} so'm / kVt·s
+      {% if session.base_price_per_kwh and session.base_price_per_kwh > session.price_per_kwh %}
+        <span style="text-decoration:line-through;color:var(--text-muted);">
+          {{ session.base_price_per_kwh|som }}
+        </span>
+      {% endif %}
+      {% if session.price_label %}
+        <div class="cell-sub">{{ session.price_label }}</div>
+      {% endif %}
+    </div>
   </div>
   <div class="kpi">
     <div class="kpi-top"><span class="kpi-label">Summa</span></div>
@@ -53,6 +68,11 @@
     <div class="kpi-foot">
       Energiya {{ session.energy_cost|som }}
       {% if session.parking_cost %} · Parkovka {{ session.parking_cost|som }}{% endif %}
+      {% if session.saved_amount %}
+        <div class="cell-sub" style="color:var(--success);">
+          {{ session.saved_amount|som }} so'm chegirma
+        </div>
+      {% endif %}
     </div>
   </div>
   <div class="kpi">

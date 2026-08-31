@@ -54,6 +54,9 @@ def _cleanup():
     RfidCard.objects.filter(id_tag__startswith='__MB').delete()
     Vehicle.objects.filter(user__username__startswith='__mb').delete()
     Transaction.objects.filter(user__username__startswith='__mb').delete()
+    from management.models import Offer
+
+    Offer.objects.filter(title__startswith='__mb').delete()
     Station.objects.filter(name__startswith='__mb').delete()
     User.objects.filter(username__startswith='__mb').delete()
 
@@ -150,8 +153,41 @@ def main():
               any('__mb' in r.get('comment', '')
                   for r in rows(me.get(f'/api/stations/{station.id}/reviews/').json())))
 
+        # ── 3b. Promo-kod ───────────────────────────────────────
+        # Kod sessiya boshlashdan OLDIN tekshiriladi: chegirma
+        # ishlamaganini zaryadlash tugagach bilish eng noqulay payt.
+        from management.models import Offer
+
+        promo = Offer.objects.create(
+            title='__mb Aksiya', discount_type=Offer.DiscountType.PERCENT,
+            discount_value=20, promo_code='__MBCODE',
+            starts_at=timezone.now() - timedelta(days=1))
+
+        bad_code = me.post('/api/stations/promo/check/',
+                           {'stationId': station.id, 'code': 'YOQ'},
+                           content_type='application/json')
+        check('yolg\'on promo-kod rad etildi', bad_code.status_code == 400,
+              bad_code.status_code)
+
+        good_code = me.post('/api/stations/promo/check/',
+                            {'stationId': station.id, 'code': '__MBCODE'},
+                            content_type='application/json')
+        check('promo-kod tasdiqlandi', good_code.status_code == 200,
+              good_code.content[:120])
+        check('yangi narx qaytdi',
+              good_code.json().get('pricePerKwh', 0)
+              < good_code.json().get('originalPricePerKwh', 0), good_code.json())
+
         # ── 4. Sessiya ──────────────────────────────────────────
-        started = me.post('/api/sessions/start/', {'stationId': station.id},
+        # Noto'g'ri kod bilan sessiya BOSHLANMASLIGI kerak
+        rejected = me.post('/api/sessions/start/',
+                           {'stationId': station.id, 'promoCode': 'YOQ'},
+                           content_type='application/json')
+        check('noto\'g\'ri kod bilan sessiya boshlanmadi',
+              rejected.status_code == 400, rejected.status_code)
+
+        started = me.post('/api/sessions/start/',
+                          {'stationId': station.id, 'promoCode': '__MBCODE'},
                           content_type='application/json')
         check('sessiya boshlandi', started.status_code in (200, 201), started.status_code)
         session = ChargingSession.objects.filter(user=driver).first()
@@ -159,6 +195,13 @@ def main():
 
         active = me.get('/api/sessions/active/')
         check('faol sessiya qaytdi', active.status_code == 200, active.status_code)
+        check('sessiya chegirmali narxda ochildi',
+              started.json().get('pricePerKwh', 0)
+              < started.json().get('basePricePerKwh', 0), started.json().get('priceLabel'))
+        check('chegirma sababi ilovaga yetkazildi',
+              '__mb Aksiya' in (started.json().get('priceLabel') or ''),
+              started.json().get('priceLabel'))
+
         check('faol sessiya shu stansiyaniki',
               str(active.json().get('stationId')) == str(station.id),
               active.json().get('stationId'))

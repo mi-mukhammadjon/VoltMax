@@ -24,6 +24,12 @@ class ChargingSessionSerializer(serializers.ModelSerializer):
     # Parkovka daqiqalik yechilgani uchun — qancha qismi allaqachon to'langan
     parkingPaid = serializers.IntegerField(source='parking_billed_amount', read_only=True)
     connectorLabel = serializers.CharField(source='connector_label')
+    # Chegirma: chegirmasiz narx, tejalgan summa va sababi. Uchalasi ham
+    # kerak — foydalanuvchi "qancha yutdim"ni raqamda ko'radi.
+    basePricePerKwh = serializers.IntegerField(source='base_price_per_kwh',
+                                               read_only=True, allow_null=True)
+    savedAmount = serializers.IntegerField(source='saved_amount', read_only=True)
+    priceLabel = serializers.CharField(source='price_label', read_only=True)
 
     class Meta:
         model = ChargingSession
@@ -33,12 +39,16 @@ class ChargingSessionSerializer(serializers.ModelSerializer):
             'remainingSeconds', 'kwhCharged', 'pricePerKwh',
             'currentAmps', 'voltageV', 'parkingFeePerMin', 'connectorLabel',
             'energyCost', 'parkingMinutes', 'parkingCost', 'parkingPaid',
+            'basePricePerKwh', 'savedAmount', 'priceLabel',
         ]
 
 
 class StartSessionSerializer(serializers.Serializer):
     stationId = serializers.IntegerField()
     connectorId = serializers.IntegerField(required=False)
+    # Promo-kod ixtiyoriy. Bo'sh bo'lsa faqat avtomatik aksiyalar
+    # qo'llanadi — kodli aksiya kodsiz ishlab ketmasligi kerak.
+    promoCode = serializers.CharField(required=False, allow_blank=True, max_length=40)
 
 
 class SessionHistorySerializer(serializers.ModelSerializer):

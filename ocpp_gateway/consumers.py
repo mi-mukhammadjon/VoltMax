@@ -386,7 +386,7 @@ class OCPPConsumer(AsyncWebsocketConsumer):
         if status == 'Accepted':
             from stations.rules import can_start
 
-            reason = can_start(card.billing_user)
+            reason = can_start(card.billing_user, card=card)
             if reason:
                 status = 'Blocked'
                 ChargerLog.objects.create(
@@ -641,13 +641,26 @@ class OCPPConsumer(AsyncWebsocketConsumer):
 
         vehicle, vehicle_label, vehicle_vin = vehicle_snapshot(user)
 
+        # Narx shu yerda muzlatiladi: tarif oynasi va aksiya sessiya
+        # BOSHLANGAN paytdagi holat bo'yicha olinadi. Ilovadan masofadan
+        # boshlansa, foydalanuvchi kiritgan promo-kod shu yerda kutib
+        # turadi (`PendingPromo`) — aks holda u yo'lda yo'qolardi.
+        from sessions_app.models import PendingPromo
+        from stations import pricing
+
+        promo_code = PendingPromo.take(user, connector.station)
+        quote = pricing.resolve(connector.station, promo_code=promo_code)
+
         session = ChargingSession.objects.create(
             user=user,
             station=connector.station,
             connector=connector,
             start_percent=0,
             power_kw=connector.power_kw,
-            price_per_kwh=connector.station.price_per_kwh,
+            price_per_kwh=quote.price,
+            base_price_per_kwh=quote.base,
+            offer=quote.offer,
+            price_label=quote.label[:200],
             connector_label=connector.label,
             vehicle=vehicle,
             vehicle_label=vehicle_label,

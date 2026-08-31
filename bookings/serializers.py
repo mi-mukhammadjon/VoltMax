@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from stations.models import Station, Connector
@@ -31,5 +32,12 @@ class BookingSerializer(serializers.ModelSerializer):
         connector = validated_data.get('connector')
         power_kw = connector.power_kw if connector else station.power_kw
         energy_kwh = power_kw * validated_data['duration_minutes'] / 60
-        validated_data['estimated_cost'] = round(energy_kwh * station.price_per_kwh)
+        # Narx BRON QILINGAN VAQT uchun hisoblanadi, hozirgi soat uchun
+        # emas: tungi tarifga bron qilgan odam kunduzgi narxni ko'rsa,
+        # bu xato taxmin bo'lardi.
+        from stations import pricing
+
+        quote = pricing.resolve(
+            station, now=timezone.localtime(validated_data['scheduled_at']))
+        validated_data['estimated_cost'] = round(energy_kwh * quote.price)
         return Booking.objects.create(**validated_data)

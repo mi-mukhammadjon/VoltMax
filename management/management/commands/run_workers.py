@@ -173,8 +173,10 @@ class Command(BaseCommand):
         # Har tsikl sozlamalarni qaytadan o'qiydi: ishchi uzluksiz
         # aylanadi va so'rovdagidek "yangi boshlanish" yo'q
         from management.current import clear_cached
+        from stations.pricing import clear_catalogue
 
         clear_cached()
+        clear_catalogue()
         try:
             message = func()
         except Exception as error:      # noqa: BLE001 — tsikl to'xtamasligi kerak

@@ -247,6 +247,21 @@ class RfidCard(models.Model):
         related_name='+',
     )
 
+    # ── Sarf chegarasi ────────────────────────────────────────────
+    # Korporativ mijoz kartani haydovchiga beradi va u hamyon tugaguncha
+    # cheksiz zaryadlay olardi. Chegara kartaning O'ZIDA turadi, chunki
+    # kompaniyada kartalar ko'p va ularning har biriga boshqa ishonch
+    # darajasi beriladi: xizmat mashinasi bilan direktor mashinasi bir
+    # xil emas.
+    daily_limit = models.PositiveIntegerField(
+        "Kunlik chegara (so'm)", null=True, blank=True,
+        help_text="Bo'sh — kunlik chegara yo'q",
+    )
+    monthly_limit = models.PositiveIntegerField(
+        "Oylik chegara (so'm)", null=True, blank=True,
+        help_text="Bo'sh — oylik chegara yo'q",
+    )
+
     class Meta:
         verbose_name = 'RFID karta'
         verbose_name_plural = 'RFID kartalar'
@@ -306,6 +321,60 @@ class RfidCard(models.Model):
             # Tasdiqlanmagan karta sozlamaga qarab hal qilinadi (accounts.rfid)
             return 'Pending'
         return 'Accepted'
+
+    # ── Sarf hisobi ───────────────────────────────────────────────
+    def spent_between(self, since, until=None) -> int:
+        """Shu karta bilan berilgan davrda sarflangan summa (so'm).
+
+        Ketayotgan sessiya ham qo'shiladi. Aks holda chegara aylanib
+        o'tilardi: uzoq sessiya davomida hisob o'smasdi va haydovchi
+        chegaradan bemalol oshib ketardi.
+        """
+        from sessions_app.models import ChargingSession
+
+        if not self.id_tag:
+            return 0
+
+        rows = ChargingSession.objects.filter(id_tag=self.id_tag)
+        total = 0
+
+        finished = rows.exclude(status=ChargingSession.Status.CHARGING).filter(
+            stopped_at__gte=since)
+        if until is not None:
+            finished = finished.filter(stopped_at__lt=until)
+        total += sum(session.final_cost or 0 for session in finished)
+
+        # Ketayotgan sessiyaning ayni paytdagi summasi hali yozilmagan
+        for session in rows.filter(status=ChargingSession.Status.CHARGING):
+            if session.started_at >= since and (until is None or session.started_at < until):
+                total += session.energy_cost
+
+        return total
+
+    @property
+    def spent_today(self) -> int:
+        start = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+        return self.spent_between(start)
+
+    @property
+    def spent_this_month(self) -> int:
+        start = timezone.localtime().replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0)
+        return self.spent_between(start)
+
+    @property
+    def limit_state(self):
+        """Chegaralar holati — panelda ko'rsatish uchun.
+
+        Ro'yxat: har biri `(nomi, sarflandi, chegara)`. Chegara qo'yilmagan
+        bo'lsa umuman qaytarilmaydi — bo'sh ustun operatorni chalg'itadi.
+        """
+        rows = []
+        if self.daily_limit:
+            rows.append(('Bugun', self.spent_today, self.daily_limit))
+        if self.monthly_limit:
+            rows.append(('Shu oy', self.spent_this_month, self.monthly_limit))
+        return rows
 
 
 class CompanyInvoice(models.Model):

@@ -91,7 +91,33 @@ def check_balance(user, settings_obj=None):
     return None
 
 
-def can_start(user, now=None, settings_obj=None):
+# ── Karta sarf chegarasi ────────────────────────────────────────
+def check_card_limits(card):
+    """Kartaga qo'yilgan kunlik/oylik chegara oshib ketmadimi.
+
+    Chegara kompaniya uchun kerak: karta haydovchida turadi, hamyon esa
+    kompaniyaniki. Chegarasiz bitta karta butun oylik byudjetni bir kunda
+    sarflab yuborishi mumkin edi.
+
+    Chegara BOSHLASHDA tekshiriladi. Sessiya o'rtasida to'xtatilmaydi:
+    yarim yo'lda uzilgan zaryad haydovchini stansiyada qoldiradi va bu
+    chegaradan ko'ra kattaroq muammo. Shuning uchun oxirgi sessiya
+    chegaradan biroz oshishi mumkin — buni operator ham bilishi uchun
+    panelda sarf ko'rsatiladi.
+    """
+    if card is None:
+        return None
+
+    from dashboard.templatetags.money import format_som
+
+    for label, spent, limit in card.limit_state:
+        if spent >= limit:
+            return (f'{label} uchun chegara tugagan: {format_som(limit)} so\'m. '
+                    f'Sarflandi: {format_som(spent)} so\'m.')
+    return None
+
+
+def can_start(user, now=None, settings_obj=None, card=None):
     """Sessiyani boshlash mumkinmi. `None` — mumkin, matn — sabab."""
     settings_obj = settings_obj or _settings()
 
@@ -100,7 +126,13 @@ def can_start(user, now=None, settings_obj=None):
         holiday = holiday_today()
         return f'{reason} (bugun {holiday})' if holiday else reason
 
-    return check_balance(user, settings_obj=settings_obj)
+    reason = check_balance(user, settings_obj=settings_obj)
+    if reason:
+        return reason
+
+    # Chegara balansdan KEYIN tekshiriladi: pul umuman yo'q bo'lsa, sabab
+    # sifatida "chegara tugadi" emas, "hamyon bo'sh" aytilgani to'g'riroq.
+    return check_card_limits(card)
 
 
 # ── Sessiya davomiyligi ─────────────────────────────────────────

@@ -6,7 +6,29 @@
   <a href="{% url 'dashboard:offer_new' %}" class="btn">+ Yangi aksiya</a>
 </div>
 
-<div class="filter-tabs">
+{% comment %}
+  Aksiya endi HAQIQATAN narxga ta'sir qiladi. Ilgari bu sahifa faqat
+  ro'yxat yuritardi: chegirma yaratilardi-yu, sessiya narxi to'liq
+  qolardi. Shuning uchun quyida har bir aksiyaning necha marta
+  ishlatilgani ko'rsatiladi — e'lon qilingan chegirma ishlayotganini
+  operator raqamda ko'rishi kerak.
+{% endcomment %}
+<div class="card" style="max-width:820px;">
+  <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.55;">
+    Promo-kodsiz aksiya <b>hammaga avtomatik</b> qo'llanadi va stansiya
+    kartochkasidagi narxda darhol ko'rinadi. Kodli aksiya faqat
+    foydalanuvchi kodni kiritganda ishlaydi.
+    <br><br>
+    Bir vaqtda bir nechta aksiya to'g'ri kelsa, <b>mijoz uchun eng
+    foydalisi</b> tanlanadi — chegirmalar qo'shilmaydi.
+    {% if fixed_note %}
+      <br><br>«Belgilangan summa» — <b>kVt·soatdan</b> ayiriladigan so'm,
+      umumiy summadan emas.
+    {% endif %}
+  </div>
+</div>
+
+<div class="filter-tabs" style="margin-top:var(--s5);">
   <a href="?" class="{% if not status %}active{% endif %}">Barchasi</a>
   <a href="?status=running" class="{% if status == 'running' %}active{% endif %}">Amalda</a>
   <a href="?status=inactive" class="{% if status == 'inactive' %}active{% endif %}">Amalda emas</a>
@@ -14,7 +36,7 @@
 
 <div class="table-wrap">
   <table>
-    <thead><tr><th>Aksiya</th><th>Chegirma</th><th>Promo-kod</th><th>Muddat</th><th>Holat</th><th></th></tr></thead>
+    <thead><tr><th>Aksiya</th><th>Chegirma</th><th>Promo-kod</th><th>Muddat</th><th class="num">Ishlatilgan</th><th>Holat</th><th></th></tr></thead>
     <tbody>
     {% for o in page_obj %}
       <tr>
@@ -27,13 +49,22 @@
         <td><strong>{% if o.discount_type == 'percent' %}{{ o.discount_value }}%{% else %}{{ o.discount_value|som }} so'm{% endif %}</strong></td>
         <td>{% if o.promo_code %}<span class="badge muted">{{ o.promo_code }}</span>{% else %}<span style="color:var(--text-muted);">avtomatik</span>{% endif %}</td>
         <td>{{ o.starts_at|date:"d.m.Y" }} — {% if o.ends_at %}{{ o.ends_at|date:"d.m.Y" }}{% else %}muddatsiz{% endif %}</td>
+        {# Nechta sessiyada qo'llangani — chegirma haqiqatan ishlayaptimi #}
+        <td class="num">
+          {% if o.used_count %}
+            <strong>{{ o.used_count }}</strong>
+            <div class="cell-sub">{{ o.saved_total|som }} so'm chegirma</div>
+          {% else %}
+            <span style="color:var(--text-muted);">—</span>
+          {% endif %}
+        </td>
         <td>{% if o.is_running %}<span class="badge success">{{ o.status_label }}</span>{% else %}<span class="badge muted">{{ o.status_label }}</span>{% endif %}</td>
         <td class="actions">
           <div class="row-actions"><a href="{% url 'dashboard:offer_edit' o.id %}" class="btn small secondary">Tahrirlash</a></div>
         </td>
       </tr>
     {% empty %}
-      <tr><td colspan="6"><p class="empty">Aksiya yo'q. Birinchisini qo'shing.</p></td></tr>
+      <tr><td colspan="7"><p class="empty">Aksiya yo'q. Birinchisini qo'shing.</p></td></tr>
     {% endfor %}
     </tbody>
   </table>

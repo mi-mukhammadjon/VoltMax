@@ -68,8 +68,18 @@ class SettingsCacheMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        clear_cached()
+        self._clear()
         try:
             return self.get_response(request)
         finally:
-            clear_cached()
+            self._clear()
+
+    @staticmethod
+    def _clear():
+        """Sozlamalar bilan birga narx katalogi ham tozalanadi — u ham
+        so'rov davomida bir marta o'qiladi (`stations.pricing`)."""
+        clear_cached()
+
+        from stations.pricing import clear_catalogue
+
+        clear_catalogue()

@@ -1,0 +1,120 @@
+{% comment %}
+  Vaqtga bog'liq tariflar — To'lov tabining bir qismi.
+
+  Nima uchun aynan shu tabda: narx bilan bog'liq hamma narsa (standart
+  narx, parkovka haqi, tariflar) bir joyda tursin. Operator "narx" deb
+  o'ylaganda bitta sahifani ochadi.
+
+  Jadvalda «Hozir amalda» ustuni bor: sozlama saqlangani uning
+  ISHLAYOTGANINI bildirmaydi. Tungi tarifni kunduzi kiritgan operator
+  uni ishlayotganini ko'ra olmaydi va shubhaga tushadi — shuning uchun
+  quyida qaysi stansiyada qaysi tarif AYNAN HOZIR amal qilayotgani
+  alohida ko'rsatiladi.
+{% endcomment %}
+{% load money %}
+{% if active_tab == 'payment' %}
+
+  <div class="page-head" style="margin-top:var(--s6);">
+    <div>
+      <h2 class="page-title" style="font-size:var(--t-lg);">Vaqtga bog'liq tariflar</h2>
+      <div class="page-sub">Kunning ma'lum soatlarida boshqa narx</div>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn" data-modal-open="#tariff-new-modal">
+        + Tarif qo'shish
+      </button>
+    </div>
+  </div>
+
+  <div class="card" style="max-width:820px;">
+    <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.55;">
+      Tarif oynasi stansiyaning narxini <b>almashtiradi</b>, aksiya esa shu
+      narx ustidan chegirma beradi. Ikkalasi bir vaqtda tushsa, avval tarif,
+      keyin aksiya qo'llanadi.
+      <br><br>
+      Narx sessiya <b>boshlanganda muzlatiladi</b>: tarif yarim yo'lda
+      almashsa ham foydalanuvchi boshlaganda ko'rgan narxda to'laydi.
+    </div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:var(--s4);">
+    <table>
+      <thead>
+        <tr>
+          <th class="w-name">Nomi</th>
+          <th>Vaqti</th>
+          <th>Kunlar</th>
+          <th class="w-name">Stansiya</th>
+          <th class="num">Narx</th>
+          <th class="w-badge">Holat</th>
+          <th class="actions">Amallar</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for window in tariffs %}
+        <tr>
+          <td class="w-name"><div style="font-weight:700;">{{ window.name }}</div></td>
+          <td class="mono">
+            {{ window.start_time|time:"H:i" }}–{{ window.end_time|time:"H:i" }}
+            {% if window.crosses_midnight %}
+              <div class="cell-sub">tunga o'tadi</div>
+            {% endif %}
+          </td>
+          <td>{{ window.get_day_kind_display }}</td>
+          <td class="w-name">
+            {% if window.station %}{{ window.station.name }}
+            {% else %}<span class="cell-sub">Barcha stansiyalar</span>{% endif %}
+          </td>
+          <td class="num">{{ window.price_per_kwh|som }}</td>
+          <td class="w-badge">
+            {% if window.is_active %}
+              <span class="badge success">Faol</span>
+            {% else %}
+              <span class="badge muted">To'xtatilgan</span>
+            {% endif %}
+          </td>
+          <td class="actions">
+            <div class="row-actions">
+              <button type="button" class="btn small secondary"
+                      data-modal-open="#tariff-{{ window.id }}-modal">Tahrirlash</button>
+              <form method="post" action="{% url 'dashboard:tariff_toggle' window.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn small secondary">
+                  {% if window.is_active %}To'xtatish{% else %}Yoqish{% endif %}
+                </button>
+              </form>
+              <form method="post" action="{% url 'dashboard:tariff_delete' window.id %}"
+                    onsubmit="return confirm('Tarif oynasi o’chirilsinmi? Eski sessiyalarning narxi o’zgarmaydi.')">
+                {% csrf_token %}
+                <button type="submit" class="btn small danger">O'chirish</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="empty">
+          <b>Tarif oynasi yo'q</b>
+          <span>Barcha stansiyalar kunu tun bir xil narxda ishlaydi</span>
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if tariff_now %}
+    <div class="card" style="max-width:820px;margin-top:var(--s4);">
+      <div style="font-weight:800;margin-bottom:6px;">Hozir amalda</div>
+      <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.7;">
+        {% for station, window in tariff_now %}
+          {{ station.name }} — <b>{{ window.name }}</b>,
+          {{ window.price_per_kwh|som }} so'm/kVt·s<br>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% include 'dashboard/_tariff_modal.html' %}
+  {% for window in tariffs %}
+    {% include 'dashboard/_tariff_modal.html' with target=window %}
+  {% endfor %}
+{% endif %}

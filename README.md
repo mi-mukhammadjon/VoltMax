@@ -58,9 +58,17 @@ va takroriy so'rovda ikki marta qo'shilmaydi. Kalitlar panelda saqlanadi
 **Bildirishnomalar** — matni panelda tahrirlanadigan shablonlar va
 telefonga yetkazish (Expo push).
 
+**Narx** — to'rt qatlamdan yig'iladi (`stations/pricing.py`): markaziy
+standart narx → stansiyaning o'z narxi → vaqtga bog'liq tarif oynasi
+(tungi tarif) → aksiya chegirmasi. Narx sessiya boshlanganda muzlatiladi,
+shuning uchun tarif yoki aksiya keyin o'zgarsa ham hisob buzilmaydi.
+Aksiyalar promo-kodli yoki avtomatik bo'ladi; bir vaqtda bir nechtasi
+to'g'ri kelsa mijoz uchun eng foydalisi qo'llanadi va ular qo'shilmaydi.
+
 **Zaryadlash qoidalari** — minimal balans, ish vaqti, bayram kunlari,
-sessiya vaqti chegarasi, parkovka imtiyozi. Ular sozlamada turadi va uch
-joyda bir xil qo'llanadi: RFID karta, mobil ilova, panel.
+sessiya vaqti chegarasi, parkovka imtiyozi va RFID kartaning kunlik/oylik
+sarf chegarasi. Ular sozlamada turadi va uch joyda bir xil qo'llanadi:
+RFID karta, mobil ilova, panel.
 
 ## Davriy vazifalar
 
@@ -103,6 +111,8 @@ python smoke_panel.py       # barcha panel sahifalari ochiladimi
 python test_ocpp_flow.py    # ulanishdan pul yechilishigacha to'liq oqim
 python test_payments.py     # Payme va Click webhook'lari
 python test_mobile_api.py   # ilova ishlatadigan API
+python test_pricing.py      # tarif oynalari va aksiyalar
+python test_card_limits.py  # kartaning sarf chegarasi
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`

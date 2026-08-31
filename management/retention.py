@@ -34,6 +34,10 @@ POLICIES = [
     ('xabarlar', 'management.UserNotification', 'created_at', 180, 200_000),
     ('amallar', 'management.ActivityLog', 'created_at', 365, 200_000),
     ('sozlamalar', 'management.SettingsChange', 'changed_at', 365, 50_000),
+    # Charger javob bermay qolgan promo-kodlar. `PendingPromo.take()` ham
+    # eskisini tozalaydi, lekin faqat o'sha foydalanuvchi qayta urinsa —
+    # umuman qaytmaganlari shu yerda yig'ishtiriladi.
+    ('promo-kodlar', 'sessions_app.PendingPromo', 'created_at', 1, 10_000),
 ]
 
 # O'qilgan xabar tezroq eskiradi: foydalanuvchi uni ko'rgan

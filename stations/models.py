@@ -81,22 +81,41 @@ class Station(models.Model):
 
         return SiteSettings.load().default_price_per_kwh
 
+    # `cached_property` EMAS: obyekt uzoq yashasa (masalan sozlama
+    # o'zgargandan keyin `refresh_from_db()` qilingan stansiya) narx eski
+    # bo'lib qolardi. Hisoblash arzon — tarif va aksiyalar ro'yxati
+    # so'rov davomida bir marta o'qiladi (`stations.pricing`).
+    @property
+    def price_quote(self):
+        """Hozirgi narx va u qanday chiqqani (`stations.pricing`).
+
+        Tarif oynasi va avtomatik aksiyalar shu yerda hisobga olinadi.
+        Promo-kodli aksiya kirmaydi: kodni faqat foydalanuvchi kiritadi,
+        stansiya kartochkasidagi narx esa hamma uchun bir xil.
+        """
+        from stations.pricing import resolve
+
+        return resolve(self)
+
     @property
     def price_per_kwh(self) -> int:
-        """Foydalanuvchi to'laydigan joriy narx: chegirma bo'lsa u, aks holda standart."""
-        return self.discount_price_per_kwh or self.standard_price_per_kwh
+        """Foydalanuvchi hozir to'laydigan narx."""
+        return self.price_quote.price
 
     @property
     def original_price_per_kwh(self):
         """Chegirma ustidan chizib ko'rsatiladigan narx (chegirma yo'q bo'lsa None)."""
-        return self.standard_price_per_kwh if self.has_discount else None
+        quote = self.price_quote
+        return quote.base if quote.has_discount else None
+
+    @property
+    def price_reason(self) -> str:
+        """Narx nima uchun pasayganini bir qatorda tushuntiradi."""
+        return self.price_quote.label
 
     @property
     def has_discount(self) -> bool:
-        return (
-            self.discount_price_per_kwh is not None
-            and self.discount_price_per_kwh < self.standard_price_per_kwh
-        )
+        return self.price_quote.has_discount
 
     @property
     def is_online(self) -> bool:
@@ -513,3 +532,7 @@ class ChargerLog(models.Model):
             )
             removed += cls.objects.filter(station_id=station_id).exclude(id__in=keep_ids).delete()[0]
         return removed
+
+
+# Vaqtga bog'liq tarif oynasi alohida faylda — bu yerda faqat ro'yxatga olinadi
+from .tariff_model import TariffWindow  # noqa: E402,F401

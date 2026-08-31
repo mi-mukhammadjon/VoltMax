@@ -73,6 +73,7 @@ def check_tables(label, html):
 
 SCRIPT_RE = re.compile(r'<(script|style)[^>]*>.*?</\1>', re.S)
 COMMA_DECIMAL_RE = re.compile(r'\b\d+,\d+\b')
+TAG_RE = re.compile('<[^>]+>')
 
 
 def check_decimals(label, html):
@@ -85,6 +86,10 @@ def check_decimals(label, html):
     (`money` filtrlari: `som` va `num`).
     """
     clean = SCRIPT_RE.sub('', html)
+    # Teg ATRIBUTLARI hisobga olinmaydi: ular ekranda ko'rinmaydi.
+    # Masalan summa maydonining `title` yordami vergulli misol keltiradi
+    # ("1500,50 = 1500.50") — bu qoidaning buzilishi emas, tushuntirish.
+    clean = TAG_RE.sub(' ', clean)
     hits = sorted(set(COMMA_DECIMAL_RE.findall(clean)))
     if hits:
         return [f"{label}: vergulli o'nlik son — {hits[:5]} (|num yoki |som qo'ying)"]

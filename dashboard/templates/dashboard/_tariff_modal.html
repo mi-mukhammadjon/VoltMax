@@ -1,0 +1,97 @@
+{% comment %}
+  Tarif oynasini qo'shish/tahrirlash.
+
+  `target` — tahrirlanayotgan oyna yoki bo'sh (yangisi). To'lov tizimlari
+  oynasi bilan bir xil tuzilishda: server tomonda tekshiruv baribir
+  `TariffWindowForm` orqali o'tadi.
+{% endcomment %}
+<div class="modal" id="tariff-{% if target %}{{ target.id }}{% else %}new{% endif %}-modal" hidden>
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">
+          {% if target %}{{ target.name }}{% else %}Yangi tarif oynasi{% endif %}
+        </div>
+        <div class="modal-sub">Kunning ma'lum soatlarida boshqa narx</div>
+      </div>
+      <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+    </div>
+
+    <form method="post" action="{% if target %}{% url 'dashboard:tariff_edit' target.id %}{% else %}{% url 'dashboard:tariff_new' %}{% endif %}">
+      {% csrf_token %}
+      <div class="modal-body">
+        <div class="field">
+          <label for="t-name-{{ target.id|default:'new' }}">Nomi</label>
+          <input type="text" id="t-name-{{ target.id|default:'new' }}" name="name"
+                 value="{{ target.name|default:'' }}" maxlength="100"
+                 placeholder="Tungi tarif" required>
+          <div class="help">Foydalanuvchiga ham shu nom ko'rinadi</div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="t-start-{{ target.id|default:'new' }}">Boshlanishi</label>
+            <input type="time" id="t-start-{{ target.id|default:'new' }}" name="start_time"
+                   value="{{ target.start_time|time:'H:i'|default:'' }}" required>
+          </div>
+          <div class="field">
+            <label for="t-end-{{ target.id|default:'new' }}">Tugashi</label>
+            <input type="time" id="t-end-{{ target.id|default:'new' }}" name="end_time"
+                   value="{{ target.end_time|time:'H:i'|default:'' }}" required>
+            <div class="help">Tugash boshlanishdan oldin bo'lsa — tunga o'tadi</div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="t-days-{{ target.id|default:'new' }}">Kunlar</label>
+            <select id="t-days-{{ target.id|default:'new' }}" name="day_kind">
+              {% for value, label in tariff_form.fields.day_kind.choices %}
+                <option value="{{ value }}"
+                        {% if target.day_kind == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <div class="help">Bayram kunlari dam olish deb hisoblanadi</div>
+          </div>
+          <div class="field">
+            <label for="t-price-{{ target.id|default:'new' }}">Narx (so'm/kVt·s)</label>
+            <input type="text" id="t-price-{{ target.id|default:'new' }}" name="price_per_kwh"
+                   class="money-input" inputmode="decimal" autocomplete="off"
+                   value="{{ target.price_per_kwh|default:'' }}" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="t-station-{{ target.id|default:'new' }}">Stansiya</label>
+          <select id="t-station-{{ target.id|default:'new' }}" name="station">
+            <option value="">Barcha stansiyalar</option>
+            {% for station in all_stations %}
+              <option value="{{ station.id }}"
+                      {% if target.station_id == station.id %}selected{% endif %}>
+                {{ station.name }}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="help">
+            Bitta stansiyaga qo'yilgan tarif umumiysidan ustun turadi
+          </div>
+        </div>
+
+        <div class="field switch-row">
+          <div class="switch-text">
+            <label for="t-active-{{ target.id|default:'new' }}">Faol</label>
+            <div class="help">O'chirilgan tarif narxga ta'sir qilmaydi</div>
+          </div>
+          <input type="checkbox" id="t-active-{{ target.id|default:'new' }}"
+                 name="is_active" {% if not target or target.is_active %}checked{% endif %}>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn secondary" data-modal-close>Bekor qilish</button>
+        <button type="submit" class="btn">Saqlash</button>
+      </div>
+    </form>
+  </div>
+</div>

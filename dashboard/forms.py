@@ -1,6 +1,6 @@
 from django import forms
 from accounts.models import Company, RfidCard
-from stations.models import Station, Connector, StationAmenity
+from stations.models import Station, Connector, StationAmenity, TariffWindow
 from .widgets import (
     BankAccountInput, ImageDropInput, InnInput, MoneyInput, PhoneInput,
 )
@@ -621,7 +621,8 @@ class RfidCardForm(forms.ModelForm):
 
     class Meta:
         model = RfidCard
-        fields = ['id_tag', 'label', 'user', 'company', 'status', 'expires_at']
+        fields = ['id_tag', 'label', 'user', 'company', 'status', 'expires_at',
+                  'daily_limit', 'monthly_limit']
         widgets = {
             'id_tag': forms.TextInput(attrs={
                 'placeholder': 'masalan: 04A1B2C3D4',
@@ -637,6 +638,8 @@ class RfidCardForm(forms.ModelForm):
             }),
             'label': forms.TextInput(attrs={'placeholder': 'Kim uchun / qaysi maqsadda'}),
             'expires_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+            'daily_limit': MoneyInput(attrs={'placeholder': 'chegara yo‘q'}),
+            'monthly_limit': MoneyInput(attrs={'placeholder': 'chegara yo‘q'}),
         }
 
     def __init__(self, *args, compact=False, **kwargs):
@@ -651,6 +654,9 @@ class RfidCardForm(forms.ModelForm):
         if compact:
             self.fields.pop('status', None)
             self.fields.pop('expires_at', None)
+            # Chegara qo'shish alohida qaror — qatorli formada joyi yo'q
+            self.fields.pop('daily_limit', None)
+            self.fields.pop('monthly_limit', None)
         self.fields['user'].required = False
         self.fields['company'].required = False
         if 'expires_at' in self.fields:   # qisqa rejimda bu maydon yo'q
@@ -664,6 +670,20 @@ class RfidCardForm(forms.ModelForm):
         self.fields['user'].label_from_instance = _user_label
         self.fields['user'].help_text = 'Karta kimda ekani'
         self.fields['company'].help_text = "Belgilansa pul kompaniya hamyonidan yechiladi"
+
+        for name in ('daily_limit', 'monthly_limit'):
+            if name in self.fields:
+                self.fields[name].required = False
+
+    def clean(self):
+        data = super().clean()
+        daily, monthly = data.get('daily_limit'), data.get('monthly_limit')
+        # Kunlik chegara oylikdan katta bo'lsa, kunligi hech qachon
+        # ishlamaydi — operator uni qo'ygan deb o'ylab yuradi
+        if daily and monthly and daily > monthly:
+            self.add_error('daily_limit',
+                           'Kunlik chegara oylikdan katta bo\'lmasligi kerak')
+        return data
 
     def clean_id_tag(self):
         value = (self.cleaned_data['id_tag'] or '').strip().upper()
@@ -807,3 +827,32 @@ COMPANY_SECTIONS = {
     'basics': CompanyBasicsForm,
     'requisites': CompanyRequisitesForm,
 }
+
+
+class TariffWindowForm(forms.ModelForm):
+    """Vaqtga bog'liq tarif oynasi."""
+
+    class Meta:
+        model = TariffWindow
+        fields = ['name', 'station', 'day_kind', 'start_time', 'end_time',
+                  'price_per_kwh', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'placeholder': 'Tungi tarif'}),
+            'start_time': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'end_time': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'price_per_kwh': MoneyInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['station'].required = False
+        self.fields['station'].empty_label = 'Barcha stansiyalar'
+
+    def clean(self):
+        data = super().clean()
+        start, end = data.get('start_time'), data.get('end_time')
+        # Teng vaqtlar oynani ma'nosiz qiladi: u yo bir lahza, yo butun
+        # sutka degani — ikkalasi ham operator ko'zlagan narsa emas
+        if start and end and start == end:
+            self.add_error('end_time', 'Boshlanish va tugash vaqti bir xil')
+        return data

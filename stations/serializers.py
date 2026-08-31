@@ -44,6 +44,10 @@ class StationSerializer(serializers.ModelSerializer):
     powerKw = serializers.IntegerField(source='power_kw')
     pricePerKwh = serializers.IntegerField(source='price_per_kwh')
     originalPricePerKwh = serializers.IntegerField(source='original_price_per_kwh', allow_null=True)
+    # Narx nima uchun past ekani: "Tungi tarif" yoki aksiya nomi. Ilovada
+    # chizib ko'rsatilgan narx yonida turadi — sababsiz chegirma ishonch
+    # uyg'otmaydi.
+    priceReason = serializers.CharField(source='price_reason', read_only=True)
     photoUrl = serializers.SerializerMethodField()
     connectors = ConnectorSerializer(many=True, read_only=True)
     amenities = StationAmenitySerializer(many=True, read_only=True)
@@ -55,6 +59,7 @@ class StationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'address', 'latitude', 'longitude',
             'chargerType', 'powerKw', 'pricePerKwh', 'originalPricePerKwh',
+            'priceReason',
             'status', 'rating', 'reviewCount', 'photoUrl', 'connectors', 'amenities',
         ]
 

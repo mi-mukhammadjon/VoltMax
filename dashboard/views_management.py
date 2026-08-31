@@ -29,7 +29,7 @@ from management.models import (
     SettingsChange, SiteSettings, UserNotification,
 )
 from sessions_app.models import ChargingSession
-from stations.models import Connector, Review, Station
+from stations.models import Connector, Review, Station, TariffWindow
 from wallet.models import Transaction, WalletBalance
 
 from .decorators import admin_required, staff_required
@@ -53,6 +53,7 @@ from .forms import (
     SettingsPriceForm,
     SettingsRfidForm,
     SettingsSessionForm,
+    TariffWindowForm,
     SettingsTopupForm,
     StaffUserForm,
 )
@@ -329,7 +330,21 @@ def offers_list(request):
     # `is_running` — Python xossasi, shuning uchun ro'yxat filtrlangandan keyin
     # sahifalanadi (QuerySet emas, list — Paginator ikkalasini ham qabul qiladi).
     page_obj = Paginator(offers, PAGE_SIZE).get_page(request.GET.get('page'))
-    return render(request, 'dashboard/offers.html', {'page_obj': page_obj, 'status': status})
+
+    # Har bir aksiya necha marta ishlatilgani va qancha chegirma bergani.
+    # Faqat SHU SAHIFADAGI aksiyalar hisoblanadi — butun jadval bo'ylab
+    # yig'ish ro'yxatni sekinlashtirardi.
+    for offer in page_obj:
+        sessions = ChargingSession.objects.filter(offer=offer)
+        offer.used_count = sessions.count()
+        offer.saved_total = sum(session.saved_amount for session in sessions[:500])
+
+    return render(request, 'dashboard/offers.html', {
+        'page_obj': page_obj, 'status': status,
+        # Izohda «belgilangan summa» nimani bildirishini faqat kerak
+        # bo'lganda tushuntiramiz
+        'fixed_note': any(o.discount_type == Offer.DiscountType.FIXED for o in page_obj),
+    })
 
 
 @staff_required
@@ -952,6 +967,15 @@ def _settings_context(request, tab, forms_map=None):
             discount_price_per_kwh__isnull=False
         ).count()
 
+        # Vaqtga bog'liq tariflar shu tabda — narx bilan bog'liq hamma
+        # narsa bir joyda turgani operator uchun qulay
+        context['tariffs'] = TariffWindow.objects.select_related('station')
+        context['tariff_form'] = TariffWindowForm()
+        # Modal ichidagi stansiya ro'yxati uchun — forma maydonidan emas,
+        # to'g'ridan-to'g'ri, chunki oyna oddiy inputlardan yig'ilgan
+        context['all_stations'] = Station.objects.only('id', 'name')
+        context['tariff_now'] = _tariff_now()
+
     if tab == 'security':
         # Qat'iy rejim yoqilsa nechta karta ishlamay qolishini ko'rsatamiz
         context['unknown_cards'] = RfidCard.objects.exclude(
@@ -1516,3 +1540,85 @@ def geocode(request):
         'lng': float(place['lon']),
         'label': place.get('display_name', query),
     })
+
+
+# ── Vaqtga bog'liq tariflar ─────────────────────────────────────
+def _tariff_now():
+    """Hozir qaysi stansiyada qaysi tarif amal qilayotgani.
+
+    Operator "tungi tarif yoqilganmi" degan savolga jadvalga qarab javob
+    olishi kerak: sozlama saqlangani uning ISHLAYOTGANINI bildirmaydi.
+    """
+    from stations import pricing
+
+    rows = []
+    for station in Station.objects.all()[:200]:
+        window = pricing.active_tariff(station)
+        if window is not None:
+            rows.append((station, window))
+    return rows
+
+
+def _tariff_back():
+    return redirect('dashboard:settings_payment')
+
+
+@admin_required
+def tariff_form_view(request, pk=None):
+    """Tarif oynasini qo'shish yoki tahrirlash."""
+    window = get_object_or_404(TariffWindow, pk=pk) if pk else None
+    if request.method != 'POST':
+        return _tariff_back()
+
+    form = TariffWindowForm(request.POST, instance=window)
+    if not form.is_valid():
+        for field, errors in form.errors.items():
+            label = form.fields[field].label if field in form.fields else ''
+            messages.error(request, f'{label}: {errors[0]}' if label else errors[0])
+        return _tariff_back()
+
+    obj = form.save()
+    SettingsChange.objects.create(
+        section='payment', field=f'tariff:{obj.pk}',
+        label=f'Tarif — {obj.name}',
+        old_value='—' if window is None else 'tahrirlandi',
+        new_value=f"{obj.start_time:%H:%M}–{obj.end_time:%H:%M} · {obj.price_per_kwh}",
+        changed_by=request.user,
+    )
+    # Amallar jurnaliga alohida yozilmaydi: sozlama o'zgarishlari
+    # `SettingsChange` da yuritiladi va sozlamalar sahifasida ko'rinadi
+    messages.success(request, f'{obj.name} saqlandi')
+    return _tariff_back()
+
+
+@admin_required
+def tariff_toggle(request, pk):
+    window = get_object_or_404(TariffWindow, pk=pk)
+    if request.method == 'POST':
+        window.is_active = not window.is_active
+        window.save(update_fields=['is_active'])
+        SettingsChange.objects.create(
+            section='payment', field=f'tariff:{window.pk}',
+            label=f'Tarif — {window.name}',
+            old_value="o'chirilgan" if window.is_active else 'yoqilgan',
+            new_value='yoqilgan' if window.is_active else "o'chirilgan",
+            changed_by=request.user,
+        )
+        messages.success(
+            request,
+            f"{window.name} {'yoqildi' if window.is_active else 'toxtatildi'}")
+    return _tariff_back()
+
+
+@admin_required
+def tariff_delete(request, pk):
+    window = get_object_or_404(TariffWindow, pk=pk)
+    if request.method == 'POST':
+        name = window.name
+        window.delete()
+        SettingsChange.objects.create(
+            section='payment', field='tariff', label=f'Tarif — {name}',
+            old_value='mavjud', new_value="o'chirildi", changed_by=request.user,
+        )
+        messages.success(request, f"{name} o'chirildi")
+    return _tariff_back()

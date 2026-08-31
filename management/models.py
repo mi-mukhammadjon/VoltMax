@@ -75,6 +75,23 @@ class Offer(models.Model):
     def __str__(self):
         return self.title
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self._drop_price_cache()
+
+    def delete(self, *args, **kwargs):
+        result = super().delete(*args, **kwargs)
+        self._drop_price_cache()
+        return result
+
+    @staticmethod
+    def _drop_price_cache():
+        """Narx keshini bekor qiladi — aks holda operator aksiyani
+        saqlaydi-yu, o'sha so'rovda eski narxni ko'rardi."""
+        from stations.pricing import clear_catalogue
+
+        clear_catalogue()
+
     @property
     def is_running(self) -> bool:
         """Hozir amal qilayotgan aksiyami (faol + muddat ichida)."""
