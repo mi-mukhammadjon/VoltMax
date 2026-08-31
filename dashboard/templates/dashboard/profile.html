@@ -30,4 +30,96 @@
     <div class="form-actions"><button type="submit" class="btn">Saqlash</button></div>
   </form>
 </div>
+
+{% comment %}
+  Ikki bosqichli kirish. Parol qanchalik kuchli bo'lmasin, u BITTA
+  to'siq: oshkor bo'lsa boshqa hech narsa qolmaydi. Panel esa butun
+  tarmoqni, hamma hamyonni va to'lov kalitlarini boshqaradi.
+{% endcomment %}
+<div class="section-head" style="margin-top:var(--s6);">
+  <h2>Ikki bosqichli kirish</h2>
+  {% if two_factor.is_active %}
+    <span class="badge success">Yoqilgan</span>
+  {% else %}
+    <span class="badge muted">O'chirilgan</span>
+  {% endif %}
+</div>
+
+<div class="card form-card">
+  {% if two_factor.is_active %}
+    <div class="kv-list">
+      <div class="kv-row">
+        <span class="k">Holat</span>
+        <span class="v">
+          Yoqilgan{% if two_factor.confirmed_at %} — {{ two_factor.confirmed_at|date:"d.m.Y" }}{% endif %}
+          {% if two_factor.last_used_at %}
+            <span class="cell-sub">oxirgi marta {{ two_factor.last_used_at|date:"d.m.Y H:i" }}</span>
+          {% endif %}
+        </span>
+      </div>
+      <div class="kv-row">
+        <span class="k">Zaxira kodlari</span>
+        <span class="v">
+          {{ two_factor.backup_left }} ta qoldi
+          {% if two_factor.backup_left <= 2 %}
+            <span class="cell-sub" style="color:var(--warning);">
+              tugab qolyapti — yangilang
+            </span>
+          {% endif %}
+        </span>
+      </div>
+    </div>
+
+    <div class="field-row" style="margin-top:var(--s4);">
+      {% comment %}
+        Ikkala amal ham joriy kod bilan: o'g'irlangan sessiya ikkinchi
+        to'siqni shunchaki olib tashlab qo'ya olmasin.
+      {% endcomment %}
+      <form method="post" action="{% url 'dashboard:two_factor_backup' %}"
+            style="display:flex;gap:var(--s2);align-items:flex-end;flex:1;">
+        {% csrf_token %}
+        <div class="field" style="margin:0;flex:1;">
+          <label for="backup-code">Zaxira kodlarini yangilash</label>
+          <input type="text" id="backup-code" name="code" class="mono"
+                 maxlength="9" inputmode="numeric" placeholder="000000">
+          <div class="help">Eskilari darhol yaroqsiz bo'ladi</div>
+        </div>
+        <button type="submit" class="btn secondary">Yangilash</button>
+      </form>
+    </div>
+
+    {% if not two_factor_required %}
+      <form method="post" action="{% url 'dashboard:two_factor_disable' %}"
+            style="display:flex;gap:var(--s2);align-items:flex-end;margin-top:var(--s4);">
+        {% csrf_token %}
+        <div class="field" style="margin:0;flex:1;">
+          <label for="off-code">O'chirish uchun joriy kod</label>
+          <input type="text" id="off-code" name="code" class="mono"
+                 maxlength="9" inputmode="numeric" placeholder="000000">
+        </div>
+        <button type="submit" class="btn danger">O'chirish</button>
+      </form>
+    {% else %}
+      <div class="help" style="margin-top:var(--s4);">
+        Administratorlar uchun majburiy qilingan — o'chirib bo'lmaydi
+        (Sozlamalar &gt; Xavfsizlik).
+      </div>
+    {% endif %}
+
+  {% else %}
+    <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.6;">
+      Yoqilgach kirishda telefondagi ilova bergan olti xonali kod
+      so'raladi. Parolingiz oshkor bo'lsa ham, telefonsiz kirib
+      bo'lmaydi.
+      {% if two_factor_required %}
+        <br><br><b style="color:var(--danger);">
+          Sizning hisobingiz uchun bu majburiy — hozir yoqing.
+        </b>
+      {% endif %}
+    </div>
+    <div class="form-actions">
+      <a href="{% url 'dashboard:two_factor_setup' %}" class="btn">Yoqish</a>
+    </div>
+  {% endif %}
+</div>
 {% endblock %}

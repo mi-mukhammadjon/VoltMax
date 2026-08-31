@@ -44,6 +44,11 @@ vaqtincha yopiladi (Sozlamalar > Xavfsizlik), har urinish esa yoziladi.
 Parol kamida 10 belgi va ichida loyiha nomi bo'lmasligi kerak — hujjatda
 yozilgan parol birinchi bo'lib sinab ko'riladi.
 
+Administratorlar uchun **ikki bosqichli kirish** bor (TOTP: Google
+Authenticator, Aegis va boshqalar). Profil sahifasidan yoqiladi, zaxira
+kodlari bilan. Sozlamalar > Xavfsizlik da uni superuser hisoblar uchun
+majburiy qilish mumkin.
+
 ## Nima bor
 
 **Panel** — stansiyalar va ulagichlar, sessiyalar va telemetriya, hamyonlar,
@@ -134,6 +139,7 @@ python test_health.py       # tizim holati to'g'ri aniqlanadimi
 python test_login_guard.py  # panel logini himoyasi
 python test_ocpp_auth.py    # OCPP paroli va to'lov kalitlari
 python test_api_hardening.py  # API ruxsatlari va so'rov chegaralari
+python test_two_factor.py   # ikki bosqichli kirish
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`
@@ -143,7 +149,9 @@ xizmati almashtiriladi. Shuning uchun ular tashqi xizmat ishlamay qolganda
 ham o'tadi va CI'da maxfiy kalit talab qilmaydi.
 
 Har push'da GitHub Actions ularni avtomatik o'tkazadi
-(`.github/workflows/tests.yml`).
+(`.github/workflows/tests.yml`). O'sha yerda `pip-audit` bog'liqliklardagi
+ma'lum zaifliklarni ham tekshiradi — u alohida ish sifatida ketadi va
+sinovlarni to'sib qo'ymaydi.
 
 ## OCPP 1.6J
 

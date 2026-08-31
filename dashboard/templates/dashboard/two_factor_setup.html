@@ -1,0 +1,81 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Ikki bosqichli kirish — VoltMax Panel{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Ikki bosqichli kirish</h1>
+    <div class="page-sub">Parolga qo'shimcha — telefondagi kod</div>
+  </div>
+  <a href="{% url 'dashboard:profile' %}" class="btn secondary">Ortga</a>
+</div>
+
+{% comment %}
+  Nima uchun kerakligi bir marta, aniq aytiladi: qadamlarni bajarish
+  uchun odam nimadan himoyalanayotganini bilishi kerak.
+{% endcomment %}
+<div class="card" style="max-width:760px;">
+  <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.6;">
+    Parol qanchalik kuchli bo'lmasin, u <b>bitta</b> to'siq: oshkor bo'lsa
+    boshqa hech narsa qolmaydi. Panel esa butun tarmoqni, hamma hamyonni
+    va to'lov kalitlarini boshqaradi.
+    <br><br>
+    Yoqilgach kirishda telefondagi ilova bergan olti xonali kod
+    so'raladi. Uni bilish uchun telefonning o'zi kerak.
+  </div>
+</div>
+
+<div class="detail-cols" style="margin-top:var(--s5);">
+  <div>
+    <div class="section-head"><h2>1-qadam · Ilovaga qo'shing</h2></div>
+    <div class="card">
+      {% if qr %}
+        {% comment %}
+          QR to'g'ridan-to'g'ri sahifaga joylanadi: tashqi xizmatga
+          yuborilsa maxfiy kalit begona serverga tushib qolardi.
+        {% endcomment %}
+        <div class="qr-box">{{ qr|safe }}</div>
+      {% else %}
+        <div class="empty" style="padding:var(--s4);">
+          <b>QR chizilmadi</b>
+          <span>Kalitni qo'lda kiriting — quyida</span>
+        </div>
+      {% endif %}
+
+      <div class="kv-list" style="margin-top:var(--s4);">
+        <div class="kv-row">
+          <span class="k">Kalit (qo'lda kiritish uchun)</span>
+          <span class="v mono" style="word-break:break-all;">{{ secret }}</span>
+        </div>
+      </div>
+
+      <div class="help" style="margin-top:var(--s3);">
+        Google Authenticator, Aegis, 1Password — istalgani bo'ladi.
+        Kalitni hech kimga bermang: u parolga teng.
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-head"><h2>2-qadam · Kodni tasdiqlang</h2></div>
+    <div class="card">
+      <form method="post">
+        {% csrf_token %}
+        <div class="field">
+          <label for="code">Ilova ko'rsatayotgan kod</label>
+          <input type="text" id="code" name="code" class="mono" maxlength="6"
+                 inputmode="numeric" autocomplete="one-time-code"
+                 placeholder="000000" autofocus>
+          <div class="help">Kod har 30 soniyada almashadi</div>
+        </div>
+        <button type="submit" class="btn">Yoqish</button>
+      </form>
+
+      <div class="help" style="margin-top:var(--s4);">
+        Tasdiqlanmaguncha hech narsa o'zgarmaydi — hozircha avvalgidek
+        parol bilan kirasiz.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

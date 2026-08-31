@@ -301,6 +301,27 @@ def check_security():
                      else f'{settings_obj.panel_max_attempts} ta urinishdan keyin bloklanadi'),
         })
 
+    # Administrator hisoblari ikkinchi to'siqsiz qolmasin: parol oshkor
+    # bo'lsa (fishing, qayta ishlatilgan parol) boshqa hech narsa yo'q
+    from django.contrib.auth.models import User
+
+    from management.totp import TwoFactor
+
+    admins = list(User.objects.filter(is_staff=True, is_superuser=True, is_active=True))
+    protected = set(TwoFactor.objects.filter(
+        user__in=admins, confirmed_at__isnull=False).values_list('user_id', flat=True))
+    exposed = [a.username for a in admins if a.pk not in protected]
+
+    if admins:
+        checks.append({
+            'key': 'two-factor',
+            'title': 'Ikki bosqichli kirish',
+            'state': 'warn' if exposed else 'ok',
+            'value': (f'{len(admins) - len(exposed)} / {len(admins)} administratorda'),
+            'hint': (', '.join(exposed)[:150] + ' — faqat parol bilan kiradi'
+                     if exposed else 'Barcha administratorlarda yoqilgan'),
+        })
+
     # Django admini ochiq qolgan bo'lsa — qo'shimcha hujum yuzasi:
     # uning kirish formasi bizning urinishlar chegarasidan o'tmaydi
     if getattr(django_settings, 'ENABLE_DJANGO_ADMIN', False) and not django_settings.DEBUG:

@@ -10,6 +10,7 @@ app_name = 'dashboard'
 urlpatterns = [
     # ── Auth ────────────────────────────────────────────────
     path('login/', views.login_view, name='login'),
+    path('login/2fa/', views.login_2fa_view, name='login_2fa'),
     path('logout/', views.logout_view, name='logout'),
 
     # ── Bosh sahifa ─────────────────────────────────────────
@@ -212,6 +213,9 @@ urlpatterns = [
 
     # ── Profil ──────────────────────────────────────────────
     path('profile/', m.profile, name='profile'),
+    path('profile/2fa/', m.two_factor_setup, name='two_factor_setup'),
+    path('profile/2fa/disable/', m.two_factor_disable, name='two_factor_disable'),
+    path('profile/2fa/backup/', m.two_factor_backup_codes, name='two_factor_backup'),
 
     # ── OTP ─────────────────────────────────────────────────
     path('otp/', views.otp_list, name='otp_list'),

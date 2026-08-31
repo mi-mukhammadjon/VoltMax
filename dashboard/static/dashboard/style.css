@@ -2218,3 +2218,22 @@ th.check input[type=checkbox] {
 }
 .health-banner.health-warn { border-left-color: var(--warning); }
 .health-banner-list { color: var(--text-secondary); font-size: var(--t-sm); margin-top: 4px; }
+
+/* ── Ikki bosqichli kirish ───────────────────────────────────
+   QR to'g'ridan-to'g'ri sahifaga joylanadi (tashqi xizmatga yuborilsa
+   maxfiy kalit begona serverga tushib qolardi), shuning uchun SVG ning
+   o'lchamini shu yerda cheklaymiz. */
+.qr-box {
+  background: #fff; border-radius: var(--r-md); padding: var(--s3);
+  width: 220px; max-width: 100%;
+}
+.qr-box svg { width: 100%; height: auto; display: block; }
+
+.backup-codes {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s2) var(--s5);
+  font-size: var(--t-lg); letter-spacing: 1px;
+}
+.backup-codes div {
+  padding: var(--s2) var(--s3); background: var(--hover-tint);
+  border-radius: var(--r-sm); text-align: center;
+}

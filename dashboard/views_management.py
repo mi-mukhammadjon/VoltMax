@@ -852,7 +852,8 @@ TAB_SECTIONS = {tab: dict((name, form) for name, _, form in sections)
 
 # Butun tizimga ta'sir qiladigan sozlamalar: yoqishdan oldin nima
 # o'zgarishini ko'rsatib, tasdiq so'raladi
-DANGEROUS = {'maintenance_mode', 'require_known_rfid', 'require_ocpp_auth'}
+DANGEROUS = {'maintenance_mode', 'require_known_rfid', 'require_ocpp_auth',
+             'require_2fa_for_admins'}
 
 
 def _display(form, field, value):
@@ -1441,6 +1442,20 @@ def profile(request):
             if new_password != request.POST.get('confirm_password', ''):
                 messages.error(request, 'Parollar mos kelmadi')
                 return redirect('dashboard:profile')
+            # Parol qoidalari SHU YERDA ham tekshiriladi. Ilgari
+            # tekshirilmasdi: sozlamalarda qoidalar turardi, panelda esa
+            # istalgan parol qabul qilinardi — ya'ni qoida faqat qog'ozda
+            # bor edi.
+            from django.contrib.auth.password_validation import validate_password
+            from django.core.exceptions import ValidationError
+
+            try:
+                validate_password(new_password, user=user)
+            except ValidationError as error:
+                for message in error.messages:
+                    messages.error(request, message)
+                return redirect('dashboard:profile')
+
             user.set_password(new_password)
             user.save()
             messages.success(request, "Parol yangilandi — qaytadan kiring")
@@ -1449,9 +1464,14 @@ def profile(request):
         messages.success(request, 'Profil saqlandi')
         return redirect('dashboard:profile')
 
+    from management.totp import TwoFactor, required_for
+
+    second = TwoFactor.objects.filter(user=user).first()
     return render(request, 'dashboard/profile.html', {
         'member': user,
         'session_count': ChargingSession.objects.count(),
+        'two_factor': second,
+        'two_factor_required': required_for(user),
     })
 
 
@@ -1683,3 +1703,105 @@ def otp_gateway_test(request):
         messages.success(
             request, f'Sinov kodi {phone} raqamiga yuborildi — telefonni tekshiring')
     return redirect('dashboard:settings_security')
+
+
+# ── Ikki bosqichli kirish ───────────────────────────────────────
+@staff_required
+def two_factor_setup(request):
+    """Ikki bosqichli kirishni yoqish.
+
+    Ikki qadam: kalit yaratiladi va QR ko'rsatiladi, keyin foydalanuvchi
+    ilova bergan kodni kiritadi. Tasdiqlanmaguncha talab qilinmaydi —
+    aks holda kalit yaratilib, ilovaga qo'shilmagan bo'lsa operator o'z
+    panelidan chiqib qolardi.
+    """
+    from management.totp import TwoFactor, new_secret, provisioning_uri, qr_svg
+
+    second, _ = TwoFactor.objects.get_or_create(
+        user=request.user, defaults={'secret': new_secret()})
+
+    if second.is_active:
+        messages.info(request, 'Ikki bosqichli kirish allaqachon yoqilgan')
+        return redirect('dashboard:profile')
+
+    if request.method == 'POST':
+        if second.verify_code(request.POST.get('code', '')):
+            second.confirmed_at = timezone.now()
+            codes = second.set_backup_codes()
+            second.save(update_fields=['confirmed_at', 'backup_hashes'])
+
+            SettingsChange.objects.create(
+                section='security', field='2fa',
+                label=f'Ikki bosqichli kirish — {request.user.username}',
+                old_value="o'chirilgan", new_value='yoqilgan',
+                changed_by=request.user,
+            )
+            # Zaxira kodlari FAQAT SHU PAYT ko'rsatiladi: bazada ularning
+            # yig'indisi turadi, ochiq ko'rinishini tiklab bo'lmaydi
+            return render(request, 'dashboard/two_factor_done.html',
+                          {'codes': codes})
+
+        messages.error(request, "Kod noto'g'ri — ilovadagi joriy kodni kiriting")
+
+    # Kalit har ochilganda YANGILANMAYDI: foydalanuvchi QR ni skanerlab,
+    # sahifani yangilagan bo'lsa, eski kalit ilovada qolib ketardi
+    uri = provisioning_uri(second.secret, request.user.username)
+    return render(request, 'dashboard/two_factor_setup.html', {
+        'secret': second.secret,
+        'uri': uri,
+        'qr': qr_svg(uri),
+    })
+
+
+@staff_required
+def two_factor_disable(request):
+    """O'chirish — faqat joriy kod bilan.
+
+    Kodsiz o'chirilsa, o'g'irlangan sessiya ikkinchi to'siqni shunchaki
+    olib tashlab qo'ya olardi.
+    """
+    from management.totp import TwoFactor, required_for
+
+    second = TwoFactor.objects.filter(user=request.user).first()
+    if request.method != 'POST' or second is None:
+        return redirect('dashboard:profile')
+
+    if required_for(request.user):
+        messages.error(
+            request,
+            "Administratorlar uchun ikki bosqichli kirish majburiy "
+            "(Sozlamalar > Xavfsizlik)")
+        return redirect('dashboard:profile')
+
+    if not second.verify_code(request.POST.get('code', '')):
+        messages.error(request, "Kod noto'g'ri — o'chirilmadi")
+        return redirect('dashboard:profile')
+
+    second.delete()
+    SettingsChange.objects.create(
+        section='security', field='2fa',
+        label=f'Ikki bosqichli kirish — {request.user.username}',
+        old_value='yoqilgan', new_value="o'chirildi",
+        changed_by=request.user,
+    )
+    messages.success(request, "Ikki bosqichli kirish o'chirildi")
+    return redirect('dashboard:profile')
+
+
+@staff_required
+def two_factor_backup_codes(request):
+    """Zaxira kodlarini yangilaydi. Eskilari darhol yaroqsiz bo'ladi."""
+    from management.totp import TwoFactor
+
+    second = TwoFactor.objects.filter(user=request.user).first()
+    if request.method != 'POST' or second is None or not second.is_active:
+        return redirect('dashboard:profile')
+
+    if not second.verify_code(request.POST.get('code', '')):
+        messages.error(request, "Kod noto'g'ri")
+        return redirect('dashboard:profile')
+
+    codes = second.set_backup_codes()
+    second.save(update_fields=['backup_hashes'])
+    return render(request, 'dashboard/two_factor_done.html',
+                  {'codes': codes, 'renewed': True})

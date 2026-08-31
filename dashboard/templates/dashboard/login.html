@@ -25,6 +25,12 @@
         <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2 3 14h7l-1 8 11-14h-7z"/></svg>
       </div>
       <h1>VoltMax Panel</h1>
+      {% comment %}
+        Blok ikki bosqichli kirish sahifasi uchun: u shu shablondan meros
+        oladi va faqat forma qismini almashtiradi. Shunda ikkala sahifa
+        bir xil ko'rinadi va mavzu tugmasi ham ikkalasida ishlaydi.
+      {% endcomment %}
+      {% block form %}
       <p class="sub">Stansiyalarni boshqarish paneliga kirish</p>
       {% if error %}<div class="login-error">{{ error }}</div>{% endif %}
       <form method="post">
@@ -33,6 +39,7 @@
         <div class="field"><label>Parol</label>{{ form.password }}</div>
         <button type="submit" class="btn block large">Kirish</button>
       </form>
+      {% endblock %}
     </div>
   </div>
   <script>

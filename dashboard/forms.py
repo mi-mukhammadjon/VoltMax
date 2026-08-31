@@ -452,7 +452,8 @@ class SettingsAccessForm(forms.ModelForm):
         model = SiteSettings
         fields = ['otp_ttl_minutes', 'otp_max_attempts', 'session_timeout_minutes',
                   'panel_max_attempts', 'panel_lockout_minutes',
-                  'require_ocpp_auth', 'otp_gateway_token']
+                  'require_ocpp_auth', 'require_2fa_for_admins',
+                  'otp_gateway_token']
         widgets = {
             # Mavjud kalit formada ko'rsatilmaydi — to'lov kalitlari bilan
             # bir xil qoida

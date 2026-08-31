@@ -1,0 +1,41 @@
+{% extends 'dashboard/login.html' %}
+
+{% comment %}
+  Ikkinchi bosqich — telefondagi kod.
+
+  Bu yerda foydalanuvchi HALI TIZIMGA KIRMAGAN: parol to'g'ri chiqqan,
+  lekin `login()` faqat kod tasdiqlangach chaqiriladi. Shuning uchun
+  parolni bilgan, ammo telefoni yo'q odam birorta sahifani ocha olmaydi.
+
+  Sahifa kirish formasidan meros oladi — bir xil ko'rinish, bir xil
+  markazlashtirish. Faqat forma qismi almashadi.
+{% endcomment %}
+
+{% block form %}
+  <p class="sub"><b>{{ username }}</b> uchun tasdiqlash kodi</p>
+
+  {% if error %}<div class="login-error">{{ error }}</div>{% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="field">
+      <label for="code">Telefondagi ilova bergan kod</label>
+      {% comment %}
+        `autofocus` va raqamli klaviatura: kod 30 soniyada almashadi,
+        qo'shimcha bosish vaqt yeydi.
+      {% endcomment %}
+      <input type="text" id="code" name="code" inputmode="numeric"
+             autocomplete="one-time-code" maxlength="9" autofocus
+             placeholder="000000" class="mono">
+      <div class="help">
+        Ilova ochib bo'lmasa — zaxira kodlaringizdan birini kiriting
+        ({{ backup_left }} ta qolgan).
+      </div>
+    </div>
+    <button type="submit" class="btn block large">Tasdiqlash</button>
+  </form>
+
+  <p class="sub" style="margin-top:var(--s4);">
+    <a href="{% url 'dashboard:login' %}">Boshqa hisob bilan kirish</a>
+  </p>
+{% endblock %}

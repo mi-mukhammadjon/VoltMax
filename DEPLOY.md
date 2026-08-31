@@ -105,7 +105,11 @@ Productionga chiqishdan oldin **majburiy** uchtasi:
    xohlagan foydalanuvchi qilib ko'rsata oladi.
 5. **`ENABLE_DJANGO_ADMIN`** — standart holda ishlab chiqarishda o'chiq.
    Panel hamma ishni qamrab oladi; admin kerak bo'lsa ataylab yoqing.
-6. **Har bir chargerga OCPP paroli** — stansiya sahifasida belgilanadi va
+6. **Administratorlarga ikki bosqichli kirish** — Profil sahifasida
+   yoqing, keyin Sozlamalar > Xavfsizlik da majburiy qiling. Zaxira
+   kodlarini saqlab qo'ying: telefon yo'qolsa panelga faqat ular bilan
+   kirasiz.
+7. **Har bir chargerga OCPP paroli** — stansiya sahifasida belgilanadi va
    xuddi shu parol charger sozlamasiga kiritiladi. Parolsiz manzilga uni
    bilgan har kim ulana oladi, `ocpp_id` esa maxfiy emas.
 

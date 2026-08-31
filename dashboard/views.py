@@ -68,13 +68,18 @@ def login_view(request):
             if limit and 0 < left <= 3:
                 error += f'. Yana {left} ta urinish qoldi.'
         else:
-            login(request, user)
-            # Sessiya muddati sozlamadan olinadi (Sozlamalar > Xavfsizlik).
-            # Ilgari u panelda turardi, lekin hech qayerda ishlatilmasdi —
-            # sessiya Django standarti bo'yicha ikki hafta ochiq qolardi.
-            minutes = SiteSettings.load().session_timeout_minutes
-            if minutes:
-                request.session.set_expiry(minutes * 60)
+            # Ikki bosqichli kirish yoqilgan bo'lsa, parol hali kirish
+            # emas: foydalanuvchi HALI TIZIMGA KIRITILMAYDI, faqat
+            # "kim ekani" sessiyada belgilanadi va kod so'raladi.
+            from management.totp import TwoFactor
+
+            second = TwoFactor.objects.filter(user=user).first()
+            if second is not None and second.is_active:
+                request.session['pending_2fa_user'] = user.pk
+                request.session['pending_2fa_at'] = timezone.now().isoformat()
+                return redirect('dashboard:login_2fa')
+
+            _finish_login(request, user)
             return redirect('dashboard:home')
     return render(request, 'dashboard/login.html', {'form': form, 'error': error})
 
@@ -842,3 +847,86 @@ def connector_toggle_service(request, pk, connector_pk):
 
     next_url = request.POST.get('next')
     return redirect(next_url) if next_url else redirect('dashboard:station_detail', pk=pk)
+
+
+# ─── Ikki bosqichli kirish ──────────────────────────────────────
+# Parolgacha bo'lgan yarim holat shu qadar yashaydi: kod so'ralgan
+# sahifada cheksiz turib qolgan sessiya ochiq qoldirilmasin.
+PENDING_2FA_MINUTES = 5
+
+
+def _finish_login(request, user):
+    """Sessiyani ochadi va muddatini sozlamadan oladi.
+
+    Ikki joydan chaqiriladi (oddiy kirish va kod tasdiqlangach), shuning
+    uchun alohida funksiya: sessiya muddati bir joyda unutilib qolmasin.
+    """
+    login(request, user)
+    minutes = SiteSettings.load().session_timeout_minutes
+    if minutes:
+        request.session.set_expiry(minutes * 60)
+
+
+def login_2fa_view(request):
+    """Parol to'g'ri bo'lgach — telefondagi kod.
+
+    Foydalanuvchi bu bosqichda hali TIZIMGA KIRMAGAN: `login()` faqat kod
+    tasdiqlangach chaqiriladi. Shuning uchun parolni bilgan, lekin
+    telefoni yo'q odam hech qanday sahifani ocha olmaydi.
+    """
+    from datetime import datetime
+
+    from management import login_guard
+    from management.totp import TwoFactor
+
+    user_id = request.session.get('pending_2fa_user')
+    started = request.session.get('pending_2fa_at')
+    if not user_id or not started:
+        return redirect('dashboard:login')
+
+    # Yarim holat uzoq yashamasin: kompyuter qarovsiz qolsa, kod
+    # sahifasi ochiq turib, keyin kimdir kod kiritishi mumkin edi
+    try:
+        age = (timezone.now() - datetime.fromisoformat(started)).total_seconds()
+    except (TypeError, ValueError):
+        age = PENDING_2FA_MINUTES * 60 + 1
+    if age > PENDING_2FA_MINUTES * 60:
+        request.session.pop('pending_2fa_user', None)
+        request.session.pop('pending_2fa_at', None)
+        return redirect('dashboard:login')
+
+    user = User.objects.filter(pk=user_id).first()
+    second = TwoFactor.objects.filter(user=user).first() if user else None
+    if user is None or second is None or not second.is_active:
+        return redirect('dashboard:login')
+
+    error = None
+    if request.method == 'POST':
+        code = (request.POST.get('code') or '').strip()
+
+        # Kod ham parol kabi tanlanishi mumkin — o'sha chegara qo'llanadi
+        ip = login_guard.client_ip(request)
+        locked, minutes = login_guard.is_locked(user.username, ip)
+        if locked:
+            error = (f"Urinishlar chegarasi tugadi. {minutes} daqiqadan keyin "
+                     f"qayta urinib ko'ring.")
+        elif second.verify_code(code):
+            login_guard.record(request, user.username, successful=True)
+            request.session.pop('pending_2fa_user', None)
+            request.session.pop('pending_2fa_at', None)
+            _finish_login(request, user)
+            if second.backup_left <= 2:
+                messages.warning(
+                    request,
+                    f'Zaxira kodlaringizdan {second.backup_left} tasi qoldi — '
+                    f'Profil sahifasida yangilang')
+            return redirect('dashboard:home')
+        else:
+            login_guard.record(request, user.username, successful=False)
+            error = "Kod noto'g'ri yoki muddati o'tgan"
+
+    return render(request, 'dashboard/login_2fa.html', {
+        'error': error,
+        'username': user.username,
+        'backup_left': second.backup_left,
+    })

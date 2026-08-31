@@ -1,0 +1,39 @@
+{% extends 'dashboard/base.html' %}
+{% block title %}Zaxira kodlari — VoltMax Panel{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1 class="page-title">
+      {% if renewed %}Yangi zaxira kodlari{% else %}Ikki bosqichli kirish yoqildi{% endif %}
+    </h1>
+    <div class="page-sub">Bu kodlar boshqa ko'rsatilmaydi</div>
+  </div>
+</div>
+
+{% comment %}
+  Kodlar FAQAT SHU PAYT ko'rsatiladi: bazada ularning SHA-256 yig'indisi
+  turadi, ochiq ko'rinishini tiklashning iloji yo'q. Baza oshkor bo'lsa
+  ular parolga teng bo'lardi — shuning uchun shunday saqlanadi.
+{% endcomment %}
+<div class="card" style="max-width:620px;border-left:4px solid var(--warning);">
+  <div style="font-weight:800;margin-bottom:6px;">Hozir saqlab qo'ying</div>
+  <div style="color:var(--text-secondary);font-size:var(--t-sm);line-height:1.6;">
+    Telefoningiz yo'qolsa yoki almashtirilsa, panelga aynan shu kodlar
+    bilan kirasiz. Har biri <b>bir marta</b> ishlaydi.
+    <br><br>
+    Sahifani yopganingizdan keyin ularni qayta ko'rsatib bo'lmaydi —
+    bazada faqat yig'indisi saqlanadi. Yo'qotsangiz yangisini yaratasiz.
+  </div>
+</div>
+
+<div class="card" style="max-width:620px;margin-top:var(--s4);">
+  <div class="backup-codes mono">
+    {% for code in codes %}<div>{{ code }}</div>{% endfor %}
+  </div>
+</div>
+
+<div style="margin-top:var(--s5);">
+  <a href="{% url 'dashboard:profile' %}" class="btn">Saqladim, davom etish</a>
+</div>
+{% endblock %}

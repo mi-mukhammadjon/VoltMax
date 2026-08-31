@@ -64,3 +64,29 @@ jobs:
 
       - name: Panel JS sinovlari
         run: node test_app_js.js
+
+  # Bog'liqliklardagi ma'lum zaifliklar. Alohida ish (job): u tarmoqqa
+  # chiqadi va xizmat ishlamay qolsa sinovlarni to'sib qo'ymasligi kerak.
+  #
+  # `continue-on-error` ATAYLAB: yangi zaiflik e'lon qilinishi bizning
+  # kodimiz buzilgani degani emas. Natija ko'rinadi, lekin `main` ni
+  # qizil qilib turmaydi — aks holda unga e'tibor bermay qo'yishardi.
+  xavfsizlik:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+          # Zaiflik topilsa ro'yxat chiqadi va qadam qizil bo'ladi
+          pip-audit --requirement requirements.txt --strict

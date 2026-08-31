@@ -307,6 +307,14 @@ class SiteSettings(models.Model):
     # panelda turgani afzal: to'lov kalitlari allaqachon shu yerda va
     # tokenni almashtirish uchun serverga kirish talab qilinmasin.
     # Bo'sh bo'lsa `TELEGRAM_GATEWAY_TOKEN` muhit o'zgaruvchisi ishlatiladi.
+    # Administratorlardan ikki bosqichli kirish talab qilinadimi. Parol
+    # qanchalik kuchli bo'lmasin, u BITTA to'siq: oshkor bo'lsa (fishing,
+    # qayta ishlatilgan parol) boshqa hech narsa qolmaydi.
+    require_2fa_for_admins = models.BooleanField(
+        'Administratorlarga ikki bosqichli kirish', default=False,
+        help_text="Yoqilsa superuser hisoblar telefon kodisiz kira olmaydi",
+    )
+
     # Parolsiz charger ulana oladimi. Standart — YO'Q: ilgari ulanish
     # uchun faqat `ocpp_id` ni bilish yetardi va bu jiddiy teshik edi.
     # Basic autentifikatsiyani qo'llab-quvvatlamaydigan eski qurilma
@@ -973,3 +981,7 @@ from .jobs import JobStatus  # noqa: E402,F401
 
 # Panel loginini himoya qilish alohida faylda — bu yerda ro'yxatga olinadi
 from .login_guard import LoginAttempt  # noqa: E402,F401
+
+
+# Ikki bosqichli kirish alohida faylda — bu yerda ro'yxatga olinadi
+from .totp import TwoFactor  # noqa: E402,F401
