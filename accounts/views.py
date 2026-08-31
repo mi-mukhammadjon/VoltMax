@@ -183,3 +183,29 @@ class MyRfidCardBlockView(APIView):
 
         card.save(update_fields=['status', 'blocked_by_owner'])
         return Response(RfidCardSerializer(card).data)
+
+
+class LogoutView(APIView):
+    """POST /api/auth/logout/ {refresh} — tokenni HAQIQATAN bekor qiladi.
+
+    Ilgari "chiqish" faqat telefondagi nusxani o'chirardi: server tomonda
+    `refresh` tokeni yana bir oy amal qilaverardi. Telefon boshqa odamga
+    o'tsa yoki token oshkor bo'lsa, uni to'xtatishning yo'li yo'q edi.
+
+    Token yaroqsiz bo'lsa ham 205 qaytariladi: foydalanuvchi baribir
+    chiqmoqchi va "chiqib bo'lmadi" degan xabar unga hech narsa bermaydi.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from rest_framework_simplejwt.exceptions import TokenError
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        raw = request.data.get('refresh')
+        if raw:
+            try:
+                RefreshToken(raw).blacklist()
+            except TokenError:
+                pass
+
+        return Response(status=205)

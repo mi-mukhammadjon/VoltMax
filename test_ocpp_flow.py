@@ -43,6 +43,16 @@ failures = 0
 
 CP_ID = '__FLOW_CP__'
 CARD = '__FLOW_CARD__'
+# Charger endi o'zini parol bilan tanishtiradi (OCPP 1.6J Basic auth) —
+# ilgari ulanish uchun `ocpp_id` ni bilish yetardi
+CP_PASSWORD = '__FLOW_PAROL__'
+
+
+def basic_auth(login, password):
+    import base64
+
+    raw = base64.b64encode(f'{login}:{password}'.encode()).decode()
+    return [(b'authorization', f'Basic {raw}'.encode())]
 
 
 def check(label, condition, extra=''):
@@ -92,7 +102,8 @@ def snapshot(station):
 async def flow(station, connector):
     """Butun oqim bitta ulanish ichida."""
     communicator = WebsocketCommunicator(
-        application(), f'/ws/ocpp/{CP_ID}/', subprotocols=['ocpp1.6'])
+        application(), f'/ws/ocpp/{CP_ID}/', subprotocols=['ocpp1.6'],
+        headers=basic_auth(CP_ID, CP_PASSWORD))
     connected, _ = await communicator.connect(timeout=5)
     results = {'connected': connected}
 
@@ -151,6 +162,19 @@ async def flow(station, connector):
     return results
 
 
+async def without_password():
+    """Manzilni bilish yetarli emas: parol ham kerak.
+
+    `ocpp_id` maxfiy emas — qurilma ustida yozilgan va odatda ketma-ket.
+    """
+    communicator = WebsocketCommunicator(
+        application(), f'/ws/ocpp/{CP_ID}/', subprotocols=['ocpp1.6'])
+    connected, _ = await communicator.connect(timeout=5)
+    if connected:
+        await communicator.disconnect()
+    return connected
+
+
 async def stranger():
     """Ro'yxatda yo'q charger ulana olmasligi kerak."""
     communicator = WebsocketCommunicator(
@@ -180,7 +204,8 @@ def main():
 
         station = Station.objects.create(
             name='__flow Stansiya', address='a', latitude=41.0, longitude=69.0,
-            charger_type='dc', power_kw=60, ocpp_id=CP_ID)
+            charger_type='dc', power_kw=60, ocpp_id=CP_ID,
+            ocpp_password=CP_PASSWORD)
         connector = Connector.objects.create(
             station=station, label='A', type='ccs2', power_kw=60,
             ocpp_connector_id=1, status=Connector.Status.OFFLINE)
@@ -189,8 +214,10 @@ def main():
         RfidCard.objects.create(id_tag=CARD, user=driver,
                                 status=RfidCard.Status.ACTIVE)
 
-        # ── 1. Noma'lum charger ────────────────────────────────
+        # ── 1. Noma'lum va parolsiz charger ────────────────────
         check("noma'lum charger ulanmadi", not async_to_sync(stranger)())
+        check('parolsiz ulanish rad etildi',
+              not async_to_sync(without_password)())
 
         # ── 2. To'liq oqim ─────────────────────────────────────
         results = async_to_sync(flow)(station, connector)

@@ -51,6 +51,18 @@ class Station(models.Model):
         max_length=100, unique=True, null=True, blank=True,
         help_text="Charger o'zini WebSocket ulanishda shu ID bilan tanishtiradi (masalan: CP-001)",
     )
+    # Charger ulanayotganda o'zini shu parol bilan tanishtiradi (OCPP 1.6J
+    # HTTP Basic: `Authorization: Basic base64(<ocpp_id>:<parol>)`).
+    #
+    # Nima uchun kerak: ilgari ulanish uchun FAQAT `ocpp_id` ni bilish
+    # yetardi. U esa maxfiy emas — qurilmaning ustida yozilgan, panelda
+    # ko'rinadi va odatda ketma-ket (CP-001, CP-002), ya'ni taxmin qilsa
+    # bo'ladi. Soxta "charger" ulanib begona odamning hamyonidan pul
+    # yechishi mumkin edi.
+    ocpp_password = models.CharField(
+        'OCPP paroli', max_length=100, blank=True,
+        help_text="Charger sozlamasiga ham xuddi shu parol kiritiladi",
+    )
     ocpp_last_seen_at = models.DateTimeField(null=True, blank=True)
 
     # Stansiya egasi bo'lgan tashkilot (panel > Hamkorlar). Bo'sh — VoltMax'ning o'zi.
@@ -116,6 +128,14 @@ class Station(models.Model):
     @property
     def has_discount(self) -> bool:
         return self.price_quote.has_discount
+
+    @property
+    def ocpp_password_masked(self) -> str:
+        """Parolning faqat oxirgi to'rt belgisi — to'g'ri parol turganini
+        tekshirish uchun yetarli, ko'chirib olish uchun esa emas."""
+        if not self.ocpp_password:
+            return ''
+        return '•' * 8 + self.ocpp_password[-4:]
 
     @property
     def is_online(self) -> bool:

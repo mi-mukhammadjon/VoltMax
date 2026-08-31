@@ -179,6 +179,38 @@ def check_chargers():
             'hint': 'Birorta stansiyaga OCPP ID berilmagan — hammasi qo‘lda boshqariladi',
         }]
 
+    # Parolsiz manzil — ochiq eshik: `ocpp_id` maxfiy emas (qurilma ustida
+    # yozilgan, panelda ko'rinadi, odatda ketma-ket), ya'ni uni bilgan har
+    # kim soxta charger bo'lib ulanib, begona odamning hamyonidan pul
+    # yechishi mumkin
+    from management.models import SiteSettings
+
+    unprotected = [s for s in linked if not s.ocpp_password]
+    if unprotected:
+        names = ', '.join(s.name for s in unprotected)[:120]
+        required = SiteSettings.load().require_ocpp_auth
+        # Ikki xil holat, ikki xil oqibat:
+        #   parol majburiy   → charger ULANA OLMAYDI (ish to'xtaydi)
+        #   majburiy emas    → manzil OCHIQ turadi (pul yo'qotish xavfi)
+        checks_extra = [{
+            'key': 'ocpp-auth',
+            'title': 'OCPP paroli',
+            'state': 'warn' if required else 'down',
+            'value': f'{len(unprotected)} ta stansiyada yo‘q',
+            'hint': (f'{names} — parol qo‘yilmaguncha charger ulana olmaydi'
+                     if required else
+                     f'{names} — manzilni bilgan har kim ulana oladi va '
+                     f'begona hamyondan pul yechishi mumkin'),
+        }]
+    else:
+        checks_extra = [{
+            'key': 'ocpp-auth',
+            'title': 'OCPP paroli',
+            'state': 'ok',
+            'value': 'hammasida bor',
+            'hint': 'Charger o‘zini parol bilan tanishtiradi',
+        }]
+
     online = [s for s in linked if s.is_online]
     if not online:
         state = 'down'
@@ -190,7 +222,7 @@ def check_chargers():
         state = 'ok'
         hint = 'Hammasi ulangan'
 
-    return [{
+    return checks_extra + [{
         'key': 'ocpp',
         'title': 'Chargerlar (OCPP)',
         'state': state,

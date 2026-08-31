@@ -307,6 +307,16 @@ class SiteSettings(models.Model):
     # panelda turgani afzal: to'lov kalitlari allaqachon shu yerda va
     # tokenni almashtirish uchun serverga kirish talab qilinmasin.
     # Bo'sh bo'lsa `TELEGRAM_GATEWAY_TOKEN` muhit o'zgaruvchisi ishlatiladi.
+    # Parolsiz charger ulana oladimi. Standart — YO'Q: ilgari ulanish
+    # uchun faqat `ocpp_id` ni bilish yetardi va bu jiddiy teshik edi.
+    # Basic autentifikatsiyani qo'llab-quvvatlamaydigan eski qurilma
+    # uchun buni vaqtincha o'chirish mumkin, lekin u holda o'sha manzilga
+    # kim ulanayotgani nazorat qilinmaydi.
+    require_ocpp_auth = models.BooleanField(
+        'OCPP paroli majburiy', default=True,
+        help_text="O'chirilsa parolsiz charger ham ulana oladi — tavsiya etilmaydi",
+    )
+
     otp_gateway_token = models.CharField(
         'OTP shlyuzi kaliti', max_length=200, blank=True,
         help_text="Telegram Gateway tokeni. Bo'sh bo'lsa server "

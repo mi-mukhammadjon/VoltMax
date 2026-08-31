@@ -27,6 +27,7 @@ Summa TIYINDA yuboriladi (1 so'm = 100 tiyin).
 import base64
 import json
 import logging
+import secrets
 
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -89,19 +90,31 @@ def _authorized(request, provider) -> bool:
         return False
 
     login, _, key = decoded.partition(':')
-    return login == 'Paycom' and key == provider.secret_key
+    # `==` birinchi mos kelmagan belgida to'xtaydi, ya'ni javob vaqti
+    # kalit haqida ma'lumot beradi. Tarmoq sharoitida bundan foydalanish
+    # qiyin, lekin "qiyin" degani "imkonsiz" degani emas — bu yerda esa
+    # tuzatish bir qator.
+    return login == 'Paycom' and secrets.compare_digest(key, provider.secret_key)
 
 
-def _find_order(params):
-    """So'rovdagi `account` bo'yicha buyurtmani topadi."""
+def _find_order(params, provider=None):
+    """So'rovdagi `account` bo'yicha buyurtmani topadi.
+
+    `provider` berilsa, buyurtma AYNAN shu to'lov tizimi uchun
+    yaratilganligi ham tekshiriladi: aks holda Payme so'rovi Click uchun
+    ochilgan buyurtmani ham "to'lay" olardi.
+    """
     from .models import PaymentOrder
 
     account = params.get('account') or {}
     raw = account.get('order_id') or account.get('order') or ''
     if not str(raw).isdigit():
         return None
-    return PaymentOrder.objects.filter(pk=int(raw)).select_related(
-        'provider', 'user').first()
+
+    query = PaymentOrder.objects.filter(pk=int(raw))
+    if provider is not None:
+        query = query.filter(provider=provider)
+    return query.select_related('provider', 'user').first()
 
 
 def _order_state(order):
@@ -158,7 +171,7 @@ def merchant(request):
 
 def _check_perform(request_id, params, provider):
     """Bunday buyurtma bormi va summa to'g'rimi."""
-    order = _find_order(params)
+    order = _find_order(params, provider)
     if order is None or not order.is_open:
         return _error(request_id, ERROR_ORDER, 'Buyurtma topilmadi',
                       data='order_id')
@@ -184,7 +197,7 @@ def _create(request_id, params, provider):
             'state': STATE_WAITING,
         })
 
-    order = _find_order(params)
+    order = _find_order(params, provider)
     if order is None or not order.is_open:
         return _error(request_id, ERROR_ORDER, 'Buyurtma topilmadi', data='order_id')
     if int(params.get('amount') or 0) != order.amount_tiyin:

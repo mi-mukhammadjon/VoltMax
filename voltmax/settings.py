@@ -37,6 +37,10 @@ INSTALLED_APPS = [
     # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
+    # Chiqishda `refresh` tokenini HAQIQATAN bekor qilish uchun. Usiz
+    # "chiqish" faqat telefondagi nusxani o'chirardi — server tomonda
+    # token yana bir oy amal qilaverardi.
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'channels',
     # Local
@@ -188,8 +192,19 @@ REST_FRAMEWORK = {
 
 # ─── JWT ─────────────────────────────────────────────────────
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
+    # Kirish tokeni QISQA yashaydi. Ilgari u bir hafta amal qilardi: token
+    # bir marta oshkor bo'lsa (telefon o'g'irlansa, log'ga tushsa, zararli
+    # Wi-Fi), hujumchi bir hafta to'liq kirish huquqiga ega bo'lardi.
+    #
+    # Ilova tokenni o'zi yangilaydi (`api.ts` dagi 401 ushlagichi), shuning
+    # uchun foydalanuvchi buni sezmaydi.
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    # Har yangilashda YANGI refresh beriladi, eskisi qora ro'yxatga
+    # tushadi. Shunda o'g'irlangan eski token ishlamay qoladi va tokenning
+    # ikki joyda ishlatilayotgani ham bilinadi.
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 

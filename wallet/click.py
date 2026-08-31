@@ -18,6 +18,7 @@ osilib qoladi.
 
 import hashlib
 import logging
+import secrets
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -74,17 +75,27 @@ def _valid_sign(data, provider, *, with_prepare):
     parts += [data.get('amount', ''), data.get('action', ''), data.get('sign_time', '')]
 
     expected = hashlib.md5(''.join(str(p) for p in parts).encode('utf-8')).hexdigest()
-    return expected == (data.get('sign_string') or '').lower()
+    # Doimiy vaqtli solishtirish: oddiy `==` birinchi mos kelmagan belgida
+    # to'xtaydi va javob vaqti to'g'ri imzo haqida ma'lumot berardi
+    return secrets.compare_digest(expected, (data.get('sign_string') or '').lower())
 
 
-def _find_order(data):
+def _find_order(data, provider=None):
+    """Buyurtmani topadi.
+
+    `provider` berilsa, buyurtma AYNAN shu to'lov tizimi uchun
+    yaratilganligi ham tekshiriladi.
+    """
     from .models import PaymentOrder
 
     raw = data.get('merchant_trans_id') or ''
     if not str(raw).isdigit():
         return None
-    return PaymentOrder.objects.filter(pk=int(raw)).select_related(
-        'provider', 'user').first()
+
+    query = PaymentOrder.objects.filter(pk=int(raw))
+    if provider is not None:
+        query = query.filter(provider=provider)
+    return query.select_related('provider', 'user').first()
 
 
 def _amount_matches(data, order) -> bool:
@@ -106,7 +117,7 @@ def prepare(request):
     if data.get('action') != ACTION_PREPARE:
         return _reply(ERROR_ACTION, 'Action not found')
 
-    order = _find_order(data)
+    order = _find_order(data, provider)
     if order is None:
         return _reply(ERROR_USER_NOT_FOUND, 'Order not found')
     if not _amount_matches(data, order):
@@ -142,7 +153,7 @@ def complete(request):
     if data.get('action') != ACTION_COMPLETE:
         return _reply(ERROR_ACTION, 'Action not found')
 
-    order = _find_order(data)
+    order = _find_order(data, provider)
     if order is None:
         return _reply(ERROR_USER_NOT_FOUND, 'Order not found')
     if str(order.prepare_id) != str(data.get('merchant_prepare_id') or ''):

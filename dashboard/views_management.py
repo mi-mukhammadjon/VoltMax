@@ -852,7 +852,7 @@ TAB_SECTIONS = {tab: dict((name, form) for name, _, form in sections)
 
 # Butun tizimga ta'sir qiladigan sozlamalar: yoqishdan oldin nima
 # o'zgarishini ko'rsatib, tasdiq so'raladi
-DANGEROUS = {'maintenance_mode', 'require_known_rfid'}
+DANGEROUS = {'maintenance_mode', 'require_known_rfid', 'require_ocpp_auth'}
 
 
 def _display(form, field, value):

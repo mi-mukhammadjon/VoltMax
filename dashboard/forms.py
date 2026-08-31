@@ -34,7 +34,7 @@ class StationForm(forms.ModelForm):
         fields = [
             'name', 'address', 'latitude', 'longitude',
             'charger_type', 'power_kw', 'discount_price_per_kwh',
-            'rating', 'photo', 'ocpp_id', 'partner',
+            'rating', 'photo', 'ocpp_id', 'ocpp_password', 'partner',
         ]
         widgets = {
             # Koordinatalar qo'lda kiritilmaydi — xaritadan tanlanadi (station-map.js)
@@ -42,6 +42,12 @@ class StationForm(forms.ModelForm):
             'longitude': forms.HiddenInput(attrs={'id': 'id_longitude'}),
             'rating': forms.NumberInput(attrs={'step': '0.1', 'min': 0, 'max': 5}),
             'ocpp_id': forms.TextInput(attrs={'placeholder': "bo'sh — hali jismoniy chargerga ulanmagan"}),
+            # Parol bir marta kiritiladi va keyin ko'rsatilmaydi — u
+            # chargerga ulanish huquqini beradi
+            'ocpp_password': forms.PasswordInput(render_value=False, attrs={
+                'autocomplete': 'new-password',
+                'placeholder': "chargerga ham xuddi shu parol kiritiladi",
+            }),
             'discount_price_per_kwh': MoneyInput(),
             'photo': ImageDropInput(),
         }
@@ -50,11 +56,16 @@ class StationForm(forms.ModelForm):
             'power_kw': 'Quvvat (kVt)',
             'discount_price_per_kwh': "Chegirmali narx (so'm/kVt·s)",
             'ocpp_id': 'OCPP Charge Point ID',
+            'ocpp_password': 'OCPP paroli',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['discount_price_per_kwh'].required = False
+        self.fields['ocpp_password'].required = False
+        if self.instance.pk and self.instance.ocpp_password:
+            self.fields['ocpp_password'].help_text = (
+                "To'ldirilmasa avvalgi parol saqlanib qoladi")
 
         # Standart narx markazlashgan — operator uni stansiya formasida emas,
         # Sozlamalar > To'lov bo'limida o'zgartiradi. Bu yerda faqat eslatma.
@@ -75,8 +86,27 @@ class StationForm(forms.ModelForm):
         self.fields['photo'].required = False
         self.fields['ocpp_id'].required = False
 
+    def clean_ocpp_password(self):
+        # Bo'sh yuborilsa eskisi qoladi: aks holda stansiyani tahrirlash
+        # parolni jimgina o'chirib yuborardi va charger ulana olmay qolardi
+        value = (self.cleaned_data.get('ocpp_password') or '').strip()
+        return value or self.instance.ocpp_password
+
+
     def clean(self):
         data = super().clean()
+
+        # Parolsiz OCPP manzili — ochiq eshik: ID maxfiy emas va uni
+        # bilgan har kim soxta charger bo'lib ulanib, begona odamning
+        # hamyonidan pul yechishi mumkin
+        from management.models import SiteSettings
+
+        if (data.get('ocpp_id') and not data.get('ocpp_password')
+                and SiteSettings.load().require_ocpp_auth):
+            self.add_error(
+                'ocpp_password',
+                "OCPP ID berilgan stansiyaga parol ham kerak. Bu talabni "
+                "Sozlamalar > Xavfsizlik da bo'shatish mumkin")
         price = data.get('discount_price_per_kwh')
 
         if not data.get('apply_discount'):
@@ -422,7 +452,7 @@ class SettingsAccessForm(forms.ModelForm):
         model = SiteSettings
         fields = ['otp_ttl_minutes', 'otp_max_attempts', 'session_timeout_minutes',
                   'panel_max_attempts', 'panel_lockout_minutes',
-                  'otp_gateway_token']
+                  'require_ocpp_auth', 'otp_gateway_token']
         widgets = {
             # Mavjud kalit formada ko'rsatilmaydi — to'lov kalitlari bilan
             # bir xil qoida

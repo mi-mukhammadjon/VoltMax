@@ -94,6 +94,20 @@ class OCPPConsumer(AsyncWebsocketConsumer):
             await self.close(code=4001)
             return
 
+        # Parol tekshiruvi. Ilgari ulanish uchun FAQAT `ocpp_id` ni bilish
+        # yetardi, u esa maxfiy emas: qurilma ustida yozilgan, panelda
+        # ko'rinadi va odatda ketma-ket. Soxta "charger" ulanib begona
+        # odamning hamyonidan pul yechishi mumkin edi.
+        allowed, reason = await self._check_credentials(station)
+        if not allowed:
+            logger.warning('OCPP: ulanish rad etildi (ocpp_id=%s): %s',
+                           self.ocpp_id, reason)
+            await self._log_rejected(station.id, reason)
+            # 4003 — "ruxsat yo'q". Charger buni qayta ulanish sababi deb
+            # qaraydi, shuning uchun sabab logda va panelda qoladi.
+            await self.close(code=4003)
+            return
+
         self.station_id = station.id
 
         # OCPP 1.6J shart qiladi: klient `Sec-WebSocket-Protocol: ocpp1.6` yuboradi,
@@ -321,6 +335,77 @@ class OCPPConsumer(AsyncWebsocketConsumer):
     def _get_station(self, ocpp_id):
         from stations.models import Station
         return Station.objects.filter(ocpp_id=ocpp_id).first()
+
+    def _basic_credentials(self):
+        """Handshake'dagi `Authorization: Basic` sarlavhasi.
+
+        `(login, parol)` yoki sarlavha bo'lmasa `(None, None)`.
+        """
+        import base64
+
+        for name, value in self.scope.get('headers', []):
+            if name.lower() != b'authorization':
+                continue
+            try:
+                raw = value.decode('latin-1')
+                if not raw.lower().startswith('basic '):
+                    return None, None
+                decoded = base64.b64decode(raw[6:]).decode('utf-8')
+            except (ValueError, UnicodeDecodeError):
+                return None, None
+            login, _, password = decoded.partition(':')
+            return login, password
+        return None, None
+
+    @database_sync_to_async
+    def _check_credentials(self, station):
+        """Charger o'zini to'g'ri tanishtirdimi. `(ruxsat, sabab)`."""
+        import secrets
+
+        from management.models import SiteSettings
+
+        settings_obj = SiteSettings.load()
+
+        if not station.ocpp_password:
+            if settings_obj.require_ocpp_auth:
+                return False, ('stansiyaga OCPP paroli qo\'yilmagan '
+                               '(Stansiya sahifasida belgilang)')
+            # Parol yo'q va majburiy emas — eski qurilmalar uchun yo'l
+            # ochiq qoladi, lekin bu Tizim holatida ko'rinib turadi
+            return True, ''
+
+        login, password = self._basic_credentials()
+        if password is None:
+            return False, 'parol yuborilmadi'
+
+        # Doimiy vaqtli solishtirish: oddiy `==` birinchi mos kelmagan
+        # belgida to'xtaydi va javob vaqti parol haqida ma'lumot beradi
+        if not secrets.compare_digest(password, station.ocpp_password):
+            return False, "parol noto'g'ri"
+        # Login ixtiyoriy: ba'zi qurilmalar uni yubormaydi. Yuborilgan
+        # bo'lsa `ocpp_id` ga mos kelishi kerak.
+        if login and not secrets.compare_digest(login, station.ocpp_id or ''):
+            return False, 'login mos kelmadi'
+
+        return True, ''
+
+    @database_sync_to_async
+    def _log_rejected(self, station_id, reason):
+        """Rad etilgan ulanishni yozib qo'yadi.
+
+        Aks holda kimdir manzilni topib, parol tanlayotganini bilishning
+        iloji bo'lmasdi.
+        """
+        from stations.models import ChargerLog
+
+        try:
+            ChargerLog.objects.create(
+                station_id=station_id, kind=ChargerLog.Kind.OTHER,
+                action='Connect', summary=f'Ulanish rad etildi: {reason}'[:200],
+                payload={'reason': reason},
+            )
+        except Exception:       # noqa: BLE001 — yozuv ulanishni buzmasin
+            pass
 
     @database_sync_to_async
     def _authorize_tag(self, id_tag):

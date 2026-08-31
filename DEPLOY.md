@@ -100,6 +100,9 @@ Productionga chiqishdan oldin **majburiy** uchtasi:
    ko'rsatib turadi.
 3. **`R2_BUCKET`** — sozlanmasa yuklangan stansiya rasmlari va zaxira
    nusxalar serverning diskida qoladi, u esa har deploy'da tozalanadi.
+4. **Har bir chargerga OCPP paroli** — stansiya sahifasida belgilanadi va
+   xuddi shu parol charger sozlamasiga kiritiladi. Parolsiz manzilga uni
+   bilgan har kim ulana oladi, `ocpp_id` esa maxfiy emas.
 
 Uchalasi ham `manage.py health` da alohida tekshiriladi.
 

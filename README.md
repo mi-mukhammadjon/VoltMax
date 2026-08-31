@@ -130,6 +130,7 @@ python test_pricing.py      # tarif oynalari va aksiyalar
 python test_card_limits.py  # kartaning sarf chegarasi
 python test_health.py       # tizim holati to'g'ri aniqlanadimi
 python test_login_guard.py  # panel logini himoyasi
+python test_ocpp_auth.py    # OCPP paroli va to'lov kalitlari
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`
@@ -148,14 +149,22 @@ Har push'da GitHub Actions ularni avtomatik o'tkazadi
 **1. Bog'lash** — panelda stansiyaga `OCPP Charge Point ID` (masalan `CP-001`),
 har ulagichga esa `OCPP connectorId` (`1`, `2`) beriladi.
 
-**2. Ulanish** — charger `ocpp1.6` subprotokoli bilan quyidagi manzilga ulanadi:
+**2. Parol** — stansiya sahifasida `OCPP paroli` belgilanadi va xuddi shu
+parol charger sozlamasiga kiritiladi. Charger uni handshake'da yuboradi:
+`Authorization: Basic base64(<OCPP_ID>:<parol>)`.
+
+Nima uchun: `ocpp_id` maxfiy emas — qurilma ustida yozilgan va odatda
+ketma-ket. Parolsiz manzilga uni bilgan har kim ulanib, soxta sessiya
+ochib begona hamyondan pul yechishi mumkin edi.
+
+**3. Ulanish** — charger `ocpp1.6` subprotokoli bilan quyidagi manzilga ulanadi:
 
 ```
 ws://<server>:8000/ws/ocpp/<OCPP_ID>/     # lokal
 wss://<domen>/ws/ocpp/<OCPP_ID>/          # serverda (TLS)
 ```
 
-**3. Hardware'siz sinash** — simulyator to'liq oqimni taqlid qiladi:
+**4. Hardware'siz sinash** — simulyator to'liq oqimni taqlid qiladi:
 
 ```bash
 python manage.py simulate_charger CP-001 --connectors 1 --auto-start 1

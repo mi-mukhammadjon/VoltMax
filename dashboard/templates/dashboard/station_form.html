@@ -58,6 +58,25 @@
     </div>
 
     {% comment %}
+      OCPP paroli. ID maxfiy emas — qurilma ustida yozilgan va odatda
+      ketma-ket, ya'ni taxmin qilsa bo'ladi. Parolsiz manzil ochiq eshik:
+      uni bilgan har kim soxta charger bo'lib ulanib, begona odamning
+      hamyonidan pul yechishi mumkin.
+    {% endcomment %}
+    <div class="field">
+      <label>{{ form.ocpp_password.label }}</label>
+      {{ form.ocpp_password }}{{ form.ocpp_password.errors }}
+      <div class="help">
+        {% if form.instance.ocpp_password %}
+          Hozir: <span class="mono">{{ form.instance.ocpp_password_masked }}</span> —
+          to'ldirilmasa o'shanisi qoladi.
+        {% else %}
+          Chargerga ham xuddi shu parol kiritiladi (Basic auth).
+        {% endif %}
+      </div>
+    </div>
+
+    {% comment %}
       Holat qo'lda tanlanmaydi. Ilgari bu yerda tanlagich turardi va operator
       qo'ygan qiymat qurilmanikiga zid bo'lib qolardi — masalan "bo'sh" deb
       belgilangan stansiya aslida oflayn bo'lardi. Endi holat faqat
