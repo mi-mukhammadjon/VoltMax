@@ -124,6 +124,8 @@ urlpatterns = [
     path('content/pages/<str:slug>/', m.page_form_view, name='page_edit'),
 
     # ── Sozlamalar ──────────────────────────────────────────
+    # Amallar jurnali — «kim va qachon qildi?» savoliga javob
+    path('activity/', m.activity_log, name='activity'),
     path('settings/', m.settings_general, name='settings'),
     path('settings/general/', m.settings_general, name='settings_general'),
     path('settings/payment/', m.settings_payment, name='settings_payment'),

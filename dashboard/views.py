@@ -16,6 +16,8 @@ from ocpp_gateway import commands as ocpp_commands
 from sessions_app.models import ChargingSession
 from stations.maintenance import open_issue, resolve_open_issues
 from stations.models import Station, Connector, MaintenanceIssue, StationAmenity
+from management.activity import log_action
+from management.models import ActivityLog
 from stations.services import sync_all, sync_connector_from_sessions, sync_station_status
 from sessions_app.services import force_stop_session
 from dashboard.templatetags.money import format_som
@@ -394,6 +396,9 @@ def connector_remote_start(request, pk, connector_pk):
             ocpp_commands.remote_start_transaction(
                 connector.station.ocpp_id, connector.ocpp_connector_id, id_tag=f'DASH-{request.user.username}'
             )
+            log_action(request, ActivityLog.Action.DEVICE,
+                       f'Masofadan boshlash — {connector.station.name} / {connector.label}',
+                       url=f'/stations/{connector.station_id}/')
             messages.success(request, "Masofadan boshlash buyrug'i yuborildi")
     next_url = request.POST.get('next')
     return redirect(next_url) if next_url else redirect('dashboard:station_detail', pk=pk)
@@ -414,6 +419,10 @@ def connector_remote_stop(request, pk, connector_pk):
 
         if session is not None:
             result = force_stop_session(session, actor=request.user.username)
+            log_action(request, ActivityLog.Action.SESSION,
+                       f"Sessiya majburan to'xtatildi — {connector.station.name}",
+                       detail=f'{connector.label} ulagichi, sessiya #{session.pk}',
+                       url=f'/sessions/{session.pk}/')
             if result.charger_notified:
                 messages.success(request, "Zaryadlash uzildi va chargerga buyruq yuborildi")
             else:
@@ -474,6 +483,10 @@ def user_toggle_active(request, pk):
     if request.method == 'POST':
         user.is_active = not user.is_active
         user.save(update_fields=['is_active'])
+        log_action(request, ActivityLog.Action.OTHER,
+                   f"{user.username}: "
+                   f"{'faollashtirildi' if user.is_active else 'bloklandi'}",
+                   url=f'/users/{user.pk}/')
         messages.success(request, 'Faollashtirildi' if user.is_active else 'Bloklandi')
     return redirect('dashboard:user_detail', pk=pk)
 

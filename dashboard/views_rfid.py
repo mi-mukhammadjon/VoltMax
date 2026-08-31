@@ -21,7 +21,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from accounts.models import Company, CompanyInvoice, RfidCard
-from management.models import SiteSettings
+from management.activity import log_action
+from management.models import ActivityLog, SiteSettings
 from sessions_app.models import ChargingSession
 from ocpp_gateway import commands as ocpp_commands
 from stations.models import Station
@@ -228,6 +229,9 @@ def rfid_card_status(request, pk):
 
     card.status = new_status
     card.save(update_fields=['status'])
+    log_action(request, ActivityLog.Action.CARD,
+               f'{card.id_tag} — {card.get_status_display().lower()}',
+               url=f'/rfid/{card.pk}/')
     messages.success(request, f'{card.id_tag}: {card.get_status_display().lower()}')
     return _back(request)
 
@@ -285,6 +289,7 @@ def rfid_card_delete(request, pk):
     if request.method == 'POST':
         tag = card.id_tag
         card.delete()
+        log_action(request, ActivityLog.Action.CARD, f"{tag} kartasi o'chirildi")
         messages.success(request, f"{tag} kartasi o'chirildi")
     return _back(request)
 
@@ -469,12 +474,16 @@ def rfid_bulk(request):
     elif action == 'delete':
         count = cards.count()
         cards.delete()
+        log_action(request, ActivityLog.Action.CARD,
+                   f"{count} ta karta o'chirildi (ommaviy)")
         messages.success(request, f"{count} ta karta o'chirildi")
     elif action in dict(RfidCard.Status.choices):
         # Operator bloklaganda "egasi bloklagan" belgisi tozalanadi —
         # aks holda foydalanuvchi uni o'zi ochib yuborardi.
         count = cards.update(status=action, blocked_by_owner=False)
         label = dict(RfidCard.Status.choices)[action].lower()
+        log_action(request, ActivityLog.Action.CARD,
+                   f'{count} ta karta: {label} (ommaviy)')
         messages.success(request, f'{count} ta karta: {label}')
     else:
         messages.error(request, "Noma'lum amal")
@@ -750,6 +759,9 @@ def company_topup(request, pk):
             amount=amount, description=description[:255],
         )
 
+    log_action(request, ActivityLog.Action.WALLET,
+               f"{company.name}: {format_som(amount)} so'm qo'lda qo'shildi",
+               detail=reference, url=f'/companies/{company.pk}/')
     messages.success(
         request,
         f"{format_som(amount)} so'm qo'shildi. Yangi balans: {format_som(wallet.amount)} so'm",
@@ -896,6 +908,10 @@ def company_invoice_paid(request, pk):
         user=request.user,
     )
     if done:
+        log_action(request, ActivityLog.Action.INVOICE,
+                   f"Hisob №{invoice.number} to'landi — {format_som(invoice.amount)} so'm",
+                   detail=f"t/t №{request.POST.get('payment_ref') or '—'}",
+                   url=f'/companies/{invoice.company_id}/')
         messages.success(
             request,
             f"Hisob №{invoice.number} to'langan deb belgilandi — "
@@ -915,6 +931,9 @@ def company_invoice_cancel(request, pk):
         if invoice.is_pending:
             invoice.status = CompanyInvoice.Status.CANCELLED
             invoice.save(update_fields=['status'])
+            log_action(request, ActivityLog.Action.INVOICE,
+                       f"Hisob №{invoice.number} bekor qilindi",
+                       url=f'/companies/{invoice.company_id}/')
             messages.success(request, f"Hisob №{invoice.number} bekor qilindi")
         else:
             # To'langan hisob buxgalteriya hujjati — u o'chirilmaydi

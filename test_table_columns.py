@@ -220,6 +220,7 @@ def main():
         ('FAQ', '/content/faq/'),
         ('Sahifalar', '/content/pages/'),
         ('OTP kodlar', '/otp/'),
+        ('Amallar jurnali', '/activity/'),
         ('Sozlamalar: shartnoma', '/settings/contract/'),
         ("Sozlamalar: to'lov tizimlari", '/settings/providers/'),
         ('Sozlamalar: bildirishnoma', '/settings/notification/'),

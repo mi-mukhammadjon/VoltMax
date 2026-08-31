@@ -768,3 +768,56 @@ DEFAULT_NOTIFICATIONS = [
      '{ilova} xabari',
      'Batafsil ma\'lumot ilovada.'),
 ]
+
+
+class ActivityLog(models.Model):
+    """Panelda bajarilgan amallar jurnali.
+
+    Sozlama o'zgarishlari alohida yoziladi (`SettingsChange`) — u maydon
+    darajasida «eski → yangi» ni saqlaydi. Bu jadval esa AMALLAR uchun:
+    karta bloklandi, hamyon to'ldirildi, sessiya majburan to'xtatildi,
+    hisob to'langan deb belgilandi.
+
+    Nima uchun kerak: tizimda pul harakati ko'p — onlayn to'lov,
+    qaytarish, korporativ hisoblar. Nizo chiqqanda «kim va qachon
+    qildi?» degan savolga javob bo'lishi kerak, aks holda taxmin qilishga
+    to'g'ri keladi.
+
+    Yozuv hech qachon asosiy amalni to'xtatmaydi: jurnalga yozib
+    bo'lmasa, xato logga tushadi va amal davom etadi.
+    """
+
+    class Action(models.TextChoices):
+        CARD = 'card', 'RFID karta'
+        WALLET = 'wallet', 'Hamyon'
+        INVOICE = 'invoice', "To'lov hisobi"
+        COMPANY = 'company', 'Korporativ mijoz'
+        SESSION = 'session', 'Sessiya'
+        STATION = 'station', 'Stansiya'
+        MAINTENANCE = 'maintenance', 'Profilaktika'
+        DEVICE = 'device', 'Qurilma buyrug\'i'
+        OTHER = 'other', 'Boshqa'
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name='Kim')
+    action = models.CharField('Bo\'lim', max_length=20, choices=Action.choices,
+                              default=Action.OTHER)
+    title = models.CharField('Amal', max_length=150)
+    detail = models.CharField('Tafsilot', max_length=400, blank=True)
+
+    # Qaysi yozuv ustida — havola qurish uchun (masalan `/rfid/12/`)
+    target_url = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Amal yozuvi'
+        verbose_name_plural = 'Amallar jurnali'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['action', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.title} — {self.actor or "tizim"}'

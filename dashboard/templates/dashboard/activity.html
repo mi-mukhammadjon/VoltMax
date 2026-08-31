@@ -1,0 +1,153 @@
+{% extends 'dashboard/base.html' %}{% load phone %}
+{% block title %}Amallar jurnali — VoltMax Panel{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Amallar jurnali</h1>
+    <div class="page-sub">
+      Panelda kim nima qilgani · bugun {{ today_count }} ta amal
+    </div>
+  </div>
+</div>
+
+{% comment %}
+  Filtr korporativ mijozlar sahifasidagi tartibda: tablar va qidiruv
+  ko'rinib turadi, kamdan-kam kerak bo'ladigan mezonlar (xodim, sana
+  oralig'i) «Filtr» oynasida.
+{% endcomment %}
+<div class="filter-row">
+  <div class="filter-tabs">
+    <a href="?" class="{% if not action %}active{% endif %}"
+       data-live-filter data-filter-value="">Barchasi</a>
+    {% for value, label in actions %}
+      <a href="?action={{ value }}" class="{% if action == value %}active{% endif %}"
+         data-live-filter data-filter-value="{{ value }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+
+  <form method="get" class="filter-search" data-live-search data-target="#activity-results">
+    <input type="hidden" name="status" value="">
+    <input type="hidden" name="action" value="{{ action }}">
+    <input type="search" name="q" value="{{ q }}"
+           placeholder="Amal, tafsilot yoki xodim"
+           autocomplete="off" aria-label="Amallarni qidirish">
+
+    <span class="filter-actions" id="activity-filter-actions" data-live-sync>
+      {% if q or advanced_count %}<span class="filter-found">{{ found }} ta</span>{% endif %}
+      <button type="button"
+              class="btn secondary filter-btn{% if advanced_count %} is-filtered{% endif %}"
+              data-modal-open="#activity-filter-modal" aria-haspopup="dialog"
+              title="{% if advanced_count %}{{ advanced_count }} ta mezon qo'llanilgan{% else %}Kengaytirilgan filtr{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 5h18l-7 8.2V19l-4 2v-7.8z"/>
+        </svg>
+        Filtr
+        {% if advanced_count %}<span class="fb-count">{{ advanced_count }}</span>{% endif %}
+      </button>
+      <button type="submit" class="btn secondary">Qidirish</button>
+      {% if q or advanced_count %}
+        <a href="?{% if action %}action={{ action }}{% endif %}" class="btn secondary"
+           title="Filtrlarni tozalash">&times;</a>
+      {% endif %}
+    </span>
+
+    <div class="modal" id="activity-filter-modal" hidden>
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-panel" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">Kengaytirilgan filtr</div>
+            <div class="modal-sub">Xodim va sana oralig'i bo'yicha</div>
+          </div>
+          <button type="button" class="modal-close" data-modal-close aria-label="Yopish">&times;</button>
+        </div>
+
+        <div class="modal-body" id="activity-filter-fields" data-live-sync>
+          <div class="filter-group">
+            <div class="filter-group-title">Kim</div>
+            <div class="field{% if filters.actor %} is-set{% endif %}">
+              <label for="f-actor">Xodim</label>
+              <select id="f-actor" name="actor">
+                <option value="">Farqi yo'q</option>
+                {% for person in staff %}
+                  <option value="{{ person.id }}"
+                          {% if filters.actor == person.id|stringformat:'s' %}selected{% endif %}>
+                    {{ person.get_full_name|default:person.username }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-group-title">Davr</div>
+            <div class="range-row">
+              <div class="field{% if filters.from %} is-set{% endif %}">
+                <label for="f-from">Dan</label>
+                <input type="date" id="f-from" name="from" value="{{ filters.from }}">
+              </div>
+              <span class="range-dash" aria-hidden="true">—</span>
+              <div class="field{% if filters.to %} is-set{% endif %}">
+                <label for="f-to">Gacha</label>
+                <input type="date" id="f-to" name="to" value="{{ filters.to }}">
+              </div>
+            </div>
+            <div class="help">Bittasini to'ldirish ham yetarli</div>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <a href="?{% if action %}action={{ action }}{% endif %}" class="btn secondary">Tozalash</a>
+          <button type="submit" class="btn">Qo'llash</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div id="activity-results" data-live-region>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th class="w-date">Vaqti</th>
+        <th class="w-badge">Bo'lim</th>
+        <th>Amal</th>
+        <th class="w-name">Kim</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in page_obj %}
+      <tr>
+        <td class="w-date">{{ row.created_at|date:"d.m.Y H:i" }}</td>
+        <td class="w-badge"><span class="badge muted">{{ row.get_action_display }}</span></td>
+        <td>
+          {% if row.target_url %}
+            <a href="{{ row.target_url }}" style="font-weight:700;">{{ row.title }}</a>
+          {% else %}
+            <div style="font-weight:700;">{{ row.title }}</div>
+          {% endif %}
+          {% if row.detail %}<div class="cell-sub">{{ row.detail }}</div>{% endif %}
+        </td>
+        {# Mobil foydalanuvchining logini — raqamning o'zi, shuning uchun formatlanadi #}
+        <td class="w-name">{{ row.actor.username|phone|default:"tizim" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="empty">
+        {% if q or advanced_count or action %}
+          <b>Filtrga mos amal topilmadi</b>
+          <span>Qidiruv shartlarini yumshating yoki filtrlarni tozalang</span>
+        {% else %}
+          <b>Hali amal yozilmagan</b>
+          <span>Karta bloklash, hamyon to'ldirish yoki sessiyani to'xtatish shu yerda ko'rinadi</span>
+        {% endif %}
+      </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include 'dashboard/_pagination.html' %}
+</div>
+{% endblock %}

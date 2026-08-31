@@ -11,7 +11,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.models import Group, User
 from django.core.paginator import Paginator
-from django.db.models import Avg, Count, Sum
+from django.db.models import Avg, Count, Q, Sum
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -23,8 +23,8 @@ from accounts.models import RfidCard
 from management.holidays import HolidaySyncError, sync_holidays
 from management.models import (
     CONTRACT_PLACEHOLDERS, Banner, ContractSection, FaqItem, Holiday, LegalPage,
-    NotificationTemplate, Offer, Partner, PaymentProvider, SettingsChange,
-    SiteSettings, UserNotification,
+    ActivityLog, NotificationTemplate, Offer, Partner, PaymentProvider,
+    SettingsChange, SiteSettings, UserNotification,
 )
 from sessions_app.models import ChargingSession
 from stations.models import Connector, Review, Station
@@ -580,6 +580,63 @@ def page_form_view(request, slug):
         messages.success(request, 'Saqlandi')
         return redirect('dashboard:content_pages')
     return render(request, 'dashboard/page_form.html', {'form': form, 'page': page})
+
+
+# ═══════════════════════════════════════════════════════════════
+#  Amallar jurnali
+# ═══════════════════════════════════════════════════════════════
+@staff_required
+def activity_log(request):
+    """Panelda bajarilgan amallar.
+
+    Tizimda pul harakati ko'p — onlayn to'lov, qaytarish, korporativ
+    hisoblar. Nizo chiqqanda «kim va qachon qildi?» degan savolga javob
+    bo'lishi kerak.
+
+    Sozlama o'zgarishlari bu yerda emas: ular maydon darajasida
+    «eski → yangi» bilan saqlanadi va o'z sahifasida ko'rinadi
+    (Sozlamalar > tab ostidagi jadval).
+    """
+    rows = ActivityLog.objects.select_related('actor')
+
+    action = request.GET.get('action', '').strip()
+    if action in dict(ActivityLog.Action.choices):
+        rows = rows.filter(action=action)
+
+    query = request.GET.get('q', '').strip()
+    if query:
+        rows = rows.filter(
+            Q(title__icontains=query)
+            | Q(detail__icontains=query)
+            | Q(actor__username__icontains=query))
+
+    actor = request.GET.get('actor', '').strip()
+    if actor.isdigit():
+        rows = rows.filter(actor_id=int(actor))
+
+    start = parse_date(request.GET.get('from', ''))
+    end = parse_date(request.GET.get('to', ''))
+    if start:
+        rows = rows.filter(created_at__date__gte=start)
+    if end:
+        rows = rows.filter(created_at__date__lte=end)
+
+    advanced = sum(1 for key in ('actor', 'from', 'to') if request.GET.get(key))
+
+    return render(request, 'dashboard/activity.html', {
+        'page_obj': Paginator(rows, PAGE_SIZE).get_page(request.GET.get('page')),
+        'actions': ActivityLog.Action.choices,
+        'action': action,
+        'q': query,
+        'filters': {'actor': actor, 'from': request.GET.get('from', ''),
+                    'to': request.GET.get('to', '')},
+        'found': rows.count(),
+        'advanced_count': advanced,
+        # Faqat amal qilgan xodimlar — ro'yxat qisqa bo'lsin
+        'staff': User.objects.filter(is_staff=True).order_by('username'),
+        'today_count': ActivityLog.objects.filter(
+            created_at__date=timezone.localdate()).count(),
+    })
 
 
 # ═══════════════════════════════════════════════════════════════
