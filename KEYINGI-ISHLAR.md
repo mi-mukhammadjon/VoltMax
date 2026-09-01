@@ -30,6 +30,12 @@ Batafsil: `DEPLOY.md`.
 
 ### Xizmatlar
 
+- [ ] **Panelda saqlangan kartalar ko'rinishi** — operator
+      foydalanuvchining nechta kartasi borligini va avtomatik
+      to'ldirish yoqilganini ko'ra olmaydi. Shikoyat kelganda («pul
+      yechilib ketdi») javob berish qiyin bo'ladi.
+      Token EMAS, faqat maskalangan raqam va oxirgi yechimlar
+
 - [ ] **Kartani biriktirish shartnomasi** — Payme Subscribe yoki Click
       Card Token uchun ALOHIDA ruxsat kerak (hozirgi merchant API emas).
       Server tomoni tayyor va soxta provayder bilan sinovdan o'tgan;
@@ -125,7 +131,7 @@ Ro'yxat shu yerdan boshlangan ishlar tarixini saqlaydi.
 - [x] **01.09.2026** — Panel tezligi: bosh sahifa 44 → 19 so'rov,
       so'rovlar chegarasi sinovi
 - [x] **01.09.2026** — Kartani biriktirish, undan to'lash va chegarali
-      avtomatik to'ldirish (server tomoni). Ilova tomoni keyingi bosqichda
+      avtomatik to'ldirish — server va ilova tomoni
 - [x] **01.09.2026** — Rad etilgan webhook urinishlari yoziladi va
       Tizim holatida ko'rinadi. Bloklash ATAYLAB qo'shilmadi: panelda
       kalit xato kiritilsa, to'lov tizimining o'z serverini bloklab
