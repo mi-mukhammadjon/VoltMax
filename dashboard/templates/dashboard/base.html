@@ -1,4 +1,4 @@
-{% load static %}
+{% load static %}{% load avatars %}
 <!DOCTYPE html>
 <html lang="uz">
 <head>
@@ -66,7 +66,7 @@
           </button>
 
           <a href="{% url 'dashboard:profile' %}" class="topbar-profile">
-            <span class="topbar-avatar">{{ request.user.username|slice:":1"|upper }}</span>
+            {% avatar request.user 'sm' %}
             <span class="topbar-profile-text">
               <span class="topbar-profile-name">{{ request.user.get_full_name|default:request.user.username }}</span>
               <span class="topbar-profile-role">{% if request.user.is_superuser %}Administrator{% else %}Xodim{% endif %}</span>

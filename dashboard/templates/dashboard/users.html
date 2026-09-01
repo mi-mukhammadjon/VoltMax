@@ -1,4 +1,4 @@
-{% extends 'dashboard/base.html' %}
+{% extends 'dashboard/base.html' %}{% load avatars %}
 {% load phone %}
 {% block title %}Foydalanuvchilar — VoltMax Panel{% endblock %}
 {% block content %}
@@ -16,11 +16,24 @@
 {% if page_obj %}
 <div class="table-wrap" style="overflow-x:auto;">
   <table>
-    <thead><tr><th>Telefon</th><th>Ro'yxatdan o'tgan</th><th>Oxirgi kirish</th><th>Balans</th><th>Sessiyalar</th><th>Holat</th><th></th></tr></thead>
+    <thead><tr><th class="w-name">Mijoz</th><th>Ro'yxatdan o'tgan</th><th>Oxirgi kirish</th><th>Balans</th><th>Sessiyalar</th><th>Holat</th><th></th></tr></thead>
     <tbody>
     {% for u in page_obj %}
       <tr>
-        <td><a href="{% url 'dashboard:user_detail' u.id %}">{{ u.username |phone }}</a></td>
+        <td>
+          {% comment %}
+            Avatar ismning yonida: ro'yxatda mijozni yuzidan tanish
+            raqamdan ko'ra tezroq.
+          {% endcomment %}
+          <span class="avatar-row">
+            {% avatar u 'sm' %}
+            <a href="{% url 'dashboard:user_detail' u.id %}">
+              {% if u.get_full_name %}{{ u.get_full_name }}
+                <span class="cell-sub">{{ u.username|phone }}</span>
+              {% else %}{{ u.username|phone }}{% endif %}
+            </a>
+          </span>
+        </td>
         <td>{{ u.date_joined|date:"d.m.Y H:i" }}</td>
         <td>{{ u.last_login|date:"d.m.Y H:i"|default:"—" }}</td>
         <td>{{ u.wallet.amount|default:0 }} so'm</td>

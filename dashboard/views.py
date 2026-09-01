@@ -483,8 +483,10 @@ def connector_remote_stop(request, pk, connector_pk):
 # ─── Foydalanuvchilar ───────────────────────────────────────────
 @staff_required
 def users_list(request):
+    # `profile` ham olinadi: avatar har qator uchun ko'rsatiladi va
+    # usiz har qatorga alohida so'rov ketardi (N+1)
     users = (
-        User.objects.select_related('wallet')
+        User.objects.select_related('wallet', 'profile')
         .annotate(session_count=Count('charging_sessions', distinct=True))
         .order_by('-date_joined')
     )
@@ -499,7 +501,8 @@ def users_list(request):
 @staff_required
 def user_detail(request, pk):
     user = get_object_or_404(
-        User.objects.annotate(session_count=Count('charging_sessions', distinct=True)), pk=pk
+        User.objects.select_related('profile')
+        .annotate(session_count=Count('charging_sessions', distinct=True)), pk=pk
     )
     wallet = getattr(user, 'wallet', None)
     # Ikki jadval — ikki sahifa kaliti (`page` sessiyalar, `tpage` tranzaksiyalar)

@@ -1,0 +1,9 @@
+{% comment %}
+  Bitta avatar. Rasm bo'lmasa bosh harflar turadi.
+
+  `aria-hidden`: yonida har doim ism yoki login yoziladi, ya'ni bu
+  faqat bezak — ekran o'quvchisi uni ikki marta o'qib bermasin.
+{% endcomment %}
+<span class="avatar-chip avatar-{{ size }}" aria-hidden="true">
+  {% if url %}<img src="{{ url }}" alt="">{% else %}{{ initials }}{% endif %}
+</span>

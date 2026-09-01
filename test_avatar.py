@@ -34,7 +34,9 @@ from django.test.utils import override_settings  # noqa: E402
 from rest_framework_simplejwt.tokens import RefreshToken  # noqa: E402
 
 from accounts.avatars import MAX_UPLOAD_MB, SIZE  # noqa: E402
-from accounts.models import UserProfile, avatar_url_for  # noqa: E402
+from accounts.models import (  # noqa: E402
+    UserProfile, avatar_url_for, initials_for,
+)
 
 failures = 0
 
@@ -202,6 +204,53 @@ def main():
         page = panel.get('/profile/').content.decode('utf-8')
         check('rasmsiz holatda bosh harflar', 'profile-avatar' in page
               and 'avatars/' not in page)
+
+        # ── 9. Avatar hamma joyda ko'rinadi ─────────────────────
+        # Avatar bir necha sahifada kerak. Har joyda alohida yozilsa
+        # ular asta-sekin bir-biridan farq qila boshlaydi, shuning uchun
+        # bitta teg ishlatiladi (`{% avatar user %}`).
+        from django.db import connection, reset_queries
+        from django.test.utils import override_settings as override
+
+        driver_profile = UserProfile.for_user(user)
+        driver_profile.set_avatar(picture())
+
+        pages = {
+            '/': 'yuqori panel',
+            '/users/': 'mijozlar',
+            '/managers/': 'menejerlar',
+            '/admins/': 'administratorlar',
+            f'/users/{user.id}/': 'mijoz sahifasi',
+        }
+        missing = [name for url, name in pages.items()
+                   if 'avatar-chip' not in panel.get(url).content.decode('utf-8')]
+        check("avatar hamma joyda ko'rindi", not missing, missing)
+
+        # Ro'yxatlarda N+1: avatar har qator uchun olinadi va
+        # `select_related` bo'lmasa har qatorga alohida so'rov ketardi
+        with override(DEBUG=True):
+            reset_queries()
+            panel.get('/users/')
+            first_count = len(connection.queries)
+
+            for index in range(5):
+                extra = User.objects.create(username=f'__av_qator{index}__')
+                UserProfile.for_user(extra)
+
+            reset_queries()
+            panel.get('/users/')
+            second_count = len(connection.queries)
+
+        check("qator qo'shilsa so'rov ko'paymadi",
+              second_count <= first_count + 1,
+              f'{first_count} -> {second_count}')
+
+        # Rasmsiz foydalanuvchida bosh harflar
+        plain = User.objects.create(username='__av_oddiy__', first_name='Aziz',
+                                    last_name='Karimov')
+        check('rasmsiz holatda bosh harflar', initials_for(plain) == 'AK',
+              initials_for(plain))
+        check('profil yozuvisiz ham ishladi', avatar_url_for(plain) is None)
 
     finally:
         _cleanup()

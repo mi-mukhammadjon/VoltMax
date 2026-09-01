@@ -1,4 +1,4 @@
-{% extends 'dashboard/base.html' %}
+{% extends 'dashboard/base.html' %}{% load avatars %}
 {% block title %}{{ title }} — VoltMax Panel{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -13,9 +13,12 @@
     {% for s in page_obj %}
       <tr>
         <td>
-          <div class="cell-2">
-            <a href="{% url detail_url s.id %}" class="top">{{ s.get_full_name|default:s.username }}</a>
-            <span class="sub">{{ s.username }}</span>
+          <div class="avatar-row">
+            {% avatar s 'sm' %}
+            <div class="cell-2">
+              <a href="{% url detail_url s.id %}" class="top">{{ s.get_full_name|default:s.username }}</a>
+              <span class="sub">{{ s.username }}</span>
+            </div>
           </div>
         </td>
         <td>{{ s.email|default:"—" }}</td>

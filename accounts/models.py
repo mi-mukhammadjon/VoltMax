@@ -635,6 +635,31 @@ class UserProfile(models.Model):
         return self
 
 
+def initials_for(user):
+    """Avatar o'rnidagi bosh harflar.
+
+    Ism-familiya bo'lsa ulardan, aks holda logindan. Login telefon
+    raqami bo'lishi mumkin — u holda harf yo'q, shuning uchun oxirgi
+    ikki raqam olinadi: ular hech bo'lmasa hisobni ajratib turadi.
+
+    Modelda: bu mantiq panelda ham, boshqa joyda ham bir xil bo'lishi
+    kerak — ilgari u faqat profil sahifasining ko'rinishida turardi.
+    """
+    if user is None:
+        return '—'
+
+    parts = [part for part in (user.first_name, user.last_name)
+             if (part or '').strip()]
+    if parts:
+        return ''.join(part.strip()[0] for part in parts[:2]).upper()
+
+    login = (user.username or '').strip()
+    letters = [ch for ch in login if ch.isalpha()]
+    if letters:
+        return ''.join(letters[:2]).upper()
+    return login[-2:] or '—'
+
+
 def avatar_url_for(user):
     """Foydalanuvchining avatari — yozuv bo'lmasa `None`.
 

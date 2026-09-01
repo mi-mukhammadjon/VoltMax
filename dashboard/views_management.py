@@ -433,8 +433,14 @@ def partner_delete(request, pk):
 #  Xodimlar: menejerlar va administratorlar
 # ═══════════════════════════════════════════════════════════════
 def _staff_queryset(is_admin: bool):
-    """Administrator = superuser, menejer = oddiy staff."""
-    return User.objects.filter(is_staff=True, is_superuser=is_admin).order_by('username')
+    """Administrator = superuser, menejer = oddiy staff.
+
+    `profile` ham olinadi: ro'yxatda avatar ko'rsatiladi va usiz har
+    qatorga alohida so'rov ketardi.
+    """
+    return (User.objects.filter(is_staff=True, is_superuser=is_admin)
+            .select_related('profile')
+            .order_by('username'))
 
 
 @admin_required
@@ -1509,34 +1515,16 @@ def profile(request):
 
     from management.totp import TwoFactor, required_for
 
-    from accounts.models import avatar_url_for
+    from accounts.models import avatar_url_for, initials_for
 
     second = TwoFactor.objects.filter(user=user).first()
     return render(request, 'dashboard/profile.html', {
         'member': user,
-        'initials': _initials(user),
+        'initials': initials_for(user),
         'avatar_url': avatar_url_for(user),
         'two_factor': second,
         'two_factor_required': required_for(user),
     })
-
-
-def _initials(user):
-    """Avatar o'rnidagi bosh harflar.
-
-    Ism-familiya bo'lsa ulardan, aks holda logindan. Login telefon
-    raqami bo'lishi mumkin — u holda harf yo'q, shuning uchun oxirgi
-    ikki raqam olinadi: ular hech bo'lmasa hisobni ajratib turadi.
-    """
-    parts = [part for part in (user.first_name, user.last_name) if part.strip()]
-    if parts:
-        return ''.join(part.strip()[0] for part in parts[:2]).upper()
-
-    login = (user.username or '').strip()
-    letters = [ch for ch in login if ch.isalpha()]
-    if letters:
-        return ''.join(letters[:2]).upper()
-    return login[-2:] or '—'
 
 
 # ═══════════════════════════════════════════════════════════════

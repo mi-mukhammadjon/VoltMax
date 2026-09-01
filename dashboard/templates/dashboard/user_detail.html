@@ -1,4 +1,4 @@
-{% extends 'dashboard/base.html' %}{% load money phone %}
+{% extends 'dashboard/base.html' %}{% load money phone %}{% load avatars %}
 {% block title %}{{ phone_user.username |phone }} — VoltMax Panel{% endblock %}
 {% block content %}
 <a href="{% url 'dashboard:users' %}" class="back-link">
@@ -6,12 +6,25 @@
   Foydalanuvchilar
 </a>
 <div class="detail-header">
-  <div>
-    <h1>{{ phone_user.username |phone }}</h1>
+  {% comment %}
+    Avatar sarlavha yonida: sahifa kimga tegishli ekani darrov
+    ko'rinsin — raqamdan ko'ra yuz tezroq taniladi.
+  {% endcomment %}
+  <div class="avatar-row">
+    {% avatar phone_user 'lg' %}
+    <div>
+    <h1>
+      {% if phone_user.get_full_name %}{{ phone_user.get_full_name }}
+      {% else %}{{ phone_user.username|phone }}{% endif %}
+    </h1>
     <div class="sub">
       Ro'yxatdan o'tgan: {{ phone_user.date_joined|date:"d.m.Y H:i" }} ·
       Oxirgi kirish: {{ phone_user.last_login|date:"d.m.Y H:i"|default:"—" }}
       {% if phone_user.is_active %}<span class="badge success">Faol</span>{% else %}<span class="badge danger">Bloklangan</span>{% endif %}
+      {% if phone_user.get_full_name %}
+        <div class="mono">{{ phone_user.username|phone }}</div>
+      {% endif %}
+    </div>
     </div>
   </div>
   <form method="post" action="{% url 'dashboard:user_toggle_active' phone_user.id %}"
