@@ -1567,18 +1567,44 @@
         }
       });
 
+      // Natija SAHIFANING O'ZIDA ko'rsatiladi: konsolni ochib,
+      // skrinshot qilish noqulay. Panel eng keng uchtasini yozadi —
+      // odatda aybdor birinchisi bo'ladi, qolganlari uning ichidagi
+      // elementlar.
+      var panel = document.createElement('div');
+      panel.setAttribute('data-overflow-report', '');
+      panel.style.cssText = [
+        'position:fixed', 'left:8px', 'bottom:8px', 'z-index:9999',
+        'max-width:calc(100vw - 16px)', 'padding:12px 14px',
+        'background:#111', 'color:#fff', 'font:12px/1.5 monospace',
+        'border-radius:8px', 'box-shadow:0 8px 24px rgba(0,0,0,.4)',
+        'white-space:pre-wrap', 'word-break:break-all',
+      ].join(';');
+
+      var doc = document.documentElement;
+      var lines = [
+        'Ko\'rinish: ' + limit + 'px · hujjat: ' + doc.scrollWidth + 'px'
+        + ' · ortiqcha: ' + (doc.scrollWidth - limit) + 'px',
+      ];
+
       if (guilty.length) {
-        console.warn('Sahifadan kengroq ' + guilty.length + ' ta element '
-                     + '(hujjat kengligi ' + limit + 'px):');
+        guilty.sort(function (a, b) { return b.right - a.right; });
+        guilty.slice(0, 3).forEach(function (row) {
+          lines.push('→ ' + row.selector
+                     + '  (o\'ng cheti ' + row.right + ', kengligi ' + row.width + ')');
+          row.element.style.outline = '2px solid #E5484D';
+        });
+        lines.push('Jami ' + guilty.length + ' ta. Batafsil — konsolda.');
         console.table(guilty.map(function (row) {
           return { selector: row.selector, right: row.right, width: row.width };
         }));
-        console.log('Elementlarning o‘zi:', guilty.map(function (r) {
-          return r.element;
-        }));
       } else {
-        console.log('Sahifadan kengroq element yo‘q.');
+        lines.push('Ko\'rinishdan kengroq element topilmadi.');
+        lines.push('Demak sabab `position: fixed` yoki `margin` da.');
       }
+
+      panel.textContent = lines.join('\n');
+      document.body.appendChild(panel);
     });
   }
 

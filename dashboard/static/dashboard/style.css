@@ -2362,7 +2362,11 @@ th.check input[type=checkbox] {
    odatiy naqsh va tushuntirish talab qilmaydi. Fayl inputi yashirin,
    lekin klaviatura bilan ham topiladi (`visually-hidden` uni
    ekrandan olib tashlaydi, DOM dan emas). */
-.avatar-form { flex: 0 0 auto; margin: 0; }
+/* `position: relative` ATAYLAB: ichidagi yashirin fayl inputi
+   `position: absolute` bo'lgani uchun, joylashuv nuqtasi bo'lmasa u
+   BUTUN SAHIFAGA nisbatan joylashadi va har qanday kesishdan qochib
+   qutuladi. */
+.avatar-form { flex: 0 0 auto; margin: 0; position: relative; }
 
 .visually-hidden {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
