@@ -103,9 +103,11 @@
           {% if issue.resolution_note %}<div class="cell-sub">Izoh: {{ issue.resolution_note }}</div>{% endif %}
         </td>
         <td>
-          {# Foydalanuvchi xabari TEKSHIRILMAGAN: qurilma o'zi aytmagan.
-             Ilgari bu yerda faqat ikki holat bor edi va yangi manba
-             «Qo'lda» bo'lib ko'rinardi — ya'ni operator o'zi qo'ygandek. #}
+          {% comment %}
+            Foydalanuvchi xabari TEKSHIRILMAGAN: qurilma o'zi aytmagan.
+            Ilgari bu yerda faqat ikki holat bor edi va yangi manba
+            «Qo'lda» bo'lib ko'rinardi — ya'ni operator o'zi qo'ygandek.
+          {% endcomment %}
           {% if issue.source == 'user' %}
             <span class="badge warning">Foydalanuvchidan</span>
             <div class="cell-sub">tekshirilmagan</div>
