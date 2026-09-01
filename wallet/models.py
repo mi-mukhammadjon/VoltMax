@@ -67,6 +67,10 @@ class PaymentOrder(models.Model):
     # To'lov tizimidagi identifikatorlar. Payme: transaction id (matn),
     # Click: click_trans_id. Ular bo'yicha takroriy so'rov topiladi.
     external_id = models.CharField('Tashqi ID', max_length=64, blank=True, db_index=True)
+    # Avtomatik to'ldirish natijasimi. Chegaralarni hisoblashda va
+    # foydalanuvchiga ko'rsatishda ajratish kerak: odam o'zi bosgan
+    # to'lov bilan o'zi bilmagan to'lov bir xil ko'rinmasligi shart.
+    is_auto = models.BooleanField("Avtomatik", default=False)
     # Click ikki bosqichli: avval `prepare`, keyin `complete`
     prepare_id = models.CharField(max_length=64, blank=True)
 
@@ -172,3 +176,154 @@ class PaymentOrder(models.Model):
 
         self.refresh_from_db()
         return True
+
+
+class SavedCard(models.Model):
+    """Foydalanuvchi biriktirgan karta.
+
+    KARTA RAQAMI BU YERDA YO'Q va hech qachon bo'lmaydi. Saqlanadigan
+    narsa — provayder bergan token va foydalanuvchi kartani tanib olishi
+    uchun oxirgi to'rt raqam. Token esa shifrlangan holda
+    (`wallet/card_crypto.py`).
+
+    Token — pul yechish huquqi, ya'ni u parolga teng. Farqi shundaki,
+    to'lov kaliti bitta va uni almashtirsa bo'ladi; kartalar minglab va
+    ularning har biri alohida odamning puli.
+    """
+
+    class State(models.IntegerChoices):
+        # Provayder kartani qabul qildi, lekin SMS kod hali kiritilmagan
+        PENDING = 0, 'Tasdiqlanmagan'
+        ACTIVE = 1, 'Faol'
+        # Muddati tugagan yoki bank rad etgan — foydalanuvchi qaytadan
+        # biriktirishi kerak
+        DEAD = 2, 'Ishlamaydi'
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cards')
+    provider = models.ForeignKey(
+        'management.PaymentProvider', on_delete=models.PROTECT, related_name='cards')
+
+    # Provayderning tokeni — SHIFRLANGAN holda
+    token_encrypted = models.TextField('Token (shifrlangan)', blank=True)
+    # Tasdiqlash bosqichida provayder beradigan vaqtinchalik havola
+    verify_ref = models.CharField(max_length=120, blank=True)
+
+    masked_pan = models.CharField('Karta', max_length=24)
+    brand = models.CharField('Turi', max_length=20, blank=True)
+    expires = models.CharField('Amal muddati', max_length=5, blank=True,
+                               help_text='MM/YY')
+
+    state = models.IntegerField(choices=State.choices, default=State.PENDING)
+    is_default = models.BooleanField("Asosiy karta", default=False)
+
+    verified_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Biriktirilgan karta'
+        verbose_name_plural = 'Biriktirilgan kartalar'
+        ordering = ['-is_default', '-created_at']
+
+    def __str__(self):
+        return f'{self.user.username} — {self.masked_pan}'
+
+    @property
+    def token(self) -> str:
+        from .card_crypto import decrypt
+
+        return decrypt(self.token_encrypted)
+
+    @token.setter
+    def token(self, value: str):
+        from .card_crypto import encrypt
+
+        self.token_encrypted = encrypt(value)
+
+    @property
+    def is_usable(self) -> bool:
+        return self.state == self.State.ACTIVE and bool(self.token_encrypted)
+
+    def make_default(self):
+        """Shu kartani asosiy qiladi. Qolganlaridan belgi olinadi."""
+        SavedCard.objects.filter(user=self.user).exclude(pk=self.pk).update(
+            is_default=False)
+        if not self.is_default:
+            self.is_default = True
+            self.save(update_fields=['is_default'])
+        return self
+
+
+class AutoTopUp(models.Model):
+    """Balans pasayganda kartadan avtomatik to'ldirish.
+
+    Nima uchun kerak: zaryadlash paytida pul tugasa sessiya to'xtaydi va
+    odam yarim zaryadlangan mashina bilan qoladi — ko'pincha yerto'la
+    parkovkada, aloqasiz joyda.
+
+    Nima uchun CHEGARALAR bilan: avtomatik pul yechish ishonchni eng tez
+    yo'qotadigan narsa. Har yechim ko'rinib turishi, chegaradan
+    oshmasligi va istalgan paytda o'chirilishi kerak.
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE,
+                                related_name='auto_topup')
+    card = models.ForeignKey(SavedCard, on_delete=models.CASCADE,
+                             related_name='auto_topups')
+
+    is_active = models.BooleanField('Yoqilgan', default=True)
+    threshold = models.PositiveIntegerField(
+        "Chegara (so'm)", default=20000,
+        help_text='Balans shundan pasaysa to‘ldiriladi')
+    amount = models.PositiveIntegerField(
+        "Har safar (so'm)", default=50000)
+
+    # Ikki chegara: bittasi xatoni, ikkinchisi suiiste'molni to'sadi
+    daily_limit = models.PositiveIntegerField("Kunlik chegara (so'm)", default=200000)
+    monthly_limit = models.PositiveIntegerField("Oylik chegara (so'm)", default=1000000)
+
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=200, blank=True)
+    fail_streak = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Ketma-ket shuncha xatodan keyin o'z-o'zidan o'chadi: ishlamaydigan
+    # karta bilan har daqiqada urinish bankdan bloklashga olib keladi
+    MAX_FAILS = 3
+
+    class Meta:
+        verbose_name = 'Avtomatik to‘ldirish'
+        verbose_name_plural = 'Avtomatik to‘ldirish'
+
+    def __str__(self):
+        return f'{self.user.username} — {self.amount} so‘m'
+
+    def spent_since(self, since):
+        """Berilgan paytdan beri avtomatik yechilgan summa."""
+        return sum(
+            row.amount for row in PaymentOrder.objects.filter(
+                user=self.user, state=PaymentOrder.State.PAID,
+                is_auto=True, created_at__gte=since)
+        )
+
+    def blocked_reason(self):
+        """Hozir ishlashiga to'sqinlik qiladigan sabab (yoki `None`)."""
+        from django.utils import timezone
+
+        if not self.is_active:
+            return "o'chirilgan"
+        if not self.card.is_usable:
+            return 'karta ishlamaydi'
+        if self.fail_streak >= self.MAX_FAILS:
+            return f'ketma-ket {self.fail_streak} ta xato'
+
+        now = timezone.localtime()
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = day_start.replace(day=1)
+
+        if self.spent_since(day_start) + self.amount > self.daily_limit:
+            return 'kunlik chegara'
+        if self.spent_since(month_start) + self.amount > self.monthly_limit:
+            return 'oylik chegara'
+        return None

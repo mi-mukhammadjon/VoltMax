@@ -67,6 +67,18 @@ va solishtirma dalolatnoma.
 va takroriy so'rovda ikki marta qo'shilmaydi. Kalitlar panelda saqlanadi
 (Sozlamalar > To'lov tizimlari), muhit o'zgaruvchisida emas.
 
+**Kartani biriktirish** — brauzerga o'tmasdan, ilova ichida to'ldirish.
+Karta raqami hech qayerda saqlanmaydi: u `wallet/cards.py` dan
+narigaga o'tmaydi va faqat provayderga uzatiladi. Bazada provayder
+bergan token (shifrlangan), oxirgi to'rt raqam va amal muddati qoladi.
+Payme Subscribe va Click Card Token adapterlari bitta interfeys ortida;
+sinovlar uchun soxta adapter bor.
+
+**Avtomatik to'ldirish** — balans pasayganda kartadan yechiladi, faqat
+zaryadlash ketayotgan foydalanuvchi uchun. Kunlik va oylik chegara
+serverda, har yechimdan keyin darhol xabar, ketma-ket uchta xatodan
+keyin o'z-o'zidan o'chadi.
+
 **Bildirishnomalar** — matni panelda tahrirlanadigan shablonlar va
 telefonga yetkazish (Expo push).
 
@@ -117,6 +129,7 @@ python manage.py run_workers --only push  # faqat bittasi
 | `cleanup` | kuniga | Eskirgan telemetriya va jurnallarni tozalaydi |
 | `backup` | kuniga | Bazaning zaxira nusxasini oladi (R2 sozlangan bo'lsa unga yuklaydi) |
 | `alerts` | 5 daq | Tizimdagi muammo O'ZGARSA pochtaga xabar yuboradi |
+| `autotopup` | 1 daq | Balans pasayganda kartadan avtomatik to'ldiradi |
 
 Har vazifa oxirgi marta qachon ishlagani va nima qilgani bazaga
 yoziladi. Panelda **Tizim holati** sahifasi shuni ko'rsatadi: vazifa o'z
@@ -161,6 +174,7 @@ python test_sms.py          # SMS shlyuzi va ikki kanalli yetkazish
 python test_mail.py         # pochta, ogohlantirish, parolni tiklash
 python test_avatar.py       # profil rasmi (panel va ilova)
 python test_query_budget.py # sahifalar nechta so'rov qilishi
+python test_cards.py        # kartani biriktirish va avtomatik to'ldirish
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`

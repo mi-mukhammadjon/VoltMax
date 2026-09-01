@@ -122,6 +122,20 @@ def _backup():
     return ', '.join(parts)
 
 
+def _autotopup():
+    """Balans pasayganda kartadan avtomatik to'ldirish.
+
+    Zaryadlash paytida pul tugasa sessiya to'xtaydi va odam yarim
+    zaryadlangan mashina bilan qoladi.
+    """
+    from wallet.autotopup import run_once
+
+    charged, failed = run_once()
+    if charged or failed:
+        return f'avtomatik to‘ldirish: {charged} ta, {failed} ta xato'
+    return ''
+
+
 def _alerts():
     """Tizimdagi muammo haqida pochtaga xabar.
 
@@ -146,6 +160,9 @@ JOBS = [
     # Besh daqiqa — xabar tez kelishi va spam bo'lmasligi orasidagi
     # muvozanat. Xabar faqat holat O'ZGARGANDA ketadi.
     ('alerts', _alerts, 300),
+    # Bir daqiqa: zaryadlash ketayotganda balans tez tugaydi va
+    # kechikkan to'ldirish sessiyani saqlab qololmaydi
+    ('autotopup', _autotopup, 60),
 ]
 
 

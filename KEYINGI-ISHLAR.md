@@ -30,6 +30,13 @@ Batafsil: `DEPLOY.md`.
 
 ### Xizmatlar
 
+- [ ] **Kartani biriktirish shartnomasi** — Payme Subscribe yoki Click
+      Card Token uchun ALOHIDA ruxsat kerak (hozirgi merchant API emas).
+      Server tomoni tayyor va soxta provayder bilan sinovdan o'tgan;
+      kalitlar kelganda faqat ulanadi.
+      **Ogohlantirish:** karta raqami ilovadan serverga, serverdan
+      provayderga o'tadi — bu bizni PCI DSS doirasiga kiritadi
+
 - [ ] **Payme/Click** sinov kabineti: webhook manzillarini berish,
       kalitlarni panelga kiritish (Sozlamalar > To'lov tizimlari).
       Eng ko'p kutish talab qiladigan qadam — erta boshlagan ma'qul
@@ -117,6 +124,8 @@ Ro'yxat shu yerdan boshlangan ishlar tarixini saqlaydi.
       o'zi tiklanish
 - [x] **01.09.2026** — Panel tezligi: bosh sahifa 44 → 19 so'rov,
       so'rovlar chegarasi sinovi
+- [x] **01.09.2026** — Kartani biriktirish, undan to'lash va chegarali
+      avtomatik to'ldirish (server tomoni). Ilova tomoni keyingi bosqichda
 - [x] **01.09.2026** — Rad etilgan webhook urinishlari yoziladi va
       Tizim holatida ko'rinadi. Bloklash ATAYLAB qo'shilmadi: panelda
       kalit xato kiritilsa, to'lov tizimining o'z serverini bloklab

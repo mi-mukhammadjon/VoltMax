@@ -42,7 +42,8 @@ def main():
     names = [name for name, _f, _i in run_workers.JOBS]
     check('barcha vazifalar ro\'yxatda',
           set(names) == {'parking', 'devices', 'overdue', 'push', 'cleanup',
-                         'bookings', 'backup', 'alerts'}, names)
+                         'bookings', 'backup', 'alerts',
+                         'autotopup'}, names)
     # Har vazifa o'z izini qoldirishi kerak: ilgari ular faqat logga
     # yozardi va panelda ishlayotgani umuman ko'rinmasdi
     from management.jobs import JobStatus
