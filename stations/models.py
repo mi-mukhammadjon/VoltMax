@@ -350,6 +350,11 @@ class MaintenanceIssue(models.Model):
     class Source(models.TextChoices):
         OCPP = 'ocpp', 'Qurilmadan'
         MANUAL = 'manual', 'Qo\'lda'
+        # Foydalanuvchi xabari TEKSHIRILMAGAN signal: qurilma o'zi
+        # aytmagan, operator ham ko'rmagan. Manbani ajratmasak,
+        # operator ro'yxatda ularni bir xil ishonch bilan o'qirdi
+        # va bu xato bo'lardi.
+        USER = 'user', 'Foydalanuvchidan'
 
     station = models.ForeignKey(Station, on_delete=models.CASCADE, related_name='issues')
     # Bo'sh bo'lsa — muammo butun charger darajasida (aloqa yo'q)
@@ -556,3 +561,39 @@ class ChargerLog(models.Model):
 
 # Vaqtga bog'liq tarif oynasi alohida faylda — bu yerda faqat ro'yxatga olinadi
 from .tariff_model import TariffWindow  # noqa: E402,F401
+
+
+class StationReport(models.Model):
+    """Foydalanuvchi yuborgan nosozlik xabari.
+
+    Nima uchun `MaintenanceIssue` dan alohida: nosozlik yozuvi — bu
+    TASDIQLANGAN holat (qurilmaning o'zi aytgan yoki operator qo'ygan).
+    Foydalanuvchining xabari esa hali tekshirilmagan signal. Ikkalasini
+    bitta jadvalga qo'shsak, bitta odam «ishlamayapti» deb yuborgani
+    bilan stansiya rasman buzuq bo'lib qolardi.
+
+    Alohida turgani yana ikki narsani beradi: kim va necha marta xabar
+    berganini bilish (bir odamning uch xabari — uch odamning bitta
+    xabari emas) va bir odamning ketma-ket xabar yuborishini cheklash.
+    """
+
+    station = models.ForeignKey(
+        Station, on_delete=models.CASCADE, related_name='reports')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='station_reports')
+    note = models.CharField('Izoh', max_length=300, blank=True)
+    # Ochilgan nosozlik yozuvi — operator ro'yxatida shu orqali ko'rinadi
+    issue = models.ForeignKey(
+        MaintenanceIssue, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reports')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Foydalanuvchi xabari'
+        verbose_name_plural = 'Foydalanuvchi xabarlari'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['station', '-created_at'])]
+
+    def __str__(self):
+        return f'{self.station.name} — {self.user}'

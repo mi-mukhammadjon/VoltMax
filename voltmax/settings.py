@@ -265,6 +265,11 @@ REST_FRAMEWORK = {
         'promo': '10/min',
         # Sharh spamiga qarshi
         'review': '20/min',
+        # Nosozlik xabari. Asosiy cheklov `stations/reports.py` da —
+        # bir stansiya haqida 6 soatda bir marta; bu esa umumiy oqimni
+        # tiyadi, aks holda bitta odam o'nlab stansiyani belgilab
+        # chiqib, operator ro'yxatini ko'rinmas qilib qo'yardi
+        'report': '10/hour',
     },
 }
 

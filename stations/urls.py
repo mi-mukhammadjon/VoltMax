@@ -10,4 +10,5 @@ urlpatterns = [
     path('promo/check/', views.PromoCheckView.as_view(), name='promo_check'),
     path('<int:pk>/', views.StationDetailView.as_view(), name='detail'),
     path('<int:station_id>/reviews/', views.ReviewListView.as_view(), name='reviews'),
+    path('<int:pk>/report/', views.StationReportView.as_view(), name='report'),
 ]

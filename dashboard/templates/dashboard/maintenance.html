@@ -102,7 +102,19 @@
           {% if issue.error_code %}<div class="cell-sub">{{ issue.error_code }}</div>{% endif %}
           {% if issue.resolution_note %}<div class="cell-sub">Izoh: {{ issue.resolution_note }}</div>{% endif %}
         </td>
-        <td>{% if issue.source == 'ocpp' %}<span class="badge muted">Qurilmadan</span>{% else %}<span class="badge muted">Qo'lda</span>{% endif %}</td>
+        <td>
+          {# Foydalanuvchi xabari TEKSHIRILMAGAN: qurilma o'zi aytmagan.
+             Ilgari bu yerda faqat ikki holat bor edi va yangi manba
+             «Qo'lda» bo'lib ko'rinardi — ya'ni operator o'zi qo'ygandek. #}
+          {% if issue.source == 'user' %}
+            <span class="badge warning">Foydalanuvchidan</span>
+            <div class="cell-sub">tekshirilmagan</div>
+          {% elif issue.source == 'ocpp' %}
+            <span class="badge muted">Qurilmadan</span>
+          {% else %}
+            <span class="badge muted">Qo'lda</span>
+          {% endif %}
+        </td>
         <td>{{ issue.opened_at|date:"d.m.Y H:i" }}</td>
         <td>
           {{ issue.duration_hours }} soat

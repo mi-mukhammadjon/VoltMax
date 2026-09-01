@@ -95,3 +95,38 @@ class PromoCheckView(APIView):
             'originalPricePerKwh': without.price,
             'savedPerKwh': max(0, without.price - with_code.price),
         })
+
+
+class StationReportView(APIView):
+    """POST /api/stations/<id>/report/ — foydalanuvchi nosozlik haqida xabar beradi.
+
+    Ilova ilgari bu tugmani bosganda «xabaringiz qabul qilindi» deb
+    yozardi va hech qayerga hech narsa yubormasdi. Buzuq charger
+    oldida turgan odam operator endi biladi deb o'ylab ketardi.
+
+    Xabar stansiya holatini O'ZGARTIRMAYDI: u tekshirilmagan signal
+    va operator ro'yxatida shunday belgilanadi.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    # Cheklovsiz bo'lsa ro'yxatni to'ldirib, haqiqiy nosozliklarni
+    # ko'rinmas qilib qo'yish mumkin edi
+    throttle_scope = 'report'
+    throttle_classes = [ScopedRateThrottle]
+
+    def post(self, request, pk):
+        from stations import reports
+
+        station = get_object_or_404(Station, pk=pk)
+        try:
+            report, issue, created = reports.submit(
+                request.user, station, request.data.get('note') or '')
+        except reports.ReportError as error:
+            return Response({'detail': str(error)}, status=429)
+
+        return Response({
+            'accepted': True,
+            # Ilova javobni shu asosda yozadi: allaqachon ma'lum bo'lgan
+            # muammo uchun «xabar qildik» deyish noto'g'ri bo'lardi
+            'alreadyKnown': not created,
+            'issueId': issue.pk if issue else None,
+        }, status=201)

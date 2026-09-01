@@ -41,6 +41,11 @@ POLICIES = [
     # Kirish urinishlari: 90 kun tergov uchun yetarli, undan keyin bu
     # faqat shaxsiy ma'lumot (IP, brauzer) saqlab turish bo'lardi
     ('kirish urinishlari', 'management.LoginAttempt', 'created_at', 90, 100_000),
+    # Foydalanuvchi nosozlik xabarlari: nosozlik yozuvi o'zi qoladi,
+    # bu esa faqat kim va qachon xabar berganini bildiradi. Bir yildan
+    # keyin u tergov uchun kerak emas, saqlab turish esa shaxsiy
+    # ma'lumotni ushlab turish bo'lardi
+    ('nosozlik xabarlari', 'stations.StationReport', 'created_at', 365, 100_000),
 ]
 
 # O'qilgan xabar tezroq eskiradi: foydalanuvchi uni ko'rgan
