@@ -405,7 +405,12 @@ h1.page-title, .page-head .page-title {
 /* ═══ Jadvallar ══════════════════════════════════════════════ */
 .table-wrap {
   background: var(--card); border: 1px solid var(--border);
-  border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-xs);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-xs);
+  /* `hidden` EMAS: keng jadvalning o'ng tomoni kesilib qolardi va unga
+     yetib bo'lmasdi. `auto` bilan jadval O'Z ICHIDA suriladi —
+     sahifaning o'zi joyida qoladi. */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 table { width: 100%; border-collapse: collapse; font-size: var(--t-md); }
 th {
@@ -682,8 +687,14 @@ form input[type=file]::file-selector-button:hover { background: var(--hover-tint
 @media (max-width: 520px) { .pagination .page-total { display: none; } }
 
 /* ═══ Grafiklar ══════════════════════════════════════════════ */
-.chart-row { display: grid; grid-template-columns: 1.7fr 1fr; gap: var(--s3); margin-bottom: var(--s5); }
-@media (max-width: 1000px) { .chart-row { grid-template-columns: 1fr; } }
+/* `minmax(0, ...)` ATAYLAB: oddiy `1.7fr` ning eng kichik kengligi
+   KONTENT kengligiga teng bo'ladi, ya'ni ichidagi keng jadval ustunni
+   cho'zib yuboradi va butun sahifa yonga suriladi. */
+.chart-row {
+  display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: var(--s3); margin-bottom: var(--s5);
+}
+@media (max-width: 1000px) { .chart-row { grid-template-columns: minmax(0, 1fr); } }
 .chart-card {
   background: var(--card); border: 1px solid var(--border);
   border-radius: var(--r-lg); padding: var(--s5); box-shadow: var(--shadow-xs);
@@ -931,7 +942,7 @@ form input[type=file]::file-selector-button:hover { background: var(--hover-tint
   display: flex; flex-direction: column; gap: var(--s3);
 }
 @media (max-width: 1080px) {
-  .form-with-map { grid-template-columns: 1fr; }
+  .form-with-map { grid-template-columns: minmax(0, 1fr); }
   .form-with-map .fwm-map { position: static; }
 }
 
@@ -1386,7 +1397,7 @@ td.actions .btn { white-space: nowrap; }
 .detail-cols > div > .section-head:first-child { margin-top: var(--s5); }
 
 @media (max-width: 1000px) {
-  .detail-cols { grid-template-columns: 1fr; }
+  .detail-cols { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ══ Kalit-qiymat ro'yxati ════════════════════════════════════════════ */
@@ -2257,6 +2268,7 @@ th.check input[type=checkbox] {
    `flex-wrap` uni o'zi pastga tushiradi. */
 .gateway-value {
   display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  min-width: 0;
 }
 .gateway-note { color: var(--text-muted); font-size: var(--t-sm); }
 
@@ -2306,7 +2318,7 @@ th.check input[type=checkbox] {
   margin-top: 4px; color: var(--text-secondary); font-size: var(--t-sm);
 }
 
-.profile-stats { display: flex; gap: var(--s6); flex-wrap: wrap; }
+.profile-stats { display: flex; gap: var(--s6); flex-wrap: wrap; min-width: 0; }
 .profile-stat .k {
   color: var(--text-muted); font-size: var(--t-sm); margin-bottom: 4px;
 }
@@ -2320,7 +2332,7 @@ th.check input[type=checkbox] {
   display: flex; gap: var(--s2); align-items: flex-end;
   margin-top: var(--s4);
 }
-.code-action .field { flex: 1; margin-bottom: 0; }
+.code-action .field { flex: 1; min-width: 0; margin-bottom: 0; }
 .code-action .btn { flex: 0 0 auto; }
 
 .soft-text {
@@ -2432,3 +2444,20 @@ label.profile-avatar:focus-within .avatar-overlay { opacity: 1; }
   font-size: var(--t-lg); font-weight: 800; margin-bottom: var(--s1);
 }
 .login-done .help { max-width: 300px; line-height: 1.6; }
+
+/* ── Yonga surilishga qarshi umumiy qoidalar ─────────────────
+   Sahifa yonga surilishi deyarli har doim BITTA element sababli
+   bo'ladi va uni ko'z bilan topish qiyin: aybdor ekranning tashqarisida
+   turadi. Quyidagilar eng ko'p uchraydigan sabablarni yopadi. */
+
+/* Rasm va grafik konteyneridan kengroq bo'la olmaydi */
+img, svg, video, canvas, iframe { max-width: 100%; }
+
+/* Uzun uzluksiz satr — token, pochta manzili, havola, VIN — qatorni
+   cho'zib yuboradi. Ular BO'LINISHI kerak, sahifani surishi emas. */
+.kv-row .v, .cell-sub, .help, .gateway-note, .soft-text, .page-sub {
+  overflow-wrap: anywhere;
+}
+
+/* `pre` va uzun kod bo'laklari o'z ichida surilsin */
+pre { overflow-x: auto; max-width: 100%; }

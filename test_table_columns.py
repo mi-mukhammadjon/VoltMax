@@ -120,6 +120,31 @@ def check_stylesheet():
             if 'margin-bottom' not in body:
                 problems.append(f'{selector.strip(" {")}: margin-bottom yo\'q')
 
+    # Grid ustunlari: oddiy `1fr` ning eng kichik kengligi KONTENT
+    # kengligiga teng. Ichidagi keng jadval yoki siqilmaydigan matn
+    # ustunni cho'zib yuboradi va butun sahifa yonga suriladi — aybdor
+    # element esa ekrandan tashqarida turgani uchun uni ko'z bilan topish
+    # qiyin. `minmax(0, ...)` yoki aniq eng kichik kenglik shu bog'lovni
+    # uzadi.
+    for line in text.splitlines():
+        if 'grid-template-columns:' not in line:
+            continue
+        value = line.split('grid-template-columns:')[1].split(';')[0]
+        if 'minmax(' in value or 'repeat(' in value or 'auto' in value:
+            continue
+        if 'fr' in value:
+            problems.append(
+                f'style.css: `{value.strip()}` — `minmax(0, ...)` kerak: ustun'
+                f' kontentdan kengroq bo\'lib sahifani suradi')
+
+    # Jadval o'ralmasi kesib tashlamasligi kerak: keng jadvalning o'ng
+    # tomoni ko'rinmay qolardi va unga yetib bo'lmasdi
+    if '.table-wrap {' in text:
+        body = text.split('.table-wrap {')[1].split('}')[0]
+        if 'overflow-x: auto' not in body:
+            problems.append(
+                ".table-wrap: `overflow-x: auto` yo'q — keng jadval kesiladi")
+
     # `<td>` ga `display:flex` berilsa katakcha jadval tuzilishidan chiqadi
     # va `colspan` e'tibordan qoladi — bo'sh holat butun jadval o'rniga
     # bitta ustun kengligida ko'rinadi.
