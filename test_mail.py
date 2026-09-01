@@ -21,6 +21,7 @@ Asosiy savollar:
   5. Tiklash sahifasi manzil ro'yxatda borligini oshkor qiladimi?
 """
 import os
+import time
 
 import django
 
@@ -29,6 +30,7 @@ django.setup()
 
 from unittest.mock import patch  # noqa: E402
 
+from django.conf import settings  # noqa: E402
 from django.contrib.auth.models import User  # noqa: E402
 from django.contrib.auth.tokens import default_token_generator  # noqa: E402
 from django.test import Client  # noqa: E402
@@ -214,6 +216,44 @@ def main():
 
         broken = client.get('/parol/tiklash/xxx/yyy-zzz/')
         check('buzuq havola ham xato bermadi', broken.status_code == 200)
+
+        # ── 6. Havola muddati ───────────────────────────────────
+        # Django ning standarti UCH KUN. Panel butun tarmoqni
+        # boshqaradi, xat esa pochtada qolib ketishi mumkin — uch kun
+        # juda uzoq. Ilgari o'zgarmas faqat XATDAGI MATNDA ishlatilardi:
+        # xat "2 soat" der, havola esa uch kun ishlayverardi.
+        check('muddat ikki soatga qisqartirilgan',
+              settings.PASSWORD_RESET_TIMEOUT == 2 * 3600,
+              settings.PASSWORD_RESET_TIMEOUT)
+
+        fresh = default_token_generator.make_token(user)
+        with override_settings(PASSWORD_RESET_TIMEOUT=2):
+            time.sleep(3.5)
+            stale = client.get(f'/parol/tiklash/{uid}/{fresh}/')
+            check("muddat o'tgach havola yaroqsiz",
+                  'yaroqsiz' in stale.content.decode('utf-8').lower())
+
+        # ── 7. Bir xil pochtali ikki hisob ──────────────────────
+        # Django'da pochta NOYOB EMAS. Ilgari `.first()` olinardi va
+        # qaysi hisob tanlanishi tasodifga bog'liq edi — odam kutgan
+        # hisobi o'rniga boshqasining havolasini olardi.
+        shared = 'ofis@voltmax.uz'
+        User.objects.filter(username__startswith='__ml_ofis').delete()
+        one = User.objects.create_user(username='__ml_ofis_a__', email=shared,
+                                       password='QuyoshliKun-92', is_staff=True)
+        two = User.objects.create_user(username='__ml_ofis_b__', email=shared,
+                                       password='QuyoshliKun-92', is_staff=True)
+
+        with patch('management.mail.try_send', return_value=(True, '')) as sent:
+            Client().post('/parol/tiklash/', {'email': shared})
+            check('har ikkala hisobga ham havola ketdi',
+                  sent.call_count == 2, sent.call_count)
+            bodies = ' '.join(call[0][2] for call in sent.call_args_list)
+            check('xatda qaysi hisob ekani aytildi',
+                  one.username in bodies and two.username in bodies)
+
+        one.delete()
+        two.delete()
 
     finally:
         for field, value in saved.items():

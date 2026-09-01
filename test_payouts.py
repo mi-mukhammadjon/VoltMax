@@ -78,8 +78,18 @@ def main():
 
         today = timezone.localdate()
         year, month = today.year, today.month
-        inside = timezone.now() - timedelta(days=1)
-        outside = timezone.now() - timedelta(days=45)
+
+        # Sanalar OY CHEGARASIDAN qat'i nazar to'g'ri tushishi kerak.
+        # Ilgari "kecha" olinardi va oyning BIRINCHI kunida u oldingi
+        # oyga tushib qolardi — sinov oyiga bir marta yiqilardi. Bunday
+        # sinov yo'qdan ham yomon: unga ishonch qolmaydi.
+        month_start = timezone.now().replace(day=1, hour=0, minute=0,
+                                             second=0, microsecond=0)
+        # Oy boshi bilan hozirgi payt orasidagi o'rta nuqta — har doim
+        # shu oyda va har doim o'tmishda
+        inside = month_start + (timezone.now() - month_start) / 2
+        # 45 kun emas: qisqa oylarda ham albatta oldingi oyga tushsin
+        outside = month_start - timedelta(days=5)
 
         make_session(station, inside, 100000, kwh=80.0, user=admin)
         make_session(station, inside, 50000, kwh=40.0, user=admin)

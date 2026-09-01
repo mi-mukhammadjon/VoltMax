@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -964,29 +965,49 @@ def password_reset_request(request):
             # qaysi pochta ro'yxatda borligini aniqlash vositasiga
             # aylanardi.
             sent = True
-            user = User.objects.filter(email__iexact=email, is_staff=True,
-                                       is_active=True).first()
-            if user is not None:
+            hours = int(settings.PASSWORD_RESET_TIMEOUT / 3600) or 1
+
+            # Django'da pochta NOYOB EMAS: bir manzil bir necha
+            # hisobga yozilgan bo'lishi mumkin. Ilgari `.first()`
+            # olinardi va qaysi hisob tanlanishi tasodifga bog'liq
+            # edi — odam kutgan hisobi o'rniga boshqasining
+            # havolasini olardi.
+            #
+            # Endi har biriga alohida havola ketadi va xatda qaysi
+            # login ekani aytiladi. Xat baribir o'sha pochta
+            # egasiga boradi, ya'ni qo'shimcha xavf tug'dirmaydi.
+            accounts = list(User.objects.filter(
+                email__iexact=email, is_staff=True, is_active=True))
+
+            for user in accounts:
                 token = default_token_generator.make_token(user)
                 uid = urlsafe_base64_encode(force_bytes(user.pk))
                 link = request.build_absolute_uri(
                     reverse('dashboard:password_reset_confirm',
                             args=[uid, token]))
+                whose = (f'«{user.username}» hisobi uchun '
+                         if len(accounts) > 1 else '')
                 try_send(
                     email,
                     'VoltMax paneli — parolni tiklash',
                     f'Assalomu alaykum!\n\n'
-                    f'Parolni tiklash uchun quyidagi havolaga o\'ting:\n\n'
+                    f'{whose}Parolni tiklash uchun quyidagi havolaga '
+                    f'o\'ting:\n\n'
                     f'{link}\n\n'
-                    f'Havola {PASSWORD_RESET_HOURS} soat amal qiladi va bir '
-                    f'marta ishlatiladi.\n\n'
-                    f'Agar bu so\'rovni siz yubormagan bo\'lsangiz, xatni '
-                    f'e\'tiborsiz qoldiring — parol o\'zgarmaydi.',
+                    f'Havola {hours} soat amal qiladi va bir marta '
+                    f'ishlatiladi.\n\n'
+                    f'Agar bu so\'rovni siz yubormagan bo\'lsangiz, '
+                    f'xatni e\'tiborsiz qoldiring — parol o\'zgarmaydi.',
                 )
                 login_guard.record(request, user.username, successful=False)
 
-    return render(request, 'dashboard/password_reset.html',
-                  {'sent': sent, 'error': error})
+    # Muddat sozlamadan olinadi — sahifadagi matn va haqiqiy muddat
+    # ajralib qolmasin
+    return render(request, 'dashboard/password_reset.html', {
+        'sent': sent,
+        'error': error,
+        'reset_hours': int(settings.PASSWORD_RESET_TIMEOUT / 3600) or 1,
+    })
 
 
 def password_reset_confirm(request, uidb64, token):

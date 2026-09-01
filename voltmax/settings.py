@@ -243,6 +243,14 @@ REST_FRAMEWORK = {
     },
 }
 
+# Parolni tiklash havolasi shuncha yashaydi. Django ning standarti —
+# UCH KUN, bu esa juda uzoq: xat pochtada qolib ketsa, unga uch kun
+# davomida kirish mumkin bo'lardi. Panel butun tarmoqni boshqaradi.
+#
+# Xatdagi matn ham shu qiymatdan olinadi — ikkalasi ajralib qolmasin.
+PASSWORD_RESET_HOURS = 2
+PASSWORD_RESET_TIMEOUT = PASSWORD_RESET_HOURS * 3600
+
 # ─── JWT ─────────────────────────────────────────────────────
 SIMPLE_JWT = {
     # Kirish tokeni QISQA yashaydi. Ilgari u bir hafta amal qilardi: token

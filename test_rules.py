@@ -119,10 +119,17 @@ def main():
         Holiday.objects.update_or_create(
             date=timezone.localdate(),
             defaults={'name': '__rl Mustaqillik kuni', 'source': Holiday.Source.MANUAL})
-        settings_obj.work_start = dtime(8, 0)
-        settings_obj.work_end = dtime(9, 0)
+        # Oyna HOZIRGI paytdan ikki soat keyin boshlanadi: shunda u
+        # hech qachon hozirni ichiga olmaydi. Ilgari bu yerda aniq
+        # 08:00–09:00 turardi va sinov o'sha soatda ishga tushsa
+        # yiqilardi — soatiga bir marta. Bunday sinov yo'qdan ham
+        # yomon: unga ishonch qolmaydi.
+        closed_start = (timezone.localtime() + timedelta(hours=2)).time()
+        closed_end = (timezone.localtime() + timedelta(hours=3)).time()
+        settings_obj.work_start = closed_start.replace(second=0, microsecond=0)
+        settings_obj.work_end = closed_end.replace(second=0, microsecond=0)
         settings_obj.save()
-        blocked = can_start(driver, now=timezone.localtime().replace(hour=23, minute=0))
+        blocked = can_start(driver)
         check('bayram kuni sababda aytildi', '__rl Mustaqillik kuni' in (blocked or ''), blocked)
         Holiday.objects.filter(name__startswith='__rl').delete()
 
