@@ -28,7 +28,32 @@ if not DEBUG and SECRET_KEY == DEV_SECRET_KEY:
 # hujum yuzasi: uning kirish formasi bizning urinishlar chegarasidan
 # o'tmaydi (u alohida ko'rinish). Kerak bo'lsa ataylab yoqiladi.
 ENABLE_DJANGO_ADMIN = os.getenv('ENABLE_DJANGO_ADMIN', 'True' if DEBUG else 'False') == 'True'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,10.0.2.2,192.168.1.8').split(',')
+ALLOWED_HOSTS = [h for h in os.getenv(
+    'ALLOWED_HOSTS', 'localhost,127.0.0.1,10.0.2.2').split(',') if h]
+
+# Ishlab chiqishda telefon serverga LOKAL TARMOQ manzili bilan ulanadi va
+# u har safar boshqacha: uy Wi-Fi'si, telefon hotspot'i, boshqa ofis.
+# Ilgari bu yerda bitta manzil qattiq yozilgan edi va tarmoq
+# o'zgarganda ilova `DisallowedHost` olardi — sababi esa telefonda
+# «hech narsa yuklanmayapti» bo'lib ko'rinardi.
+#
+# Faqat XUSUSIY diapazonlar qo'shiladi va faqat DEBUG rejimida. Django
+# ham `ALLOWED_HOSTS` bo'sh bo'lsa DEBUG'da shunga o'xshash yon
+# beradi; ishlab chiqarishda ro'yxat o'zgarishsiz qoladi.
+if DEBUG:
+    import socket
+
+    try:
+        # `getaddrinfo` mashinaning HAMMA manzilini beradi: Wi-Fi,
+        # Ethernet, hotspot — qaysi biri ishlatilishini oldindan bilib
+        # bo'lmaydi
+        for info in socket.getaddrinfo(socket.gethostname(), None):
+            host = info[4][0]
+            if host not in ALLOWED_HOSTS:
+                ALLOWED_HOSTS.append(host)
+    except OSError:
+        # Nom yechilmasa ham server ishga tushishi kerak
+        pass
 
 # Railway (va boshqa reverse-proxy'lar) TLS'ni proksida tugatadi va Django'ga
 # ichkarida oddiy HTTP sifatida yuboradi. Shu header bo'lmasa Django so'rovni
