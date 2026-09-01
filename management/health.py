@@ -262,7 +262,7 @@ def check_chargers():
     }]
 
 
-def check_otp():
+def check_otp(with_network=True):
     """OTP shlyuzi: kalit bormi.
 
     Kalit yo'q yoki noto'g'ri bo'lsa HECH KIM ilovaga kira olmaydi.
@@ -305,7 +305,8 @@ def check_otp():
                     'yo‘q odam esa umuman kira olmaydi',
         })
     else:
-        left = sms.balance()
+        # Balans TARMOQ so'rovi: sahifa uni kutmasligi kerak
+        left = sms.balance() if with_network else None
         # Balans past bo'lsa SMS jimgina ketmay qo'yadi
         low = left is not None and left < 50
         checks.append({
@@ -497,18 +498,42 @@ def check_settings():
     return checks
 
 
-def collect():
+# Qisqa kesh: bosh sahifadagi ogohlantirish HAR YUKLASHDA to'liq
+# tekshiruv o'tkazardi — o'nlab so'rov va hatto SMS xizmatiga tarmoq
+# so'rovi. Dashboard shu sababli sekinlashardi.
+#
+# Ogohlantirish uchun yarim daqiqalik eskilik mutlaqo yetarli:
+# muammo bir necha soniya kechroq ko'rinsa hech narsa o'zgarmaydi.
+_CACHE_TTL = 30
+_cached = {'at': 0.0, 'value': None}
+
+
+def collect(cached=False, with_network=True):
     """Barcha tekshiruvlar va umumiy holat.
+
+    `cached` — tez-tez chaqiriladigan joylar uchun (bosh sahifadagi
+    ogohlantirish). Alohida holat sahifasi va `manage.py health` har
+    doim yangisini oladi: u yerga odam AYNAN tekshirish uchun keladi.
+
+    `with_network` — tashqi xizmatga so'rov yuborilsinmi (SMS balansi).
+    Sahifa yuklanishi begona xizmatning javobini kutmasligi kerak.
 
     Har tekshiruv alohida himoyalangan: bittasi yiqilsa ham sahifa
     ochilishi kerak — u aynan tizim buzilganda kerak bo'ladi.
     """
+    import time
+
+    if cached and _cached['value'] is not None:
+        if time.monotonic() - _cached['at'] <= _CACHE_TTL:
+            return _cached['value']
+
     checks = []
     for func in (check_jobs, check_push, check_payments, check_chargers,
                  check_otp, check_mail, check_security, check_backup,
                  check_media, check_settings):
         try:
-            checks.extend(func())
+            checks.extend(func(with_network=with_network)
+                          if func is check_otp else func())
         except Exception as error:      # noqa: BLE001
             checks.append({
                 'key': func.__name__,
@@ -519,10 +544,15 @@ def collect():
             })
 
     overall = _state(*[c['state'] for c in checks]) if checks else 'ok'
-    return {
+    report = {
         'checks': checks,
         'overall': overall,
         'down': [c for c in checks if c['state'] == 'down'],
         'warn': [c for c in checks if c['state'] == 'warn'],
         'checked_at': timezone.now(),
     }
+
+    if cached:
+        _cached['at'] = time.monotonic()
+        _cached['value'] = report
+    return report

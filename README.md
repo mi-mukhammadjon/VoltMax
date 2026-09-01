@@ -160,6 +160,7 @@ python test_injection.py    # soxta idTag, CSV formulasi, ochiq yo'naltirish
 python test_sms.py          # SMS shlyuzi va ikki kanalli yetkazish
 python test_mail.py         # pochta, ogohlantirish, parolni tiklash
 python test_avatar.py       # profil rasmi (panel va ilova)
+python test_query_budget.py # sahifalar nechta so'rov qilishi
 ```
 
 Hammasini o'tkazish: `for f in smoke_panel.py test_*.py; do python "$f"; done`

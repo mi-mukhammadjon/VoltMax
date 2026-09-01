@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncDate
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -140,26 +140,39 @@ def home(request):
     today = timezone.localdate()
     yesterday = today - timedelta(days=1)
 
+    # Ikki kunlik tushum bitta so'rovda: ular bir xil jadvaldan va
+    # yonma-yon ko'rsatiladi
     paid = Transaction.objects.filter(type=Transaction.Type.CHARGE_PAYMENT)
-    today_revenue = paid.filter(created_at__date=today).aggregate(t=Sum('amount'))['t'] or 0
-    yesterday_revenue = paid.filter(created_at__date=yesterday).aggregate(t=Sum('amount'))['t'] or 0
+    revenue = paid.filter(created_at__date__in=[today, yesterday]).aggregate(
+        today=Sum('amount', filter=Q(created_at__date=today)),
+        yesterday=Sum('amount', filter=Q(created_at__date=yesterday)),
+    )
+    today_revenue = revenue['today'] or 0
+    yesterday_revenue = revenue['yesterday'] or 0
 
-    total_stations = stations.count()
-    available = stations.filter(status=Station.Status.AVAILABLE).count()
-    busy = stations.filter(status=Station.Status.BUSY).count()
-    offline = stations.filter(status=Station.Status.OFFLINE).count()
+    # Holatlar BITTA so'rovda sanaladi. Ilgari har biri uchun alohida
+    # `COUNT` ketardi — to'rt so'rov, hammasi bir xil jadvaldan.
+    by_status = dict(
+        stations.values_list('status').annotate(n=Count('id')).values_list('status', 'n'))
+    total_stations = sum(by_status.values())
+    available = by_status.get(Station.Status.AVAILABLE, 0)
+    busy = by_status.get(Station.Status.BUSY, 0)
+    offline = by_status.get(Station.Status.OFFLINE, 0)
 
     active_sessions = ChargingSession.objects.filter(status=ChargingSession.Status.CHARGING).count()
     today_sessions = ChargingSession.objects.filter(started_at__date=today).count()
     new_users_today = User.objects.filter(date_joined__date=today).count()
 
-    # Ulagichlar kesimi — stansiya emas, ulagich darajasidagi haqiqiy bandlik
-    connectors = Connector.objects.all()
+    # Ulagichlar kesimi — stansiya emas, ulagich darajasidagi haqiqiy
+    # bandlik. Bu ham bitta so'rovda (yuqoridagi kabi to'rttada emas).
+    connector_by_status = dict(
+        Connector.objects.values_list('status').annotate(n=Count('id'))
+        .values_list('status', 'n'))
     connector_stats = {
-        'total': connectors.count(),
-        'available': connectors.filter(status=Connector.Status.AVAILABLE).count(),
-        'charging': connectors.filter(status=Connector.Status.CHARGING).count(),
-        'offline': connectors.filter(status=Connector.Status.OFFLINE).count(),
+        'total': sum(connector_by_status.values()),
+        'available': connector_by_status.get(Connector.Status.AVAILABLE, 0),
+        'charging': connector_by_status.get(Connector.Status.CHARGING, 0),
+        'offline': connector_by_status.get(Connector.Status.OFFLINE, 0),
     }
 
     revenue_points, week_revenue = _revenue_chart()
@@ -196,14 +209,22 @@ def home(request):
         seg['offset'] = offset
         offset += seg['pct']
 
-    recent_stations = stations.order_by('-created_at')[:5]
+    # `annotate` ATAYLAB: shablon har stansiya uchun `connectors.count`
+    # so'rardi va bu beshta ortiqcha so'rov edi (N+1). Ro'yxat qisqa
+    # bo'lgani uchun sezilmasdi, lekin bu naqsh uzun ro'yxatda
+    # qimmatga tushadi.
+    recent_stations = (stations.order_by('-created_at')
+                       .annotate(connector_total=Count('connectors'))[:5])
     recent_sessions = ChargingSession.objects.select_related('user', 'station').order_by('-started_at')[:5]
     # Tizim holati: muammo BO'LSAGINA ko'rsatiladi. Hamma narsa joyida
     # bo'lganda ham banner chiqarish uni "fon shovqini"ga aylantirardi va
     # haqiqiy muammo paytida ham e'tiborsiz qolinardi.
     from management.health import collect
 
-    health = collect()
+    # `cached=True` va tarmoqsiz: dashboard har yuklashda o'nlab
+    # so'rov qilmasin va begona xizmatning javobini kutmasin.
+    # Alohida «Tizim holati» sahifasi har doim yangisini oladi.
+    health = collect(cached=True, with_network=False)
 
     return render(request, 'dashboard/home.html', {
         'health': health if health['overall'] != 'ok' else None,

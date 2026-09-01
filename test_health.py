@@ -239,8 +239,11 @@ def main():
         # Hammasi joyida bo'lsa banner KO'RINMASLIGI kerak — aks holda u
         # fon shovqiniga aylanadi va haqiqiy muammo ham sezilmay qoladi
         original_collect = health.collect
-        health.collect = lambda: {'checks': [], 'overall': 'ok', 'down': [],
-                                  'warn': [], 'checked_at': timezone.now()}
+        # `**kwargs`: bosh sahifa `collect(cached=True, with_network=False)`
+        # deb chaqiradi
+        health.collect = lambda **kwargs: {'checks': [], 'overall': 'ok',
+                                           'down': [], 'warn': [],
+                                           'checked_at': timezone.now()}
         try:
             clean = panel.get('/').content.decode('utf-8')
             check('hammasi joyida bo\'lsa banner yo\'q',

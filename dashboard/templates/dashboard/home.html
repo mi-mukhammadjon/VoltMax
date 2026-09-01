@@ -211,7 +211,7 @@
           {% elif station.status == 'busy' %}<span class="badge warning">Band</span>
           {% else %}<span class="badge muted">Ishlamayapti</span>{% endif %}
         </td>
-        <td>{{ station.connectors.count }} ta · {{ station.power_kw }} kVt</td>
+        <td>{{ station.connector_total }} ta · {{ station.power_kw }} kVt</td>
         <td>{{ station.price_per_kwh|som }} so'm/kVt</td>
         <td class="actions">
           <div class="row-actions"><a href="{% url 'dashboard:station_detail' station.id %}" class="btn small secondary">Ko'rish</a></div>
