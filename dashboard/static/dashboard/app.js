@@ -1531,4 +1531,55 @@
     document.documentElement.setAttribute('data-theme', next);
     try { localStorage.setItem('voltmax_theme', next); } catch (err) { /* e'tiborsiz */ }
   });
+
+  /* ══ Yonga surilish sababini topish ══════════════════════════
+     Sahifa yonga surilsa aybdor deyarli har doim BITTA element bo'ladi
+     va uni ko'z bilan topib bo'lmaydi: u ekrandan tashqarida turadi.
+
+     Manzilga `?overflow` qo'shilsa, har bir element o'lchanadi va
+     hujjatdan kengroq chiqqanlari qizil ramka bilan belgilanadi hamda
+     konsolga yoziladi.
+
+     Ishlatish: sahifa manziliga `?overflow` qo'shing va konsolni oching.
+
+     Bu FAQAT so'ralganda ishlaydi — har sahifada butun DOM ni o'lchash
+     qimmatga tushardi. */
+  if (window.location.search.indexOf('overflow') !== -1) {
+    window.addEventListener('load', function () {
+      var limit = document.documentElement.clientWidth;
+      var guilty = [];
+
+      document.querySelectorAll('*').forEach(function (el) {
+        var box = el.getBoundingClientRect();
+        // Chapga chiqib ketgani ham hisobga olinadi: u ham surilishga
+        // sabab bo'ladi
+        if (box.right > limit + 1 || box.left < -1) {
+          guilty.push({
+            element: el,
+            selector: el.tagName.toLowerCase()
+              + (el.id ? '#' + el.id : '')
+              + (el.className && typeof el.className === 'string'
+                 ? '.' + el.className.trim().split(/\s+/).join('.') : ''),
+            right: Math.round(box.right),
+            width: Math.round(box.width),
+          });
+          el.style.outline = '2px solid #E5484D';
+        }
+      });
+
+      if (guilty.length) {
+        console.warn('Sahifadan kengroq ' + guilty.length + ' ta element '
+                     + '(hujjat kengligi ' + limit + 'px):');
+        console.table(guilty.map(function (row) {
+          return { selector: row.selector, right: row.right, width: row.width };
+        }));
+        console.log('Elementlarning o‘zi:', guilty.map(function (r) {
+          return r.element;
+        }));
+      } else {
+        console.log('Sahifadan kengroq element yo‘q.');
+      }
+    });
+  }
+
 })();

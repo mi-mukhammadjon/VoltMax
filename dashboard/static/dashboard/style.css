@@ -133,6 +133,17 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--primary); outli
   padding: var(--s6) var(--s7) var(--s8);
   max-width: 1440px;
   width: 100%;
+  min-width: 0;
+
+  /* Himoya to'ri. `hidden` EMAS, `clip`: `hidden` element ichida
+     surish maydoni yaratadi va undagi `position: sticky` (ommaviy amal
+     paneli) ishlamay qoladi. `clip` esa faqat kesadi.
+     `overflow-y` ataylab ko'rsatilgan: aks holda brauzer uni ham
+     `clip` ga aylantiradi va sahifa pastga surilmay qolardi.
+     Bu SABABNI tuzatmaydi — uni `?overflow` bilan topish kerak
+     (dashboard/app.js). */
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 /* ═══ Sidebar ════════════════════════════════════════════════ */
