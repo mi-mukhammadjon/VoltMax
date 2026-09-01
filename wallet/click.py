@@ -23,6 +23,8 @@ import secrets
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
+from .webhook_guard import note_rejected
+
 logger = logging.getLogger('wallet.click')
 
 PROVIDER_CODE = 'click'
@@ -113,6 +115,7 @@ def prepare(request):
     provider = _provider()
 
     if not _valid_sign(data, provider, with_prepare=False):
+        note_rejected(request, PROVIDER_CODE)
         return _reply(ERROR_SIGN, 'SIGN CHECK FAILED')
     if data.get('action') != ACTION_PREPARE:
         return _reply(ERROR_ACTION, 'Action not found')
@@ -149,6 +152,7 @@ def complete(request):
     provider = _provider()
 
     if not _valid_sign(data, provider, with_prepare=True):
+        note_rejected(request, PROVIDER_CODE)
         return _reply(ERROR_SIGN, 'SIGN CHECK FAILED')
     if data.get('action') != ACTION_COMPLETE:
         return _reply(ERROR_ACTION, 'Action not found')

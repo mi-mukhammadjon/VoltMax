@@ -175,12 +175,27 @@ def check_payments():
         created_at__lt=timezone.now() - timedelta(hours=2),
     ).count()
 
+    # Imzodan o'tmagan so'rovlar: kalitsiz hech narsa qilib bo'lmaydi,
+    # lekin urinishning o'zi ko'rinib turishi kerak — kimdir kalit
+    # tanlayotgan bo'lishi mumkin
+    from management.login_guard import LoginAttempt
+
+    rejected = LoginAttempt.objects.filter(
+        username__startswith='webhook:',
+        created_at__gte=timezone.now() - timedelta(hours=24)).count()
+
     if not active:
         state, hint = 'down', 'Yoqilgan to‘lov tizimi yo‘q — hamyon to‘ldirilmaydi'
     elif not configured:
         state, hint = 'down', 'Yoqilgan, lekin identifikatorlari to‘ldirilmagan'
     elif stuck:
         state, hint = 'warn', f'{stuck} ta to‘lov 2 soatdan beri yakunlanmagan'
+    elif rejected > 20:
+        # Ko'p rad etilgan so'rov ikki narsani bildirishi mumkin:
+        # panelda kalit xato kiritilgan yoki kimdir uni tanlayapti
+        state = 'warn'
+        hint = (f'Sutkada {rejected} ta so‘rov imzodan o‘tmadi — kalit '
+                f'xato kiritilgan yoki kimdir tanlayapti')
     else:
         state, hint = 'ok', ', '.join(p.name for p in configured)
 

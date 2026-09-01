@@ -206,6 +206,13 @@ python manage.py simulate_charger CP-001 --connectors 1 --auto-start 1
 > dan Redis'ga almashtiring — aks holda «Masofadan boshlash» buyrug'i faqat
 > charger ulangan xuddi shu jarayonda ishlaydi.
 
+## Keyingi ishlar
+
+Orqaga surilgan hamma narsa **[KEYINGI-ISHLAR.md](KEYINGI-ISHLAR.md)**
+da: serverga joylashtirish qadamlari, sozlanmagan xizmatlar va
+kelajakdagi imkoniyatlar. Ro'yxat tirik — bajarilgan ish o'chirilmaydi,
+sana bilan belgilanadi.
+
 ## Serverga joylashtirish
 
 Batafsil: **[DEPLOY.md](DEPLOY.md)** — ikkala servis sozlamasi, to'lov

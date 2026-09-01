@@ -255,6 +255,23 @@ def main():
         settings_obj.save()
         _cleanup()
 
+    # ── Rad etilgan so'rovlar yoziladi ──────────────────────
+    # Imzo baribir to'sadi, lekin urinishning O'ZI ko'rinishi kerak:
+    # ilgari u hech qayerga yozilmasdi va kimdir kalit tanlayotganini
+    # bilishning iloji yo'q edi.
+    from management.login_guard import LoginAttempt
+
+    LoginAttempt.objects.filter(username__startswith='webhook:').delete()
+
+    Client().post('/api/payments/payme/', {'method': 'CheckTransaction'},
+                  content_type='application/json')
+    Client().post('/api/payments/click/prepare/', {'sign_string': 'yolgon'})
+
+    logged = LoginAttempt.objects.filter(username__startswith='webhook:')
+    check('rad etilgan webhook urinishlari yozildi', logged.count() == 2,
+          list(logged.values_list('username', flat=True)))
+    LoginAttempt.objects.filter(username__startswith='webhook:').delete()
+
     print('\n' + ('HAMMASI OK' if not failures else f'*** {failures} TA XATO ***'))
     return 1 if failures else 0
 

@@ -33,6 +33,8 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 
+from .webhook_guard import note_rejected as _note_rejected
+
 logger = logging.getLogger('wallet.payme')
 
 PROVIDER_CODE = 'payme'
@@ -139,6 +141,7 @@ def merchant(request):
 
     provider = _provider()
     if not _authorized(request, provider):
+        _note_rejected(request, PROVIDER_CODE)
         return _error(None, ERROR_AUTH, 'Ruxsat berilmadi')
 
     try:
