@@ -1583,6 +1583,7 @@
 
       var doc = document.documentElement;
       var lines = [
+        'To\'rsiz o\'lchandi (himoya vaqtincha olindi)',
         'Ko\'rinish: ' + limit + 'px · hujjat: ' + doc.scrollWidth + 'px'
         + ' · ortiqcha: ' + (doc.scrollWidth - limit) + 'px',
       ];
